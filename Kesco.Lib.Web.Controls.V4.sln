@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kesco.Lib.Web.Controls.V4", "Kesco.Lib.Web.Controls.V4.csproj", "{C24FDAB8-D076-4F0C-8932-DB8160E4C4EF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		KORE|Any CPU = KORE|Any CPU
+		Release|Any CPU = Release|Any CPU
+		Work|Any CPU = Work|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C24FDAB8-D076-4F0C-8932-DB8160E4C4EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C24FDAB8-D076-4F0C-8932-DB8160E4C4EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C24FDAB8-D076-4F0C-8932-DB8160E4C4EF}.KORE|Any CPU.ActiveCfg = KORE|Any CPU
+		{C24FDAB8-D076-4F0C-8932-DB8160E4C4EF}.KORE|Any CPU.Build.0 = KORE|Any CPU
+		{C24FDAB8-D076-4F0C-8932-DB8160E4C4EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C24FDAB8-D076-4F0C-8932-DB8160E4C4EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C24FDAB8-D076-4F0C-8932-DB8160E4C4EF}.Work|Any CPU.ActiveCfg = Work|Any CPU
+		{C24FDAB8-D076-4F0C-8932-DB8160E4C4EF}.Work|Any CPU.Build.0 = Work|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

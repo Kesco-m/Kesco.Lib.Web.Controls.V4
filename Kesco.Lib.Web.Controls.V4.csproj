@@ -1,0 +1,200 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{C24FDAB8-D076-4F0C-8932-DB8160E4C4EF}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Kesco.Lib.Web.Controls.V4</RootNamespace>
+    <AssemblyName>Controls.V4</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <SccProjectName>
+    </SccProjectName>
+    <SccLocalPath>
+    </SccLocalPath>
+    <SccAuxPath>
+    </SccAuxPath>
+    <SccProvider>
+    </SccProvider>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>3</WarningLevel>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DocumentationFile>bin\Debug\Controls.V4.XML</DocumentationFile>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Work|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Work\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <CodeAnalysisLogFile>bin\Debug\V4Controls.dll.CodeAnalysisLog.xml</CodeAnalysisLogFile>
+    <CodeAnalysisUseTypeNameInSuppression>true</CodeAnalysisUseTypeNameInSuppression>
+    <CodeAnalysisModuleSuppressionsFile>GlobalSuppressions.cs</CodeAnalysisModuleSuppressionsFile>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSetDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\\Rule Sets</CodeAnalysisRuleSetDirectories>
+    <CodeAnalysisIgnoreBuiltInRuleSets>true</CodeAnalysisIgnoreBuiltInRuleSets>
+    <CodeAnalysisRuleDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\FxCop\\Rules</CodeAnalysisRuleDirectories>
+    <CodeAnalysisIgnoreBuiltInRules>true</CodeAnalysisIgnoreBuiltInRules>
+    <CodeAnalysisFailOnMissingRules>false</CodeAnalysisFailOnMissingRules>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'KORE|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\KORE\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <CodeAnalysisLogFile>bin\Debug\V4Controls.dll.CodeAnalysisLog.xml</CodeAnalysisLogFile>
+    <CodeAnalysisUseTypeNameInSuppression>true</CodeAnalysisUseTypeNameInSuppression>
+    <CodeAnalysisModuleSuppressionsFile>GlobalSuppressions.cs</CodeAnalysisModuleSuppressionsFile>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSetDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\\Rule Sets</CodeAnalysisRuleSetDirectories>
+    <CodeAnalysisIgnoreBuiltInRuleSets>true</CodeAnalysisIgnoreBuiltInRuleSets>
+    <CodeAnalysisRuleDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\FxCop\\Rules</CodeAnalysisRuleDirectories>
+    <CodeAnalysisIgnoreBuiltInRules>true</CodeAnalysisIgnoreBuiltInRules>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Binding\BindTextValue.cs" />
+    <Compile Include="Binding\V4Binding.cs" />
+    <Compile Include="Binding\BindDocField.cs" />
+    <Compile Include="Binding\BindStringValue.cs" />
+    <Compile Include="Button.cs" />
+    <Compile Include="Chat.cs" />
+    <Compile Include="CheckBox.cs" />
+    <Compile Include="ComboBox.cs" />
+    <Compile Include="Common\DocumentPage\DocPage.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Common\DocumentPage\SignsManager.cs" />
+    <Compile Include="Common\EntityPage.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Common\ReturnDialogResult.cs" />
+    <Compile Include="Control.cs" />
+    <Compile Include="Comet.cs" />
+    <Compile Include="DBControls\Changed.cs" />
+    <Compile Include="FilterGroupBox.cs" />
+    <Compile Include="Handlers\BarCodeHandler.cs" />
+    <Compile Include="Handlers\CometServerHandler.cs" />
+    <Compile Include="Handlers\DialogResultHandler.cs" />
+    <Compile Include="Div.cs" />
+    <Compile Include="Dynatree.cs" />
+    <Compile Include="Globals\GlobalBase.cs" />
+    <Compile Include="Common\IClientCommandProcessor.cs" />
+    <Compile Include="Handlers\HtmlContentHandler.cs" />
+    <Compile Include="Link.cs" />
+    <Compile Include="ListItems.cs" />
+    <Compile Include="Menu.cs" />
+    <Compile Include="Number.cs" />
+    <Compile Include="Common\PageEventManager.cs" />
+    <Compile Include="Handlers\PageHandler.cs" />
+    <Compile Include="Common\PageManager.cs" />
+    <Compile Include="PagingBar\PagingBar.cs" />
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+    <Compile Include="Radio.cs" />
+    <Compile Include="Renderer\DialogWindowFeatures.cs" />
+    <Compile Include="Renderer\NumberRenderer.cs" />
+    <Compile Include="Renderer\Renderer.cs" />
+    <Compile Include="DatePicker.cs" />
+    <Compile Include="Common\Page.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="RenderContent.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Select.cs" />
+    <Compile Include="StoreNameTextBox.cs" />
+    <Compile Include="TextArea.cs" />
+    <Compile Include="TextBox.cs" />
+    <Compile Include="PeriodTimePicker.cs" />
+    <Compile Include="Time.cs" />
+    <Compile Include="URICreateEntity.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="PagingBar\PagingBarContent.htm" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kesco.Lib.BaseExtention\Kesco.Lib.BaseExtention.csproj">
+      <Project>{D26C8D93-C51B-4F61-ADA8-8527A18E4C41}</Project>
+      <Name>Kesco.Lib.BaseExtention</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Kesco.Lib.Convert\Kesco.Lib.ConvertExtention.csproj">
+      <Project>{9C6AB086-FDB5-4FBC-B358-092C47F6B4F4}</Project>
+      <Name>Kesco.Lib.ConvertExtention</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Kesco.Lib.DALC\Kesco.Lib.DALC.csproj">
+      <Project>{5F647577-BC44-41DE-AFBE-BC47C91548F1}</Project>
+      <Name>Kesco.Lib.DALC</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Kesco.Lib.Entities\Kesco.Lib.Entities.csproj">
+      <Project>{DEAA04C2-AFB2-4AD0-B161-A5BF6C26A9DB}</Project>
+      <Name>Kesco.Lib.Entities</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Kesco.Lib.Localization\Kesco.Lib.Localization.csproj">
+      <Project>{895BE7DB-796B-40DD-B338-01B9C53F8308}</Project>
+      <Name>Kesco.Lib.Localization</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Kesco.Lib.Log\Kesco.Lib.Log.csproj">
+      <Project>{FC924B22-160A-4F7F-98EB-63E420DE694E}</Project>
+      <Name>Kesco.Lib.Log</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Kesco.Lib.Web.Comet\Kesco.Lib.Web.Comet\Kesco.Lib.Web.Comet.csproj">
+      <Project>{EB32DBFE-59E0-4F6C-A718-BE9BA708C64F}</Project>
+      <Name>Kesco.Lib.Web.Comet</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Kesco.Lib.Web.Settings\Kesco.Lib.Web.Settings.csproj">
+      <Project>{26BB8CDB-8901-44BF-85BC-864F97941C60}</Project>
+      <Name>Kesco.Lib.Web.Settings</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

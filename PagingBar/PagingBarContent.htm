@@ -1,0 +1,75 @@
+﻿<table ID="[CID]" cellSpacing="0" cellPadding="0" style="BORDER-COLLAPSE: collapse; width: 200px">
+    <tr height="5">
+        <td noWrap id="[CID]_dateCaption" width="1%" style="padding-right: 3px">[L_CURRENT_PAGE]</td>
+        <td id="[CID]_dateCell">
+            <table cellSpacing="0" cellPadding="0" ID="[CID]_Table2" style="BORDER-COLLAPSE: collapse">
+                <tr>
+                    <td>
+                        <input style="margin-bottom: -3px" class="NormalButtonStyle" tabindex="[TabIndex]" title="[L_FIRST_PAGE]" onclick=" WaitAndGo('[LISTENER]', '[CID]_goFirst'); " id="[CID]_btnFirst" name="[CID]_btnFirst" onmouseover=" OnPageNavMouseOver(); " onmouseout=" OnPageNavMouseOut(); " type="image" src="/STYLES/PageFirst.gif"/>
+                    </td>
+                    <td>
+                        <input style="margin-bottom: -3px" class="NormalButtonStyle" tabindex="[TabIndex]" title="[L_PREV_PAGE]" onclick=" WaitAndGo('[LISTENER]', '[CID]_goPrev'); " id="[CID]_btnPrev" name="[CID]_btnPrev" onmouseover=" OnPageNavMouseOver(); " onmouseout=" OnPageNavMouseOut(); " type="image" src="/STYLES/PagePrev.gif"/>
+                    </td>
+                    <td >[C_CURRENT_NUMB]</td>
+                    <td >&nbsp;[L_TOTAL]&nbsp;<span id="[CID]_TotalPages"></span>&nbsp;</td>
+                    <td>
+                        <input style="margin-bottom: -3px" class="NormalButtonStyle" tabindex="[TabIndex]" title="[L_NEXT_PAGE]" onclick=" WaitAndGo('[LISTENER]', '[CID]_goNext'); " id="[CID]_btnNext" name="[CID]_btnNext" onmouseover=" OnPageNavMouseOver(); " onmouseout=" OnPageNavMouseOut(); " type="image" src="/STYLES/PageNext.gif"/>
+                    </td>
+                    <td>
+                        <input style="margin-bottom: -3px" class="NormalButtonStyle" tabindex="[TabIndex]" title="[L_LAST_PAGE]" onclick=" WaitAndGo('[LISTENER]', '[CID]_goLast'); " id="[CID]_btnLast" name="[CID]_btnLast" onmouseover=" OnPageNavMouseOver(); " onmouseout=" OnPageNavMouseOut(); " type="image" src="/STYLES/PageLast.gif"/>
+                    </td>
+                    <td >&nbsp;&nbsp;&nbsp;</td>
+                    <td noWrap style="padding-right: 3px">[L_ROWS_PER_PAGE]</td>
+                    <td >[C_ROWS_PER_PAGE_NUMB]</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+<script type="text/javascript">
+    var NormalButtonStyle = "NormalButton";
+    var HoverButtonStyle = "HoverButton";
+    var DisabledButton = "DisabledButton";
+
+    function WaitAndGo(name, val) {
+        Wait.render(true);
+        cmdasync("cmd", "Listener", "ctrlId", name, "cmdName", val);
+        setDisableButton();
+    }
+
+    function OnPageNavMouseOver() {
+        var btn = event.target || event.srcElement;
+        if (btn.disabled == false) {
+            btn.className = HoverButtonStyle;
+        }
+    }
+
+    function OnPageNavMouseOut() {
+        var btn = event.target || event.srcElement;
+        if (btn.disabled == true) {
+            btn.className = DisabledButton;
+        } else {
+            btn.className = NormalButtonStyle;
+        }
+    }
+
+    function setDisableButton() {
+        var btn = gi("[CID]_btnFirst");
+        btn.className = DisabledButton;
+        btn.src = "/STYLES/PageFirst.gif";
+
+        btn = gi("[CID]_btnPrev");
+        btn.className = DisabledButton;
+        btn.src = "/STYLES/PagePrev.gif";
+
+        btn = gi("[CID]_btnNext");
+        btn.className = DisabledButton;
+        btn.src = "/STYLES/PageNext.gif";
+
+        btn = gi("[CID]_btnLast");
+        btn.className = DisabledButton;
+        btn.src = "/STYLES/PageLast.gif";
+
+    }
+</script>
