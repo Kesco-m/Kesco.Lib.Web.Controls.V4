@@ -186,7 +186,7 @@
       <Project>{FC924B22-160A-4F7F-98EB-63E420DE694E}</Project>
       <Name>Kesco.Lib.Log</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Kesco.Lib.Web.Comet\Kesco.Lib.Web.Comet\Kesco.Lib.Web.Comet.csproj">
+    <ProjectReference Include="..\Kesco.Lib.Web.Comet\Kesco.Lib.Web.Comet.csproj">
       <Project>{EB32DBFE-59E0-4F6C-A718-BE9BA708C64F}</Project>
       <Name>Kesco.Lib.Web.Comet</Name>
     </ProjectReference>
@@ -199,11 +199,5 @@
     <EmbeddedResource Include="Grid\GridContent.htm" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
+  
 </Project>
