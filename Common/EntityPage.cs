@@ -4,7 +4,9 @@ using System.Collections.Specialized;
 using System.IO;
 using System.Web;
 using Kesco.Lib.BaseExtention;
+using Kesco.Lib.BaseExtention.BindModels;
 using Kesco.Lib.BaseExtention.Enums.Controls;
+using Kesco.Lib.Entities;
 using Kesco.Lib.Web.Comet;
 
 namespace Kesco.Lib.Web.Controls.V4.Common
@@ -35,12 +37,48 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         }
 
         /// <summary>
+        ///     сущность страницы
+        /// </summary>
+        public Entity Entity;
+
+        protected override void OnInit(EventArgs e)
+        {
+            base.OnInit(e);
+            EntityFieldInit();
+        }
+
+        protected virtual void EntityFieldInit()
+        {
+            if (Entity != null)
+            {
+                foreach (var field in Entity.GetType().GetFields())
+                {
+                    if (field.FieldType.Name != "BinderValue") continue;
+                    var method = field.FieldType.GetMethod("ValueChangedEvent_Invoke", new Type[] { typeof(string), typeof(string) });
+                    if (method != null)
+                    {
+                        method.Invoke(((BinderValue)field.GetValue(Entity)), new object[] { ((BinderValue)field.GetValue(Entity)).Value, "" });
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         ///     Id сущности (если нужно int значение используй ItemId)
         /// </summary>
         public string EntityId
         {
             get { return ItemId.ToString(); }
             set { ItemId = value.ToInt(); }
+        }
+
+        /// <summary>
+        /// Название сущности (свойство добавлено для поддержания единого подхода, можно использовать ItemName)
+        /// </summary>
+        public string EntityName
+        {
+            get { return ItemName; }
+            set { ItemName = value; }
         }
 
         /// <summary>
@@ -200,6 +238,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                     SetIdEntity(V4Request.Params["setIdEntity"], V4Request.Params["command"]);
                     break;
             }
+        }
+
+        public virtual void CloseJQueryDialogForm(string idContainer)
+        {
         }
     }
 }

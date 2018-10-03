@@ -1,0 +1,40 @@
+﻿ 
+<div id="[CID]" style="overflow: auto" class="divCheck"></div>
+<div class="v4DivTable" style="margin-left: 10px; margin-top: 10px;">
+    <div class="v4DivTableRow" id="divPageBar_[CID]" style="display: none;">
+        <div class="v4DivTableCell">
+            [C_PAGINGBAR]
+        </div>
+        <div id="divResultCount_[CID]" class="v4DivTableCell v4GridFilterText"></div>
+    </div>
+</div>
+
+<!-- Диалог настройки колонки-->
+<div id="divColumnSettingsForm_[CID]" style="display: none;">
+     <div id="divColumnSettingsForm_Sort_[CID]"></div>
+    <hr class="v4HrPopup"/>
+     <div id="divColumnSettingsForm_ClearUserFilter_[CID]"  style="margin-bottom: 5px;"></div>
+     <div id="divColumnSettingsForm_UserFilter_[CID]"  style="margin-bottom: 10px;"></div>
+     
+     <div id="divColumnSettingsForm_AllValues_[CID]"></div>
+     <div id="divColumnSettingsForm_Values_[CID]" style="height:170px; overflow:auto;"></div>
+</div>
+
+<div id="divColumnSettingsUserFilterForm_[CID]" style="display: none;">
+    <div id="divColumnSettingsUserFilterForm_Header_[CID]"></div>
+    <hr class="v4HrPopup"/>
+
+    <div id="divColumnSettingsUserFilterForm_Body_[CID]" style="margin-bottom: 10px;"></div>
+</div>
+
+<script>
+    $(document).ready(function () {
+        var objFrom_ListData = gi("[CID]");
+        if (objFrom_ListData) $("#[CID]").height($(window).height() - [MARGIN_BOTTOM]);
+
+        $(window).resize(function () {
+            if (objFrom_ListData) $("#[CID]").height($(window).height() - [MARGIN_BOTTOM]);
+        });
+
+    });
+</script>

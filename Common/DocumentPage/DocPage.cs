@@ -54,7 +54,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         /// <summary>
         ///     Документ
         /// </summary>
-        public Document Doc;
+        public Document Doc
+        {
+            get { return (Document)Entity; }
+            set { Entity = value; }
+        }
 
         /// <summary>
         ///     Дата документа в режиме редактирования
@@ -82,9 +86,14 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         public bool IsPrintVersion;
 
         /// <summary>
-        ///     Id следующего контрола для установки фокуса после даты
+        ///     Id следующего контрола для установки фокуса после номера договора
         /// </summary>
         public string NextControlAfterNumber;
+
+        /// <summary>
+        ///     Id следующего контрола для установки фокуса после описания
+        /// </summary>
+        public string NextControlAfterDocDesc;
 
         /// <summary>
         ///     не выводить блок с подписями на ЭФ
@@ -126,6 +135,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         ///     Показывать кнопку сохранения
         /// </summary>
         public bool ShowSaveButton;
+
+        /// <summary>
+        ///     Показывать кнопку редактирования
+        /// </summary>
+        public bool ShowEditButton = true;
 
         protected DocPage()
         {
@@ -184,7 +198,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             base.OnInit(e);
 
             if (Request["CopyDoc"] != null)
+            {
                 CopyDocMethod(Request["CopyDoc"]);
+                InitControls();
+                InitFields();
+            }
             else
             {
                 DocumentInitialization();
@@ -193,7 +211,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 
                 var typeId = Doc.TypeID;
                 LoadData(EntityId);
-
 
                 InitControls();
                 InitFields();
@@ -282,7 +299,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 };
 
                 _numberDoc.Changed += NumberDocChanged;
-                _numberDoc.V4Attributes.Add("onkeydown", "switch(event.keyCode){case 13: event.keyCode=9;break;}");
+                //_numberDoc.V4Attributes.Add("onkeydown", "switch(event.keyCode){case 13: event.keyCode=9;break;}");
                 _numberDoc.IsRequired = NumberRequired;
                 if (!Doc.IsNew && string.IsNullOrEmpty(Doc.Number) && !NumberRequired)
                     _numberDoc.Visible = false;
@@ -458,6 +475,19 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             RefreshDocTitle();
             RefreshNumber();
             RefreshNtf();
+            RefreshManualNotifications();
+        }
+
+        // Виртуальная функция, чтобы программист мог обновить те части формы, какие считает нужным при нажатии кнопки Обновить
+        protected virtual void RefreshManualNotifications()
+        {
+        }
+
+        /// <summary>
+        ///     Обновляет табличные поля, специфичные для данного документа(без полной перезагрузки страницы)
+        /// </summary>
+        public virtual void RefreshTableCurrentDoc()
+        {
         }
 
         /// <summary>
@@ -614,10 +644,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         /// <summary>
         ///     Установить фокус на контрол по его ID
         /// </summary>
-        /// <param name="contolId">HtmlID контрола</param>
-        public override void V4SetFocus(string contolId)
+        /// <param name="controlId">HtmlID контрола</param>
+        public override void V4SetFocus(string controlId)
         {
-            if (contolId == "DocNumber")
+            if (controlId == "DocNumber")
             {
                 if (Doc.IsNew)
                 {
@@ -641,7 +671,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 return;
             }
 
-            base.V4SetFocus(contolId);
+            base.V4SetFocus(controlId);
         }
 
         /// <summary>
@@ -914,12 +944,56 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             JS.Write("v4_windowOpen('{0}');", urlForCopy);
         }
 
+
+        private string GetCurrentDocEditUrl(string url)
+        {
+            var qs = Request.QueryString.ToString()
+                        .Split(new[] { "&" }, StringSplitOptions.RemoveEmptyEntries);
+
+            var param = "";
+            foreach (var s in qs)
+            {
+                var pair = s.Split(new[] { "=" }, StringSplitOptions.RemoveEmptyEntries);
+                if (pair.Length == 2)
+                {
+                    if (pair[0].ToLower() != "type" && pair[0].ToLower() != "isie8" &&
+                        pair[0].ToLower() != "docview" && pair[0].ToLower() != "nosign")
+                    {
+                        param += "&" + pair[0] + "=" + pair[1];
+                    }
+                }
+                if (!String.IsNullOrEmpty(param))
+                {
+                    param = param.Remove(0, 1);
+                    param = "?" + param;
+                }
+            }
+            return url + param;
+        }
+
         /// <summary>
         ///     Сформировать кнопки меню
         /// </summary>
         protected virtual void SetDocMenuButtons()
         {
             ClearMenuButtons();
+
+            if (!Doc.Unavailable && Doc.DocType!=null && !Doc.DocType.Unavailable && !String.IsNullOrEmpty(Doc.DocType.URL)
+                && ShowEditButton && IsInDocView && !Doc.Signed)
+            {
+                var urlEdit = GetCurrentDocEditUrl(Doc.DocType.URL);
+                var btnEdit = new Button
+                {
+                    ID = "btnEdit",
+                    V4Page = this,
+                    Text = Resx.GetString("cmdEdit"),
+                    Title = Resx.GetString("cmdEdit"),
+                    IconJQueryUI = ButtonIconsEnum.Edit,
+                    Width = 115,
+                    OnClick = string.Format("v4_windowOpen('{0}');", urlEdit)
+                };
+                AddMenuButton(btnEdit);
+            }
 
             if (ShowSaveButton && !IsInDocView)
             {
@@ -1303,6 +1377,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             if (ShowSaveData) cmds = new List<DBCommand>();
             
             Doc.Save(false, cmds);
+
             var doc = Doc as IDocumentWithPositions;
             if (doc != null)
                     doc.SaveDocumentPositions(false, cmds);
@@ -1732,7 +1807,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 MaxLength = 500,
                 Width = fieldWidth, //334,
                 ID = "txaDocDesc",
-                BindStringValue = Doc.DescriptionBinder
+                BindStringValue = Doc.DescriptionBinder,
+                NextControl = NextControlAfterDocDesc
             };
 
 
@@ -2144,6 +2220,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             {
                 w.Write(@"<div id=""trDocNumDateName"">");
             }
+
             w.Write(@"<table cellspacing=""0"" cellPadding=""0"" border=""0"" width=""99.5%"">
 			<tr>
 				<td vAlign=""top"" width=""100px"">{0}:</td>
@@ -2181,7 +2258,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 }
                 w.Write(@"</td>");
             }
-
 
             w.Write(@"</tr>
 					</table>

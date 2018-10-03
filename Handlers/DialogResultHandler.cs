@@ -28,10 +28,26 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
 
         private void ProcessRequestByIdPage(HttpContext context)
         {
+
+
+
             var callbackKey = context.Request.Form["callbackKey"] ?? context.Request.QueryString["callbackKey"];
-            var control = context.Request.Form["control"] ?? context.Request.Form["callbackKey"] ?? context.Request.QueryString["callbackKey"];
+            var control = context.Request.Form["control"] ?? context.Request.Form["control"] ?? context.Request.QueryString["control"];
             var clientName = context.Request.Form["clientname"] ?? context.Request.QueryString["clientname"];
-            
+            var command = context.Request.Form["command"] ?? context.Request.QueryString["command"];
+
+
+            //Реализуем принудительное закрытие comet-соединения.
+            if (control == "window" && command == "pageclose")
+            {
+                var p = context.Application[callbackKey] as Page;
+                if (p != null)
+                    p.V4Dispose();
+                return;
+            }
+
+            control = context.Request.Form["control"] ?? context.Request.Form["control"] ?? context.Request.QueryString["callbackKey"];
+
             if (string.IsNullOrEmpty(callbackKey) || string.IsNullOrEmpty(control))
             {
                 throw new Log.LogicalException("Ошибка передачи параметров",
@@ -67,7 +83,6 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             var value = context.Request.Form["value"];
             var valueText = context.Request.Form["valueText"];
             var escaped = context.Request.Form["escaped"];
-            var command = context.Request.Form["command"];
             var multiReturn = context.Request.Form["multiReturn"];
 
             if (escaped.Equals("1"))
@@ -145,7 +160,7 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             context.Response.Write("<html>");
             context.Response.Write("<head>");
             context.Response.Write(
-                "<script src='/Styles/Kesco.V4/JS/jquery-1.11.3.min.js' type='text/javascript'></script>");
+                "<script src='/Styles/Kesco.V4/JS/jquery-1.12.4.min.js' type='text/javascript'></script>");
             context.Response.Write("<script src='/Styles/Kesco.V4/JS/kesco.Dialog.js' type='text/javascript'></script>");
 
             context.Response.Write(@"

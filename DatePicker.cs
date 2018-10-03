@@ -238,8 +238,9 @@ namespace Kesco.Lib.Web.Controls.V4
 
         private void RenderDatePicker(TextWriter w)
         {
+            w.Write("<span id='{0}'>", HtmlID);
             w.Write(
-                "<input type='text' value='{0}' id='{1}_0' class=\"v4d_datepicker\" style=\"width:80px;\" onchange=\"v4d_changed('{1}',true);\" onkeydown='v4d_keyDown(event, {1});' {2}",
+                "<input type='text' value='{0}' id='{1}_0' class=\"v4d_datepicker\" style=\"width:80px;\" onchange=\"v4_ctrlChanged('{1}',true, true);\" onkeydown='v4d_keyDown(event, this);' {2}",
                 Value, HtmlID, Visible ? "" : "style=\"display:none;\"");
 
             w.Write(" t='{0}' help='{1}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help));
@@ -255,6 +256,8 @@ namespace Kesco.Lib.Web.Controls.V4
             if (!string.IsNullOrEmpty(NextControl))
                 w.Write(" nc='{0}'", IsUseCondition ? GetHtmlIdNextControl() : NextControl);
             w.Write(" />");
+
+            w.Write("</span>");
 
             if (!V4Page.V4IsPostBack)
                 w.Write("<script>v4_Datepicker.init('{0}_0', '{1}'); v4_replaceStyleRequired(gi('{0}_0'));</script>", HtmlID, V4Page.CurrentUser.Language);
@@ -419,8 +422,8 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 if (ValueDate > _maxDate && _maxDate != DateTime.MinValue && ValueDate != DateTime.MinValue)
                     ValueDate = _maxDate;
 
-                JS.Write("gi('{0}_0').value='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
-                JS.Write("gi('{0}_0').setAttribute('t','{1}');", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
+                JS.Write("if(gi('{0}_0')){{gi('{0}_0').value='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
+                JS.Write("gi('{0}_0').setAttribute('t','{1}');}}", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
             }
 
             if (PropertyChanged.Contains("ListChanged"))

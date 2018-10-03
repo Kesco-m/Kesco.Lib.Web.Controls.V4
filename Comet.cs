@@ -33,6 +33,8 @@ namespace Kesco.Lib.Web.Controls.V4
         private readonly string _lblTogetherWork;
         private List<CometAsyncState> _entityActiveConnections;
 
+        public bool CometDisplay { get; set; }
+
         /// <summary>
         ///     Конструктор
         /// </summary>
@@ -68,7 +70,9 @@ namespace Kesco.Lib.Web.Controls.V4
                 CometServer.Connections.Where(
                     x =>
                         x.Tries > 0 && x.Start > DateTime.MinValue && x.ClientGuid != V4Page.IDPage && x.Id != 0 && 
-                        x.Id == int.Parse(((EntityPage) V4Page).EntityId)).ToList();
+                        x.Id == int.Parse(((EntityPage) V4Page).EntityId) &&
+                        x.Name == ((EntityPage)V4Page).EntityName
+                        ).ToList();
         }
 
         /// <summary>
@@ -79,21 +83,27 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="status">0-подключился; 1-отключился</param>
         private void CometServer_NotifyClients(CometAsyncState state, string clientGuid = null, int status = 1)
         {
-            if ((V4Page.IDPage == clientGuid || (state != null && V4Page.IDPage == state.ClientGuid))) return;
+           if ((V4Page.IDPage == clientGuid || (state != null && V4Page.IDPage == state.ClientGuid))) return;
 
             _entityActiveConnections = GetEntityActiveConnections();
+
             var displayControl = false;
             var cometUsers = RenderBodyConrol(out displayControl, true);
 
-            CometServer.PushMessage(
-                new CometMessage
-                {
-                    ClientGuid = V4Page.IDPage,
-                    IsV4Script = true,
-                    Message = cometUsers,
-                    Status = 0,
-                    UserName = ""
-                }, V4Page.IDPage);
+            if (CometDisplay != displayControl)
+            {
+                CometDisplay = displayControl;
+
+                CometServer.PushMessage(
+                    new CometMessage
+                    {
+                        ClientGuid = V4Page.IDPage,
+                        IsV4Script = true,
+                        Message = cometUsers,
+                        Status = 0,
+                        UserName = ""
+                    }, V4Page.IDPage);
+            }
         }
 
         /// <summary>
@@ -101,10 +111,10 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         /// <param name="clientGuid">IDP клиента</param>
         /// <param name="message">Сообщение</param>
-        private void CometServer_NotifyMessages(string id, string clientGuid, string message)
+        private void CometServer_NotifyMessages(string id, string name, string clientGuid, string message)
         {
             if (!(V4Page is EntityPage)) return;
-            if (((EntityPage) V4Page).EntityId != id) return;
+            if (((EntityPage)V4Page).EntityId != id && ((EntityPage)V4Page).EntityName !=name) return;
 
             var jsMessage = RenderCometMessage(clientGuid, message);
             CometServer.PushMessage(
@@ -128,6 +138,8 @@ namespace Kesco.Lib.Web.Controls.V4
             _entityActiveConnections = GetEntityActiveConnections();
 
             var cometUsers = RenderBodyConrol(out displayControl);
+
+            Visible = displayControl;
 
             w.Write(
                 "<img id='{0}_0' src=\"/Styles/chat.png\" border=\"0\" style='margin-left: 5px; margin-right: 5px; {3}' onclick='{4}v4_cometShowList(\"{0}\");' onmouseover=\"this.style.cursor='pointer';\" help='{1}' {2} title='{5}' />",
@@ -276,7 +288,7 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             if (PropertyChanged.Contains("Visible"))
             {
-                JS.Write("gi('{0}').style.display='{1}';", HtmlID, Visible ? "" : "none");
+                JS.Write("if(gi('{0}')) gi('{0}').style.display='{1}';", HtmlID, Visible ? "" : "none");
             }
             if (PropertyChanged.Contains("Value"))
             {

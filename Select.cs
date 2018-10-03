@@ -402,7 +402,7 @@ namespace Kesco.Lib.Web.Controls.V4
             w.Write("<input type='button' id='{0}_1' {1}", HtmlID, disabled_attribute);
 
             if (Value.Length > 0 && URLShowEntity.Length > 0)
-                w.Write(" class='v4s_btnDetail' onclick=\"v4_windowOpen('{0}', '')\"",
+                w.Write(" class='v4s_btnDetail' onclick=\"v4_windowOpen('{0}', '');\"",
                     URLShowEntity + (URLShowEntity.IndexOf("?") > 0 ? "&" : "?") + "id=" + Value);
             else if (Value.Length > 0 && FuncShowEntity.Length > 0)
                 w.Write(" class='v4s_btnDetail'");
@@ -449,6 +449,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 w.Write(" isRequired={0}", IsRequired ? 1 : 0);
                 w.Write(" t='{0}'", HttpUtility.HtmlEncode(ValueText));
                 w.Write(" v='{0}'", HttpUtility.HtmlEncode(Value));
+                w.Write(" stxt=''");
 
                 if (IsCustomRecordInPopup)
                     w.Write(" crp='{0}'", HttpUtility.HtmlEncode(CustomRecordId));
@@ -473,22 +474,27 @@ namespace Kesco.Lib.Web.Controls.V4
                 w.Write(" oninput=\"v4s_textChange(event, '{0}', 0);\"", HtmlID);
                 w.Write(" onpropertychange=\"v4s_textChange(event, '{0}', 1);\"", HtmlID);
 
+                var cssSelectClass = "v4si";
+
                 if (IsRequired && Value.Length == 0)
                 {
-                    w.Write(" class='v4s_required'");
+                    cssSelectClass += " v4s_required";
+                    
                 }
                 else if (!String.IsNullOrEmpty(ClassFieldset))
                 {
-                    w.Write(" class='{0}'", ClassFieldset);
+                    cssSelectClass += " " + ClassFieldset;                    
                 }
                 else if (IsCaller)
                 {
-                    w.Write(" class='v4_callerControl'");
+                    cssSelectClass += " v4_callerControl";                    
                 }
                 else if (IsItemCompany && !String.IsNullOrEmpty(ValueText))
                 {
-                    w.Write(" class='v4_itemCompanyControl'");
+                    cssSelectClass += " v4_itemCompanyControl";                                  
                 }
+
+                w.Write(" class='{0}' ", cssSelectClass);
 
                 if (TabIndex.HasValue)
                 {
@@ -656,10 +662,11 @@ namespace Kesco.Lib.Web.Controls.V4
 
             if (PropertyChanged.Contains("ValueText") || PropertyChanged.Contains("Value"))
             {
-                V4Page.JS.Write("gi('{0}_0').value='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(ValueText));
+                V4Page.JS.Write("if(gi('{0}_0')) {{gi('{0}_0').value='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(ValueText));
                 V4Page.JS.Write("gi('{0}_0').setAttribute('t','{1}');", HtmlID,
                     Value.Length == 0 ? "" : HttpUtility.JavaScriptStringEncode(ValueText));
-                V4Page.JS.Write("gi('{0}_0').setAttribute('v','{1}');", HtmlID, Value);
+                V4Page.JS.Write("gi('{0}_0').setAttribute('v','{1}');}}", HtmlID, Value);
+
                 if (IsCaller || IsItemCompany)
                 {
                     V4Page.JS.Write("$('#{0}_0').attr('data-id', '{1}');", HtmlID,

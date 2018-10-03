@@ -61,7 +61,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 "<input type='checkbox' id='{0}_0' {1} style='padding-bottom: 3px;' onclick=\"cmd('ctrl','{0}','v',(this.checked?'1':'0'));\"",
                 HtmlID, Checked ? "checked" : "");
             if (IsReadOnly || IsDisabled)
-                w.Write(" disabled='1'");
+                w.Write(" disabled ");
             if (!string.IsNullOrEmpty(NextControl))
                 w.Write(" nc='{0}'", GetHtmlIdNextControl());
             if (TabIndex.HasValue)

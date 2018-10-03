@@ -185,7 +185,7 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             sb0.Append("<title>");
             sb0.Append("Ошибка!");
             sb0.Append("</title>");
-            sb0.Append("<script src='/Styles/Kesco.V4/JS/jquery-1.11.3.min.js' type='text/javascript'></script>");
+            sb0.Append("<script src='/Styles/Kesco.V4/JS/jquery-1.12.4.min.js' type='text/javascript'></script>");
             sb0.Append("<script src='/Styles/Kesco.V4/JS/jquery-ui.js' type='text/javascript'></script>");
             sb0.Append("<script src='/Styles/Kesco.V4/JS/Kesco.Confirm.js' type='text/javascript'></script>");
             sb0.Append("<link href='/Styles/Kesco.V4/CSS/Kesco.V4.css' rel='stylesheet' type='text/css'/>");

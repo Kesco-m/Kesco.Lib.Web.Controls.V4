@@ -203,7 +203,7 @@ namespace Kesco.Lib.Web.Controls.V4
             get
             {
                 int rez;
-                if (int.TryParse(Regex.Replace(Value.Replace(",", ""), @"\s+", ""), out rez))
+                if (int.TryParse(Regex.Replace(Value.Replace(",", "").Replace(".",""), @"\s+", ""), out rez))
                     return rez;
                 return null;
             }
@@ -375,12 +375,15 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 }
                 else
                 {
-                    w.Write("<input style='width:{0};{1};' id='{2}_0' value='{3}' type='Text'",
+                    var addClass = CSSClass;
+                    w.Write("<input  style='width:{0};{1};' id='{2}_0' value='{3}' type='Text' ",
                         Width.IsEmpty ? "100%" : Width.ToString(),
                         Height.IsEmpty ? "" : "height:" + Height,
                         HtmlID, HttpUtility.HtmlEncode(Value));
                     if (IsDisabled)
                         w.Write(" disabled='true'");
+
+                    w.Write(" t='{0}' help='{1}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help));
 
                     if (!string.IsNullOrEmpty(NextControl))
                     {
@@ -392,10 +395,18 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     if (IsRequired)
                         w.Write("v4_replaceStyleRequired(this);");
                     w.Write("\"");
-                    w.Write(" onchange=\"v4t_changed(event);\"");
+                    w.Write(" onchange=\"v4_ctrlChanged('{0}',true);\"", HtmlID);
 
                     if (IsRequired && Value.Length == 0)
-                        w.Write(" class='v4s_required'");
+                    {
+                        addClass += " v4s_required";
+                        addClass = addClass.Trim();
+                    }
+
+                    if (addClass.Length > 0)
+                        w.Write(" class=\"{0}\"", addClass);
+                    
+                    
                     if (Title.Length > 0)
                         w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
 
@@ -416,22 +427,23 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             if (PropertyChanged.Contains("Value"))
             {
                 if (IsReadOnly)
-                    JS.Write("gi('{0}').innerText='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
+                    JS.Write("if(gi('{0}_0')) gi('{0}').innerText='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
                 else
                 {
-                    JS.Write("gi('{0}_0').value='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
+                    JS.Write("if(gi('{0}_0')){{gi('{0}_0').value='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
+                    JS.Write("gi('{0}_0').setAttribute('t','{1}');}}", HtmlID, Value.Length == 0 ? "" : HttpUtility.JavaScriptStringEncode(Value));
                     if (IsRequired)
                         JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
                 }
             }
             else if (PropertyChanged.Contains("IsRequired"))
             {
-                JS.Write("gi('{0}_0').setAttribute('isRequired','{1}');", HtmlID, IsRequired ? 1 : 0);
+                JS.Write("if(gi('{0}_0')) gi('{0}_0').setAttribute('isRequired','{1}');", HtmlID, IsRequired ? 1 : 0);
                 JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
             }
             if (!IsReadOnly && PropertyChanged.Contains("IsDisabled"))
             {
-                JS.Write("gi('{0}_0').disabled={1};", HtmlID, IsDisabled ? "1" : "null");
+                JS.Write("if(gi('{0}_0')) gi('{0}_0').disabled={1};", HtmlID, IsDisabled ? "1" : "null");
             }
             if (PropertyChanged.Contains("ListChanged"))
             {

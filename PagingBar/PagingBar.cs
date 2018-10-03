@@ -15,7 +15,7 @@ namespace Kesco.Lib.Web.Controls.V4.PagingBar
     /// <summary>
     ///     Листинг страниц в гриде
     /// </summary>
-    public class PagingBar : Control, IClientCommandProcessor
+    public class PagingBar : V4Control, IClientCommandProcessor
     {
         #region Constants
 
@@ -55,7 +55,7 @@ namespace Kesco.Lib.Web.Controls.V4.PagingBar
         {
             var isFirst = (CurrentPageNumber == 1) || Disabled;
             var isLast = (CurrentPageNumber == MaxPageNumber) || Disabled;
-
+            
             //Сосотояние кнопки _btnNext не зависит от _btnFirst, здесь выход преждевременен
             //if (V4Page.JS.ToString().Contains(String.Format("gi('{0}_btnFirst').src = '{1}';", ID, isFirst ? "/STYLES/PageFirst.gif" : "/STYLES/PageFirstActive.gif")))
             //    return;
@@ -224,7 +224,7 @@ namespace Kesco.Lib.Web.Controls.V4.PagingBar
                 if (clearRowsPerPage)
                     _rowsPerPageCtrl.Value = String.Empty;
                 if (!V4Page.JS.ToString().Contains(String.Format("gi('{0}_TotalPages').innerHTML = '';", ID)))
-                    V4Page.JS.Write("gi('{0}_TotalPages').innerHTML = '';", ID);
+                    V4Page.JS.Write("if(gi('{0}_TotalPages')) gi('{0}_TotalPages').innerHTML = '';", ID);
             }
         }
 
@@ -232,7 +232,7 @@ namespace Kesco.Lib.Web.Controls.V4.PagingBar
 
         #region Overrided Methods
 
-        protected override void Render(HtmlTextWriter output)
+        public void RenderContolBody(HtmlTextWriter output)
         {
             var currentAsm = Assembly.GetExecutingAssembly();
             var pagingBarContent =
@@ -270,13 +270,27 @@ namespace Kesco.Lib.Web.Controls.V4.PagingBar
             output.Write(sourceContent);
         }
 
+        public override void RenderControl(HtmlTextWriter output)
+        {
+            RenderContolBody(output);
+        }
+        
         protected override void OnInit(EventArgs e)
+        {
+            PreOnInit();
+            base.OnInit(e);
+            V4LocalInit();
+        }
+
+        public void PreOnInit()
         {
             if (!V4Page.Listeners.Contains(this)) V4Page.Listeners.Add(this);
             ListenerPos = V4Page.Listeners.IndexOf(this);
 
-            base.OnInit(e);
+        }
 
+        public void V4LocalInit()
+        {
             if (V4Page.V4IsPostBack) return;
 
             _currentPageCtrl = new Number();

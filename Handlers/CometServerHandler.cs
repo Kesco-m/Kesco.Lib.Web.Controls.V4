@@ -46,7 +46,7 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
                 sb.Append("</td>");
 
                 sb.Append("<td>");
-                sb.Append(page == null ? "<пусто>" : page.AppRelativeVirtualPath);
+                sb.Append(page == null ? "<пусто>" : state.Name);
                 sb.Append("</td>");
 
                 sb.Append("<td>");

@@ -55,11 +55,14 @@ namespace Kesco.Lib.Web.Controls.V4
                 {
                     w.Write(" disabled='true'");
                 }
+
+                w.Write(" t='{0}' help='{1}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help));
+
                 if (!string.IsNullOrEmpty(NextControl))
                     w.Write(" nc='{0}'", GetHtmlIdNextControl());
                 if (TabIndex.HasValue)
                     w.Write(" TabIndex={0} ", TabIndex);
-                w.Write(" onchange='v4t_changed();'");
+                w.Write(" onchange=\"v4_ctrlChanged('{0}',true);\"",HtmlID);
 
                 if (IsRequired && Value.Length == 0)
                 {

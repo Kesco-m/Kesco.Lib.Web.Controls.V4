@@ -106,6 +106,12 @@
     <Compile Include="Comet.cs" />
     <Compile Include="DBControls\Changed.cs" />
     <Compile Include="FilterGroupBox.cs" />
+    <Compile Include="Grid\Grid.cs" />
+    <Compile Include="Grid\GridColumn.cs" />
+    <Compile Include="Grid\GridColumnUserFilter.cs" />
+    <Compile Include="Grid\GridColumnUserFilterAttribute.cs" />
+    <Compile Include="Grid\GridEnums.cs" />
+    <Compile Include="Grid\GridSettings.cs" />
     <Compile Include="Handlers\BarCodeHandler.cs" />
     <Compile Include="Handlers\CometServerHandler.cs" />
     <Compile Include="Handlers\DialogResultHandler.cs" />
@@ -138,6 +144,7 @@
     <Compile Include="RenderContent.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Select.cs" />
+    <Compile Include="SelectedRunItem.cs" />
     <Compile Include="StoreNameTextBox.cs" />
     <Compile Include="TextArea.cs" />
     <Compile Include="TextBox.cs" />
@@ -188,7 +195,9 @@
       <Name>Kesco.Lib.Web.Settings</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <EmbeddedResource Include="Grid\GridContent.htm" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

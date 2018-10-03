@@ -114,14 +114,14 @@ namespace Kesco.Lib.Web.Controls.V4
                            $('#{2}').text('{3}');
                            $('#{4}').text(v4_toLocalTime('{5}','dd.mm.yyyy hh:mi:ss'));
                            $('#{0}').text('{6}');
-                           gi('{7}').style.display='';
+                           if(gi('{7}')) gi('{7}').style.display='';
                            ", HtmlID + "_link", ChangedByID, HtmlID + "_word", ChangeWord, HtmlID + "_date", Change,
                     ChangedName, HtmlID, Config.user_form + "?id=" + ChangedByID);
             }
 
             if (PropertyChanged.Contains("Visible"))
             {
-                JS.Write("gi('{0}').style.display='{1}';", HtmlID, Visible && ChangedByID != null ? "" : "none");
+                JS.Write("if(gi('{0}')) gi('{0}').style.display='{1}';", HtmlID, Visible && ChangedByID != null ? "" : "none");
             }
         }
 

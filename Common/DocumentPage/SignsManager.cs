@@ -86,42 +86,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             // блок подписей
             w.Write(@"<div id=""signsTable"" style = ""display: table;width:99%;"">");
 
-            // ??
-            if (!_doc.Unavailable && _doc.DocType != null && !_doc.DocType.Unavailable &&
-                !String.IsNullOrEmpty(_doc.DocType.URL))
-            {
-                if (!_doc.Signed && !_docPage.IsPrintVersion && _docPage.IsInDocView)
-                {
-                    w.Write("<div class=\"blackA\" width=\"100%\" align=\"left\">");
-                    var qs = _docPage.Request.QueryString.ToString()
-                        .Split(new[] {"&"}, StringSplitOptions.RemoveEmptyEntries);
-                    var param = "";
-                    foreach (var s in qs)
-                    {
-                        var pair = s.Split(new[] {"="}, StringSplitOptions.RemoveEmptyEntries);
-                        if (pair.Length == 2)
-                        {
-                            if (pair[0].ToLower() != "type" && pair[0].ToLower() != "isie8" &&
-                                pair[0].ToLower() != "docview" && pair[0].ToLower() != "nosign")
-                            {
-                                param += "&" + pair[0] + "=" + pair[1];
-                            }
-                        }
-                        if (!String.IsNullOrEmpty(param))
-                        {
-                            param = param.Remove(0, 1);
-                            param = "?" + param;
-                        }
-                    }
-                    var url = _doc.DocType.URL + param;
-                    w.Write(
-                        "<a class=\"lnkbtn\" href=\"#\" onclick=\"v4_windowOpen('{0}');\">",
-                        url);
-                    w.Write("<img src=\"../../STYLES/Edit.gif\" border=\"0\"> {0}", _resx.GetString("cmdEdit"));
-                    w.Write("</a>");
-                    w.Write("</div>");
-                }
-            }
+            //Здесь была кнопка РЕДАКТИРОВАТЬ
 
             if (!_docPage.NoSign && !_docPage.IsInDocView)
             {

@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Resources;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web;
 using System.Web.UI;
@@ -16,7 +17,9 @@ using System.Xml;
 using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.Enums;
 using Kesco.Lib.BaseExtention.Enums.Controls;
+using Kesco.Lib.Entities;
 using Kesco.Lib.Entities.Corporate;
+using Kesco.Lib.Entities.Persons;
 using Kesco.Lib.Localization;
 using Kesco.Lib.Log;
 using Kesco.Lib.Web.Comet;
@@ -62,6 +65,12 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 //}
             }
         }
+    }
+
+    public class V4PageObj 
+    {
+        public Type Type { get; set; }
+        public Entity Object { get; set; }
     }
 
     /// <summary>
@@ -141,7 +150,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             RegisterCss("/Styles/Kesco.V4/CSS/jquery-ui.css");
             RegisterCss("/Styles/Kesco.V4/CSS/Kesco.V4.css");
 
-            RegisterScript("jquery", "<script src='/Styles/Kesco.V4/JS/jquery-1.11.3.min.js' type='text/javascript'></script>");
+            RegisterScript("jquery", "<script src='/Styles/Kesco.V4/JS/jquery-1.12.4.min.js' type='text/javascript'></script>");
             RegisterScript("jqueryui", "<script src='/Styles/Kesco.V4/JS/jquery-ui.js' type='text/javascript'></script>");
             RegisterScript("jquerycookie", "<script src='/Styles/Kesco.V4/JS/jquery.cookie.js' type='text/javascript'></script>");
             RegisterScript("jqueryqtipmin", "<script src='/Styles/Kesco.V4/JS/jquery.qtip.min.js' type='text/javascript'></script>");
@@ -182,10 +191,15 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         public int ItemId { get; set; }
 
+        ///// <summary>
+        /////     ID типа сущности
+        ///// </summary>
+        //public int TypeId { get; set; }
+
         /// <summary>
-        ///     ID типа сущности
+        /// Название сущности
         /// </summary>
-        public int TypeId { get; set; }
+        public string ItemName { get; set; }
 
         /// <summary>
         ///     Признак возможности редактирования сущности
@@ -528,11 +542,20 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             if (!PostRequest)
             {
                 ItemId = Request["ID"].ToInt();
+                if (string.IsNullOrEmpty(ItemName))
+                {
+                    var match = Regex.Match(AppRelativeVirtualPath, BaseExtention.RegexPattern.FileName,
+                        RegexOptions.IgnoreCase);
+
+                    ItemName = match.Success ? match.Value : AppRelativeVirtualPath;
+                    if (!string.IsNullOrEmpty(ItemName)) ItemName = ItemName.Replace(".","_");
+                }
             }
 
             CometAsyncState state = new CometAsyncState(null, null, null);
             state.ClientGuid = IDPage;
             state.Id = ItemId;
+            state.Name = ItemName;
             state.Page = this;
             CometServer.RegisterClient(state);
 
@@ -598,6 +621,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 sbScripts.AppendFormat("var isEditable = '{0}';", IsEditable ? "true" : "false");
                 sbScripts.Append(Environment.NewLine);
                 sbScripts.AppendFormat("var v4_ItemId = '{0}';", ItemId);
+                sbScripts.Append(Environment.NewLine);
+                sbScripts.AppendFormat("var v4_ItemName = '{0}';", ItemName);
                 sbScripts.Append(Environment.NewLine);
                 sbScripts.Append("</script>");
                 sbScripts.Append(Environment.NewLine);
@@ -799,14 +824,12 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <summary>
         ///     Установить фокус на контрол по его ID
         /// </summary>
-        /// <param name="contolId">HtmlID контрола</param>
-        public virtual void V4SetFocus(string contolId)
+        /// <param name="controlId">HtmlID контрола</param>
+        public virtual void V4SetFocus(string controlId)
         {
-            if (V4Controls.ContainsKey(contolId))
-            {
-                var control = V4Controls[contolId];
-                control.Focus();
-            }
+            if (!V4Controls.ContainsKey(controlId)) return;
+            var control = V4Controls[controlId];
+            control.Focus();
         }
 
         /// <summary>
@@ -1154,6 +1177,22 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="captionNo">Текст на кнопке отмены</param>
         /// <param name="callbackYes">Клиентский скрипт, который долже выполниться после подтверждения</param>
         /// <param name="ctrlIdFocus">Идентиикатор контрола, на который необходимо установить фокус после подтверждения</param>
+        /// <param name="width">Ширина окна</param>
+        public void ShowConfirm(string message, string title, string captionYes, string captionNo, string callbackYes, string callbackNo,
+            string ctrlIdFocus, int? width)
+        {
+            ShowConfirm(message, title, captionYes, captionNo, callbackYes, callbackNo, ctrlIdFocus, 75, 75, width, null);
+        }
+
+        /// <summary>
+        ///     Вывод диалогового окна подтверждения
+        /// </summary>
+        /// <param name="message">Текст сообщения</param>
+        /// <param name="title">Заголовок окна</param>
+        /// <param name="captionYes">Текст на кнопке подтверждения</param>
+        /// <param name="captionNo">Текст на кнопке отмены</param>
+        /// <param name="callbackYes">Клиентский скрипт, который долже выполниться после подтверждения</param>
+        /// <param name="ctrlIdFocus">Идентиикатор контрола, на который необходимо установить фокус после подтверждения</param>
         /// <param name="widthYes">Шинина кнопки подтверждения</param>
         /// <param name="widthNo">Ширина кнопки отмены</param>
         /// <param name="width">Ширина окна</param>
@@ -1161,7 +1200,23 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public void ShowConfirm(string message, string title, string captionYes, string captionNo, string callbackYes,
             string ctrlIdFocus, int? widthYes, int? widthNo, int? width, int? height)
         {
-            JS.Write("v4_showConfirm(\"{0}\",\"{1}\",\"{2}\",\"{3}\",{4},{5},\"{6}\",\"{7}\",{8},{9});",
+            ShowConfirm(message, title, captionYes, captionNo, callbackYes, "", ctrlIdFocus, widthYes, widthNo, width, height);
+        }
+
+        /// <summary>
+        ///     Вывод диалогового окна подтверждения
+        /// </summary>
+        /// <param name="message">Текст сообщения</param>
+        /// <param name="title">Заголовок окна</param>
+        /// <param name="captionYes">Текст на кнопке подтверждения</param>
+        /// <param name="captionNo">Текст на кнопке отмены</param>
+        /// <param name="callbackYes">Клиентский скрипт, который долже выполниться после подтверждения</param>
+        /// <param name="ctrlIdFocus">Идентиикатор контрола, на который необходимо установить фокус после подтверждения</param>
+        /// <param name="width">Ширина окна</param>
+        public void ShowConfirm(string message, string title, string captionYes, string captionNo, string callbackYes, string callbackNo,
+            string ctrlIdFocus, int? widthYes, int? widthNo, int? width, int? height)
+        {
+            JS.Write("v4_showConfirm(\"{0}\",\"{1}\",\"{2}\",\"{3}\",{4},{5},\"{6}\",\"{7}\",\"{8}\",{9},{10});",
                 HttpUtility.JavaScriptStringEncode(message.Replace(Environment.NewLine, "<br>")),
                 HttpUtility.JavaScriptStringEncode(title),
                 HttpUtility.JavaScriptStringEncode(captionYes),
@@ -1169,6 +1224,66 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 widthYes == null ? "null" : widthYes.ToString(),
                 widthNo == null ? "null" : widthNo.ToString(),
                 HttpUtility.JavaScriptStringEncode(callbackYes),
+                HttpUtility.JavaScriptStringEncode(callbackNo),
+                HttpUtility.JavaScriptStringEncode(ctrlIdFocus),
+                width == null ? "null" : width.ToString(),
+                height == null ? "null" : height.ToString());
+        }
+
+      /// <summary>
+        ///     Вывод диалогового окна пересчета
+        /// </summary>
+        /// <param name="message">Текст сообщения</param>
+        /// <param name="title">Заголовок окна</param>
+        /// <param name="captionYes">Текст на кнопке подтверждения</param>
+        /// <param name="captionNo">Текст на кнопке отмены</param>
+        /// <param name="callbackYes">Клиентский скрипт, который долже выполниться после подтверждения</param>
+        /// <param name="ctrlIdFocus">Идентиикатор контрола, на который необходимо установить фокус после подтверждения</param>
+        /// <param name="widthYes">Шинина кнопки подтверждения</param>
+        /// <param name="widthNo">Ширина кнопки отмены</param>
+        /// <param name="width">Ширина окна</param>
+        /// <param name="height">Высота окна</param>
+        public void ShowRecalc(string message, string title, string caption1, string caption2, string caption3, 
+            string caption4, string callback1, string callback2, string callback3, string callback4,
+            string ctrlIdFocus, int? width)
+      {
+          ShowRecalc(message, title, caption1, caption2, caption3,
+                     caption4, callback1, callback2, callback3, callback4,
+                     ctrlIdFocus, 80, 80, 80, 80, width, null);
+      }
+
+        /// <summary>
+        ///     Вывод диалогового окна пересчета
+        /// </summary>
+        /// <param name="message">Текст сообщения</param>
+        /// <param name="title">Заголовок окна</param>
+        /// <param name="captionYes">Текст на кнопке подтверждения</param>
+        /// <param name="captionNo">Текст на кнопке отмены</param>
+        /// <param name="callbackYes">Клиентский скрипт, который долже выполниться после подтверждения</param>
+        /// <param name="ctrlIdFocus">Идентиикатор контрола, на который необходимо установить фокус после подтверждения</param>
+        /// <param name="widthYes">Шинина кнопки подтверждения</param>
+        /// <param name="widthNo">Ширина кнопки отмены</param>
+        /// <param name="width">Ширина окна</param>
+        /// <param name="height">Высота окна</param>
+        public void ShowRecalc(string message, string title, string caption1, string caption2, string caption3, 
+            string caption4, string callback1, string callback2, string callback3, string callback4,
+            string ctrlIdFocus, int? width1, int? width2, int? width3, int? width4, int? width, int? height)
+        {
+            JS.Write("v4_showRecalc(\"{0}\",\"{1}\",\"{2}\",\"{3}\",\"{4}\",\"{5}\",{6},{7},{8},{9},\"{10}\",\"{11}\",\"{12}\",\"{13}\",\"{14}\",{15},{16});",
+                HttpUtility.JavaScriptStringEncode(message.Replace(Environment.NewLine, "<br>")),
+                HttpUtility.JavaScriptStringEncode(title),
+                HttpUtility.JavaScriptStringEncode(caption1),
+                HttpUtility.JavaScriptStringEncode(caption2),
+                HttpUtility.JavaScriptStringEncode(caption3),
+                HttpUtility.JavaScriptStringEncode(caption4),
+                width1 == null ? "null" : width1.ToString(),
+                width2 == null ? "null" : width2.ToString(),
+                width3 == null ? "null" : width3.ToString(),
+                width4 == null ? "null" : width4.ToString(),
+                HttpUtility.JavaScriptStringEncode(callback1),
+                HttpUtility.JavaScriptStringEncode(callback2),
+                HttpUtility.JavaScriptStringEncode(callback3),
+                HttpUtility.JavaScriptStringEncode(callback4),
                 HttpUtility.JavaScriptStringEncode(ctrlIdFocus),
                 width == null ? "null" : width.ToString(),
                 height == null ? "null" : height.ToString());
@@ -1614,5 +1729,45 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             CometServer.PushMessage(m, pred);
             CometServer.Process();
         }
+
+        private List<V4PageObj> objList { get; set; }
+        private List<V4PageObj> ObjList
+        {
+            get
+            {
+                if (objList != null)
+                {
+                    return objList;
+                }
+
+                objList = new List<V4PageObj>();
+                return objList;
+            }
+        }
+
+        public Entity GetObjectById(Type t, string id)
+        {
+            var ret = ObjList.Find(o => o.Type == t && o.Object.Id == id);
+
+            if (ret == null)
+            {
+                var ci = t.GetConstructor(new Type[] { typeof(string) });
+                if (ci != null)
+                {
+                    var o = ci.Invoke(new object[] { id });
+                    ret = new V4PageObj {Type = t, Object = o as Entity};
+                    objList.Add(ret);
+                }
+            }
+
+            if (ret != null) return ret.Object;
+            return null;
+        }
+
+        public void ClearObjects()
+        {
+            objList = null;
+        }
+
     }
 }

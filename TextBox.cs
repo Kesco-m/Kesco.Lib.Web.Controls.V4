@@ -254,7 +254,9 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 if (IsRequired)
                     w.Write("v4_replaceStyleRequired(this);");
                 w.Write("\"");
-                w.Write(" onchange=\"v4t_changed(event);\"");
+                w.Write(" onchange=\"v4_ctrlChanged('{0}', true);\"", HtmlID);
+
+                w.Write(" t='{0}' help='{1}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help));
 
                 var className = "";
                 if (IsCaller)
@@ -263,7 +265,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     w.Write(" caller-type='" + (int) CallerType + "'");
                 }
 
-                if (IsRequired && Value.Length == 0)
+                if (IsRequired && (Value==null || Value.Length == 0))
                     className += "v4s_required";
 
                 if (className.Length > 0)
@@ -300,8 +302,10 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                         HttpUtility.JavaScriptStringEncode(Value));
                 else
                 {
-                    JS.Write("if(gi('{0}_0'))gi('{0}_0').value='{1}';", HtmlID,
+                    JS.Write("if(gi('{0}_0')){{gi('{0}_0').value='{1}';", HtmlID,
                         HttpUtility.JavaScriptStringEncode(Value));
+
+                    JS.Write("gi('{0}_0').setAttribute('t','{1}');}}", HtmlID, Value.Length == 0 ? "" : HttpUtility.JavaScriptStringEncode(Value));
 
                     if (IsRequired)
                         JS.Write("if(gi('{0}_0'))v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
