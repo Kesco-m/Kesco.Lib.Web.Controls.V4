@@ -333,6 +333,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 }
 
                 var result = "";
+                var wTr = false;
                 foreach (var field in displayFields)
                 {
                     string val;
@@ -345,13 +346,13 @@ namespace Kesco.Lib.Web.Controls.V4
                         val = t.GetProperty(field.Trim()).GetValue(o, null).ToString();
                     }
                     result = HttpUtility.HtmlEncode(val);
-
-
-                    w.Write("<tr cmd='select' idItem='{0}' textItem='{1}'>", key, result);
+                    if (!wTr) w.Write("<tr cmd='select' idItem='{0}' textItem='{1}'>", key, result);
+                    wTr = true;
 
                     w.Write("<td noWrap>{0}</td>", result);
-                    w.Write("</tr>");
+
                 }
+                w.Write("</tr>");
             }
             var colSpan = displayFields.Length > 1 ? " colspan='" + displayFields.Length + "'" : "";
             if (n > _maxItemsInPopup && !IsNotUseSelectTop)
@@ -608,7 +609,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 if (!_value.Equals(value))
                 {
                     SetPropertyChanged("Value");
-                    SetControlValue((value ?? "").Trim(), _valueText.Trim());
+                    SetControlValue((value ?? "").Trim());
                 }
             }
         }
@@ -654,7 +655,7 @@ namespace Kesco.Lib.Web.Controls.V4
             SearchText = "";
 
             //Базовые реализации для IsReadOnly IsDisabled реализуют тоже самое
-            if (IsReadOnly || PropertyChanged.Contains("Checked") || PropertyChanged.Contains("HasCheckbox"))
+            if ((PropertyChanged.Contains("IsReadOnly") || PropertyChanged.Contains("IsDisabled")) || PropertyChanged.Contains("Checked") || PropertyChanged.Contains("HasCheckbox"))
             {
                 V4Page.RefreshHtmlBlock(HtmlID, RenderControl);
                 return;

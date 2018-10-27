@@ -59,7 +59,6 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             if (page == null)
             {
                 throw new Exception("Ошибка -> " + callbackKey);
-                return;
             }
 
             if (!string.IsNullOrEmpty(clientName))

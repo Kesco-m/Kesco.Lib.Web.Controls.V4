@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using Kesco.Lib.BaseExtention;
 
 namespace Kesco.Lib.Web.Controls.V4
 {
@@ -28,7 +29,10 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public bool Checked
         {
-            get { return Value.Equals("1"); }
+            get
+            {
+                return !Value.IsNullEmptyOrZero();
+            }
             set
             {
                 if (Value.Equals("1") ^ value)

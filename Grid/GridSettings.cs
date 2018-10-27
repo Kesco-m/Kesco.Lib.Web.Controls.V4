@@ -78,6 +78,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             GridColumnTypeEnum myType;
             switch (typeCode)
             {
+                case TypeCode.Double:
+                    myType = GridColumnTypeEnum.Double;
+                    break;
                 case TypeCode.Decimal:
                     myType = GridColumnTypeEnum.Decimal;
                     break;
@@ -124,19 +127,8 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             return dict;
         }
 
-        /// <summary>
-        /// Установка формата выводимых значений
-        /// </summary>
-        /// <param name="fieldName"></param>
-        /// <param name="formatString"></param>
-        public void SetColumnFormat(string fieldName, string formatString)
-        {
-            if (TableColumns == null) return;
-            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
-            if (clmn != null)
-                clmn.FormatString = formatString;
-        }
-
+       
+        
         /// <summary>
         /// Установка формата колонки в виде HH:MM:SS
         /// </summary>
@@ -164,8 +156,8 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// <summary>
         /// Установка условия для вывода текста в итоговую строку
         /// </summary>
-        /// <param name="fieldName"></param>
-        /// <param name="text"></param>
+        /// <param name="fieldName">Название колонки</param>
+        /// <param name="text">Текст</param>
         public void SetColumnSumValuesText(string fieldName, string text)
         {
             if (TableColumns == null) return;
@@ -174,12 +166,26 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 clmn.SumValuesText = text;
         }
 
+      
+
         /// <summary>
         /// Установка алиасов названий колонок
         /// </summary>
-        /// <param name="fieldName"></param>
-        /// <param name="alias"></param>
-        /// <param name="headerTitle"></param>
+        /// <param name="fields">Словарь названий колонок с алиасами</param>
+        public void SetColumnHeaderAlias(Dictionary<string, string> fields)
+        {
+            foreach (KeyValuePair<string, string> field in fields)
+            {
+                SetColumnHeaderAlias(field.Key, field.Value);
+            }
+        }
+
+        /// <summary>
+        /// Установка алиасов названий колонок
+        /// </summary>
+        /// <param name="fieldName">Название колонки</param>
+        /// <param name="alias">Псевдоним</param>
+        /// <param name="headerTitle">Всплывающая подсказка</param>
         public void SetColumnHeaderAlias(string fieldName, string alias, string headerTitle = "")
         {
             if (TableColumns == null) return;
@@ -193,10 +199,23 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         }
 
         /// <summary>
+        /// Установка видимости колонок
+        /// </summary>
+        /// <param name="fields">Список названий колонок</param>
+        /// <param name="display">Видимость</param>
+        public void SetColumnDisplayVisible(List<string> fields, bool display)
+        {
+            fields.ForEach(delegate(string fieldName)
+            {
+                SetColumnDisplayVisible(fieldName, display);
+            });
+        }
+
+        /// <summary>
         /// Установка видимости колонки
         /// </summary>
-        /// <param name="fieldName"></param>
-        /// <param name="display"></param>
+        /// <param name="fieldName">Название колонки</param>
+        /// <param name="display">Видимость</param>
         public void SetColumnDisplayVisible(string fieldName, bool display)
         {
             if (TableColumns == null) return;
@@ -208,8 +227,8 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// <summary>
         /// Установка цвета фона
         /// </summary>
-        /// <param name="fieldName"></param>
-        /// <param name="color"></param>
+        /// <param name="fieldName">Название колонки</param>
+        /// <param name="color">Цвет фона</param>
         public void SetColumnBackGroundColor(string fieldName, string color)
         {
             if (TableColumns == null) return;
@@ -221,8 +240,8 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// <summary>
         /// Установка подсказки для названия колонки
         /// </summary>
-        /// <param name="fieldName"></param>
-        /// <param name="title"></param>
+        /// <param name="fieldName">Название колонки</param>
+        /// <param name="title">Всплывающая подсказка</param>
         public void SetColumnTitle(string fieldName, string title)
         {
             if (TableColumns == null) return;
@@ -231,6 +250,228 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 clmn.Title = title;
         }
 
+        /// <summary>
+        /// Делает текст в ячейке не переносимым
+        /// </summary>
+        /// <param name="fieldName">Название колонки</param>
+        public void SetColumnNoWrapText(string fieldName)
+        {
+            if (TableColumns == null) return;
+            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
+            if (clmn != null)
+                clmn.IsNoWrap = true;
+        }
         
+        #region SetColumnHref
+
+        /// <summary>
+        /// Установка параметров для генерации ссылки на сущность по данным текущей записи
+        /// </summary>
+        /// <param name="fieldName">Название колонки</param>
+        /// <param name="hrefIdFieldName">Название колонки, где брать идентификатор сущности</param>
+        /// <param name="uri">Ссылка на форму редактирования сущности</param>
+        public void SetColumnHref(string fieldName, string hrefIdFieldName, string uri)
+        {
+            if (TableColumns == null) return;
+            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
+            if (clmn != null)
+            {
+                clmn.HrefIdFieldName = hrefIdFieldName;
+                clmn.HrefUri = uri;
+            }
+        }
+
+        /// <summary>
+        /// Установка параметров для генерации ссылки на документ по данным текущей записи
+        /// </summary>
+        /// <param name="fieldName">Название колонки</param>
+        /// <param name="hrefIdFieldName">Название колонки, где брать идентификатор сущности</param>
+        public void SetColumnHrefDocument(string fieldName, string hrefIdFieldName)
+        {
+            if (TableColumns == null) return;
+            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
+            if (clmn == null) return;
+            clmn.HrefIdFieldName = hrefIdFieldName;
+            clmn.HrefIsDocument = true;
+        }
+       
+        /// <summary>
+        /// Установка параметров для генерации ссылки на сотрудника по данным текущей записи
+        /// </summary>
+        /// <param name="fieldName">Название колонки</param>
+        /// <param name="hrefIdFieldName">Название колонки, где брать идентификатор сущности</param>
+        public void SetColumnHrefEmployee(string fieldName, string hrefIdFieldName)
+        {
+            if (TableColumns == null) return;
+            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
+            if (clmn == null) return;
+            clmn.HrefIdFieldName = hrefIdFieldName;
+            clmn.HrefIsEmployee = true;
+        }
+
+        /// <summary>
+        /// Установка параметров для генерации ссылки на форму сушности по условиям
+        /// </summary>
+        /// <param name="fieldName">Название колонки</param>
+        /// <param name="clauses">Словарь с условиями key = FieldWithId, Value={FieldClause, Href}</param>
+        public void SetColumnHrefByClause(string fieldName, Dictionary<string, Dictionary<string, string>> clauses)
+        {
+            
+            if (TableColumns == null) return;
+            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
+            if (clmn == null) return;
+            clmn.HrefIsClause = true;
+            clmn.HrefClauses = clauses;
+        }
+
+        #endregion
+
+        
+        #region SetColumnTextAlign
+
+        /// <summary>
+        /// Установить выравнивание текста в колонках
+        /// </summary>
+        /// <param name="fields">Список колонок</param>
+        /// <param name="align">Как выравниваем</param>
+        public void SetColumnTextAlign(List<string> fields, string align)
+        {
+            fields.ForEach(delegate(string fieldName)
+            {
+                SetColumnTextAlign(fieldName, align);
+            });
+        }
+
+        /// <summary>
+        /// Установить выравнивание текста в колонке
+        /// </summary>
+        /// <param name="fieldName">Список колонок</param>
+        /// <param name="align">Как выравниваем</param>
+        public void SetColumnTextAlign(string fieldName, string align)
+        {
+            if (TableColumns == null) return;
+            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
+            if (clmn != null)
+                clmn.TextAlign = align;
+        }
+      
+        #endregion
+
+       
+        #region SetColumnBitFormat
+
+        /// <summary>
+        /// Выводит иконку Ok.gif, если значение поля = 0
+        /// </summary>
+        /// <param name="fields">Список название колонки</param>
+        public void SetColumnBitFormat(List<string> fields)
+        {
+            fields.ForEach(SetColumnBitFormat);
+        }
+
+        /// <summary>
+        /// Выводит иконку Ok.gif, если значение поля = 0
+        /// </summary>
+        /// <param name="fieldName">Название колонки</param>
+        public void SetColumnBitFormat(string fieldName)
+        {
+            if (TableColumns == null) return;
+            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
+            if (clmn != null)
+                clmn.IsBit = true;
+        }
+
+        #endregion
+
+
+        #region SetColumnFormat
+
+        /// <summary>
+        /// Установка формата выводимых значений c указанной в другой колонке точночтью
+        /// </summary>
+        /// <param name="fieldName">Поле, которое надо выводить с указанной точностью</param>
+        /// <param name="scaleFieldName">Поле откуда брать значение точности</param>
+        /// /// <param name="defaultScale">Значение точности по-умолчанию</param>
+        public void SetColumnFormatByColumnScale(string fieldName, string scaleFieldName, int defaultScale)
+        {
+            if (TableColumns == null) return;
+            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
+            if (clmn != null)
+            {
+                clmn.ScaleFieldName = scaleFieldName;
+                clmn.DefaultScale = defaultScale;
+            }
+        }
+
+        /// <summary>
+        /// Установка формата выводимых значений c точностью сохраненного значения
+        /// </summary>
+        /// <param name="fieldName">Поле, которое надо выводить с указанной точностью</param>
+        /// <param name="maxScale">Максимальное количество знаков после запятой</param>
+        /// <param name="defaultScale">Количество знаков после запятой по-умолчанию</param>
+        public void SetColumnFormatByValueScale(string fieldName, int maxScale, int defaultScale)
+        {
+            if (TableColumns == null) return;
+            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
+            if (clmn != null)
+            {
+                clmn.IsScaleByValue = true;
+                clmn.MaxScale = maxScale;
+                clmn.DefaultScale = defaultScale;
+            }
+        }
+
+        /// <summary>
+        /// Установка точности по-умолчанию для переданных  колонок
+        /// </summary>
+        /// <param name="fields">Словарь названий колонок с указанной точностью</param>
+        public void SetColumnFormatDefaultScale(Dictionary<string, int> fields)
+        {
+            foreach (KeyValuePair<string, int> field in fields)
+                SetColumnFormatDefaultScale(field.Key, field.Value);
+
+        }
+
+        /// <summary>
+        /// Установка точности по-умолчанию указанной колонке
+        /// </summary>
+        /// <param name="fieldName">Название колонки</param>
+        /// <param name="defaultScale">Точность</param>
+        public void SetColumnFormatDefaultScale(string fieldName, int defaultScale)
+        {
+            if (TableColumns == null) return;
+            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
+            if (clmn != null)
+                clmn.DefaultScale = defaultScale;
+        }
+
+        /// <summary>
+        /// Установка формата выводимых значений
+        /// </summary>
+        /// <param name="fields">Список названий колонок</param>
+        /// <param name="formatString">Строка формата</param>
+        public void SetColumnFormat(List<string> fields, string formatString)
+        {
+            fields.ForEach(delegate(string fieldName)
+            {
+                SetColumnFormat(fieldName, formatString);
+            });
+        }
+
+        /// <summary>
+        /// Установка формата выводимых значений
+        /// </summary>
+        /// <param name="fieldName">Название колонки</param>
+        /// <param name="formatString">Строка формата</param>
+        public void SetColumnFormat(string fieldName, string formatString)
+        {
+            if (TableColumns == null) return;
+            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
+            if (clmn != null)
+                clmn.FormatString = formatString;
+        }
+
+        #endregion
+
     }
 }

@@ -1,11 +1,14 @@
-﻿ 
+﻿<div id="divGroupingPanel_[CID]" class="v4GroupingPanel" style="background-color: #e9e9e9; display: none; min-width: 50px; min-height: 30px; ">Drag a column header here to group by that column</div>
 <div id="[CID]" style="overflow: auto" class="divCheck"></div>
 <div class="v4DivTable" style="margin-left: 10px; margin-top: 10px;">
     <div class="v4DivTableRow" id="divPageBar_[CID]" style="display: none;">
         <div class="v4DivTableCell">
             [C_PAGINGBAR]
         </div>
-        <div id="divResultCount_[CID]" class="v4DivTableCell v4GridFilterText"></div>
+        <div id="divResultCount_[CID]" class="v4DivTableCell v4GridFilterText" style="white-space: nowrap;"></div>
+        <div class="v4DivTableCell" id="divRefreshButton_[CID]">
+            <button id="btnRefresh_[CID]" style="margin-left: 20px; height: 20px; width: 20px;"></button>
+        </div>
     </div>
 </div>
 
@@ -30,11 +33,15 @@
 <script>
     $(document).ready(function () {
         var objFrom_ListData = gi("[CID]");
-        if (objFrom_ListData) $("#[CID]").height($(window).height() - [MARGIN_BOTTOM]);
-
-        $(window).resize(function () {
+        var h = [GRID_HEIGHT];
+        if (h != 0) {
+            if (objFrom_ListData) $("#[CID]").height(h);
+        } else {
             if (objFrom_ListData) $("#[CID]").height($(window).height() - [MARGIN_BOTTOM]);
-        });
 
+            $(window).resize(function() {
+                if (objFrom_ListData) $("#[CID]").height($(window).height() - [MARGIN_BOTTOM]);
+            });
+        }
     });
 </script>

@@ -155,7 +155,7 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
       
         private void RenderPageReload(HttpContext context)
         {
-            Employee сEmployee = new EmployeeCurrent();
+            Employee сEmployee = new Employee(true);
             var culture = "en";
             if (!сEmployee.Unavailable)
                 culture = сEmployee.Language;

@@ -296,6 +296,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             base.Flush();
             if (PropertyChanged.Contains("Value"))
             {
+                if (Value == null) Value = "";
                 if (IsReadOnly)
                     //Недопустимо устанавливать свойство innerText всего элемента, т.к. он может содержать вложенный элемент div _ntf
                     JS.Write("if(gi('{0}'))gi('{0}').firstChild.innerText='{1}';", HtmlID,

@@ -65,7 +65,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 var ckd = false;
                 var p = Items.FirstOrDefault(x => x.Code == Value);
                 if (p != null) ckd = true;
-                JS.Write("if (gi('{0}_0')) gi('{0}_0').checked={1};", HtmlID, ckd ? 1 : 0);
+                JS.Write("if (gi('{0}{1}_0')) gi('{0}{1}_0').checked={2};", HtmlID, Value, ckd ? 1 : 0);
             }
         }
 

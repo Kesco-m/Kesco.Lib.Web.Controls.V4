@@ -80,6 +80,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common
     /// </summary>
     public abstract class Page : System.Web.UI.Page
     {
+        public bool IsKescoRun = true;
+
         /// <summary>
         ///     Делегат рендеринга части страницы
         /// </summary>
@@ -143,14 +145,24 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             CssScripts = new List<string>();
             LastUpdate = DateTime.Now;
             EnableViewState = false;
-            CurrentUser = new EmployeeCurrent();
+            CurrentUser = new Employee(true);
             IsComet = true;
             
             RegisterCss("/Styles/Kesco.V4/CSS/jquery.qtip.min.css");
             RegisterCss("/Styles/Kesco.V4/CSS/jquery-ui.css");
             RegisterCss("/Styles/Kesco.V4/CSS/Kesco.V4.css");
 
+            if (!IsKescoRun)
+            {
+                RegisterScript("Kesco.Silver4js",
+                    "<script src='/Styles/Kesco.V4/JS/Kesco.Silver4js.js' type='text/javascript'></script>");
+                RegisterScript("Silverlight",
+                    "<script src='/Styles/Kesco.V4/JS/Silverlight.js' type='text/javascript'></script>");
+
+            }
             RegisterScript("jquery", "<script src='/Styles/Kesco.V4/JS/jquery-1.12.4.min.js' type='text/javascript'></script>");
+            //RegisterScript("jquery", "<script src='/Styles/Kesco.V4/JS/jquery-3.3.1.min.js' type='text/javascript'></script>");
+            //RegisterScript("jquery", "<script src='/Styles/Kesco.V4/JS/jquery-migrate-3.0.1.min.js' type='text/javascript'></script>");
             RegisterScript("jqueryui", "<script src='/Styles/Kesco.V4/JS/jquery-ui.js' type='text/javascript'></script>");
             RegisterScript("jquerycookie", "<script src='/Styles/Kesco.V4/JS/jquery.cookie.js' type='text/javascript'></script>");
             RegisterScript("jqueryqtipmin", "<script src='/Styles/Kesco.V4/JS/jquery.qtip.min.js' type='text/javascript'></script>");
@@ -170,6 +182,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             RegisterScript("Menu", "<script src='/Styles/Kesco.V4/JS/Kesco.Menu.js' type='text/javascript'></script>");
             RegisterScript("LocalTime", "<script src='/Styles/Kesco.V4/JS/Kesco.LocalTime.js' type='text/javascript'></script>");
         }
+
+        /// <summary>
+        /// Родительская страница для которой текущая открыта в модальном режиме
+        /// </summary>
+        public virtual Page ParentPage { get; set; }
 
         /// <summary>
         ///     Признак постбека
@@ -1235,14 +1252,16 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         /// <param name="message">Текст сообщения</param>
         /// <param name="title">Заголовок окна</param>
-        /// <param name="captionYes">Текст на кнопке подтверждения</param>
-        /// <param name="captionNo">Текст на кнопке отмены</param>
-        /// <param name="callbackYes">Клиентский скрипт, который долже выполниться после подтверждения</param>
+        /// <param name="caption1">Текст на кнопке подтверждения 1</param>
+        /// <param name="caption2">Текст на кнопке подтверждения 2</param>
+        /// <param name="caption3">Текст на кнопке подтверждения 3</param>
+        /// <param name="caption4">Текст на кнопке подтверждения 4</param>
+        /// <param name="callback1">Клиентский скрипт, который долже выполниться после нажатия на кнопку 1</param>
+        /// <param name="callback2">Клиентский скрипт, который долже выполниться после нажатия на кнопку 2</param>
+        /// <param name="callback3">Клиентский скрипт, который долже выполниться после нажатия на кнопку 3</param>
+        /// <param name="callback4">Клиентский скрипт, который долже выполниться после нажатия на кнопку 4</param>
         /// <param name="ctrlIdFocus">Идентиикатор контрола, на который необходимо установить фокус после подтверждения</param>
-        /// <param name="widthYes">Шинина кнопки подтверждения</param>
-        /// <param name="widthNo">Ширина кнопки отмены</param>
         /// <param name="width">Ширина окна</param>
-        /// <param name="height">Высота окна</param>
         public void ShowRecalc(string message, string title, string caption1, string caption2, string caption3, 
             string caption4, string callback1, string callback2, string callback3, string callback4,
             string ctrlIdFocus, int? width)
@@ -1257,12 +1276,15 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         /// <param name="message">Текст сообщения</param>
         /// <param name="title">Заголовок окна</param>
-        /// <param name="captionYes">Текст на кнопке подтверждения</param>
-        /// <param name="captionNo">Текст на кнопке отмены</param>
-        /// <param name="callbackYes">Клиентский скрипт, который долже выполниться после подтверждения</param>
+        /// <param name="caption1">Текст на кнопке подтверждения 1</param>
+        /// <param name="caption2">Текст на кнопке подтверждения 2</param>
+        /// <param name="caption3">Текст на кнопке подтверждения 3</param>
+        /// <param name="caption4">Текст на кнопке подтверждения 4</param>
+        /// <param name="callback1">Клиентский скрипт, который долже выполниться после нажатия на кнопку 1</param>
+        /// <param name="callback2">Клиентский скрипт, который долже выполниться после нажатия на кнопку 2</param>
+        /// <param name="callback3">Клиентский скрипт, который долже выполниться после нажатия на кнопку 3</param>
+        /// <param name="callback4">Клиентский скрипт, который долже выполниться после нажатия на кнопку 4</param>
         /// <param name="ctrlIdFocus">Идентиикатор контрола, на который необходимо установить фокус после подтверждения</param>
-        /// <param name="widthYes">Шинина кнопки подтверждения</param>
-        /// <param name="widthNo">Ширина кнопки отмены</param>
         /// <param name="width">Ширина окна</param>
         /// <param name="height">Высота окна</param>
         public void ShowRecalc(string message, string title, string caption1, string caption2, string caption3, 
@@ -1764,9 +1786,12 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             return null;
         }
 
-        public void ClearObjects()
+        //Удаляем все закешированные объекты на странице
+        public void ClearCacheObjects()
         {
+            if (objList != null) objList.Clear();
             objList = null;
+            GC.Collect();
         }
 
     }

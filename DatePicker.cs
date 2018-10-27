@@ -43,6 +43,8 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public string ValueDatePickerEnum = "0";
 
+        public bool MonthYearFormat = false;
+
         /// <summary>
         ///     Минимальная дата, возможная для выбора
         /// </summary>
@@ -240,8 +242,8 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             w.Write("<span id='{0}'>", HtmlID);
             w.Write(
-                "<input type='text' value='{0}' id='{1}_0' class=\"v4d_datepicker\" style=\"width:80px;\" onchange=\"v4_ctrlChanged('{1}',true, true);\" onkeydown='v4d_keyDown(event, this);' {2}",
-                Value, HtmlID, Visible ? "" : "style=\"display:none;\"");
+                "<input type='text' value='{0}' id='{1}_0' class=\"{3}\" ctrltype=\"{4}\" style=\"width:80px;\" onchange=\"v4_ctrlChanged('{1}',true, true);\" onkeydown='v4d_keyDown(event, this);' {2}",
+                Value, HtmlID, Visible ? "" : "style=\"display:none;\"", MonthYearFormat ? "v4d_monthdatepicker" : "v4d_datepicker", MonthYearFormat ? "month" : "date");
 
             w.Write(" t='{0}' help='{1}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help));
             
@@ -260,7 +262,7 @@ namespace Kesco.Lib.Web.Controls.V4
             w.Write("</span>");
 
             if (!V4Page.V4IsPostBack)
-                w.Write("<script>v4_Datepicker.init('{0}_0', '{1}'); v4_replaceStyleRequired(gi('{0}_0'));</script>", HtmlID, V4Page.CurrentUser.Language);
+                w.Write("<script>v4_Datepicker.init('{0}_0', '{1}', '{2}'); v4_replaceStyleRequired(gi('{0}_0'));</script>", HtmlID, V4Page.CurrentUser.Language, MonthYearFormat);
         }
 
         /// <summary>

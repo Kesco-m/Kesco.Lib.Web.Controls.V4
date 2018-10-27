@@ -12,8 +12,10 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         Date = 4,
         Boolean = 8,
         Decimal = 16,
-        Person = 32,
-        Document = 64
+        Double = 32,
+        Float = 64,
+        Person = 128,
+        Document = 256
     }
 
     public enum GridColumnFilterEqualEnum
