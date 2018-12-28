@@ -1,25 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Configuration;
 using System.Data;
 using System.IO;
 using System.Linq;
-using System.Net.Configuration;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
 using Kesco.Lib.BaseExtention;
+using Kesco.Lib.BaseExtention.BindModels;
 using Kesco.Lib.BaseExtention.Enums.Controls;
 using Kesco.Lib.BaseExtention.Enums.Docs;
 using Kesco.Lib.DALC;
 using Kesco.Lib.Entities;
 using Kesco.Lib.Entities.Corporate;
 using Kesco.Lib.Entities.Documents;
-using Kesco.Lib.Entities.Resources;
+using Kesco.Lib.Entities.Documents.EF;
 using Kesco.Lib.Log;
-using Kesco.Lib.Web.Settings;
 using Unit = System.Web.UI.WebControls.Unit;
 using Kesco.Lib.Web.Comet;
 
@@ -45,6 +43,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         private readonly SignsManager _signsManager;
 
         private TextBox _numberDoc;
+        private DatePicker _dateDoc;
 
         /// <summary>
         ///     Покупатель/Продавец по умолчанию (Для работы в Архиве)
@@ -183,6 +182,25 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             set { Doc.GenerateNumber = value; }
         }
 
+        public string CorrId { get; set; }
+        public string CopyId
+        {
+            get
+            {
+                var copyid = "";
+                try
+                {
+                    copyid = Request["CopyId"];
+                }
+                catch (Exception)
+                {
+                    //
+                }
+
+                return CorrId.IsNullEmptyOrZero() ? copyid : CorrId;
+            }
+        }
+
         /// <summary>
         ///     Номер документа корректный
         /// </summary>
@@ -275,12 +293,40 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 Docdir = (DocDirs) Request.QueryString["docdir"].ToInt();
             }
 
-            if (!Doc.IsNew)
-                DocumentToControls();
-
+            DocumentToControls();
             SetControlProperties();
+            
+            //TODO: ВОССТАНОВИТЬ!!!
+            if (!Doc.IsNew)
+            {
+                // отвязать bind
+                var field = DocumentToControlsUnBind();
+                var docNum = Doc.Number;
+                var docDesc = Doc.Description;
 
-            OriginalDoc = Doc.Clone();
+                Doc.NumberBind = null;
+                Doc.DescriptionBinder = null;
+
+                OriginalDoc = Doc.Clone();
+
+                if (OriginalDoc != null)
+                {
+                    OriginalDoc.NumberBind = new BinderValue();
+                    OriginalDoc.DescriptionBinder = new BinderValue();
+                    OriginalDoc.Number = docNum;
+                    OriginalDoc.Description = docDesc;
+                }
+                // восстановить bind
+                Doc.NumberBind = new BinderValue();
+                Doc.DescriptionBinder = new BinderValue();
+                Doc.Number = docNum;
+                Doc.Description = docDesc;
+
+                DocumentToControlsRestoreBind(field);
+                Doc.DocumentData.Id = Doc.Id = EntityId;
+                //InitFields();
+            }
+
         }
 
         /// <summary>
@@ -311,8 +357,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 _numberDoc.Changed += NumberDocChanged;
                 //_numberDoc.V4Attributes.Add("onkeydown", "switch(event.keyCode){case 13: event.keyCode=9;break;}");
                 _numberDoc.IsRequired = NumberRequired;
-                if (!Doc.IsNew && string.IsNullOrEmpty(Doc.Number) && !NumberRequired)
-                    _numberDoc.Visible = false;
+                //if (!Doc.IsNew && string.IsNullOrEmpty(Doc.Number) && !NumberRequired)
+                //    _numberDoc.Visible = false;
 
                 V4Controls.Add(_numberDoc);
             }
@@ -343,12 +389,12 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 
                     Doc.Load();
                     Doc.DocumentData.Load();
-
-                    PrepareDocToCopy(Doc);
                 }
             }
 
+            PrepareDocToCopy(Doc);
             DocumentToControls();
+            SetControlProperties();
         }
 
         #region Методы необходимые или доступные для переопределения программисту
@@ -368,28 +414,57 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 
             foreach (var item in FieldsToControlsMapping.Where(item => null != item.Value))
             {
-                if (item.Value.IsMultipleSelect) continue;
+                if (item.Value.IsMultipleSelect)
+                {
+                    //todo: добавить обработку DocField.MultiSelect
+                    item.Key.IsReadOnly = !DocEditable;
 
-                if (null == item.Value.Value)
-                    item.Key.Value = string.Empty;
+                }
                 else
                 {
-                    if ("DateTime" == item.Value.GetType().Name)
-                    {
-                        var dp = item.Key as DatePicker;
-                        if (dp != null) dp.ValueDate = item.Value.Value as DateTime?;
-                    }
+                    if (null == item.Value.Value)
+                        item.Key.Value = string.Empty;
                     else
                     {
-                        item.Key.Value = item.Value.Value.ToString();
+                        if ("DateTime" == item.Value.Value.GetType().Name)
+                        {
+                            var dp = item.Key as DatePicker;
+                            if (dp != null) dp.ValueDate = item.Value.Value as DateTime?;
+                        }
+                        else
+                        {
+                            item.Key.Value = item.Value.Value.ToString();
+                        }
                     }
+                    item.Key.BindDocField = item.Value;
+                    item.Key.IsRequired = item.Value.IsRequired;
+                    item.Key.IsReadOnly = !DocEditable;
                 }
-                
-                //todo: добавить обработку DocField.MultiSelect
+            }
+        }
 
-                item.Key.BindDocField = item.Value;
-                item.Key.IsRequired = item.Value.IsRequired;
-                item.Key.IsReadOnly = !DocEditable;
+        /// <summary>
+        ///     Копирование данных документа на контролы - UnBind
+        /// </summary>
+        protected Dictionary<string, DocField> DocumentToControlsUnBind()
+        {
+            var ret = new Dictionary<string, DocField>();
+            if (FieldsToControlsMapping == null) return null;
+
+            foreach (var item in FieldsToControlsMapping.Where(item => null != item.Value && !item.Value.IsMultipleSelect))
+            {
+                ret.Add(item.Key.ID, item.Key.BindDocField);
+                item.Key.BindDocField = null;
+            }
+            return ret;
+        }
+
+        protected void DocumentToControlsRestoreBind(Dictionary<string, DocField> fields)
+        {
+            if (FieldsToControlsMapping == null) return;
+            foreach (var item in FieldsToControlsMapping.Where(item => null != item.Value && !item.Value.IsMultipleSelect))
+            {
+                item.Key.BindDocField = fields[item.Key.ID];
             }
         }
 
@@ -411,13 +486,17 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         protected virtual bool ValidateDocument(out List<string> errors, params string[] exeptions)
         {
             errors = new List<string>();
-
-            if (Doc.Date == DateTime.MinValue)
-                errors.Add(Resx.GetString("DocDateNotExist"));
-
-            if (Doc.DocType.NumberGenType != NumGenTypes.MustBeGenerated && !GenerateNumber &&
-                string.IsNullOrWhiteSpace(Doc.Number))
+            
+            if (Doc.DocType.NumberGenType != NumGenTypes.MustBeGenerated && !GenerateNumber && Doc.Number.IsNullEmptyOrZero())
                 errors.Add(Resx.GetString("DocNumberNotExist"));
+            
+            if (Doc.Date == DateTime.MinValue)
+            {
+                if (Doc.DocType.NumberGenType == NumGenTypes.MustBeGenerated)
+                    Doc.Date = DateTime.Now;
+                else
+                    errors.Add(Resx.GetString("DocDateNotExist"));
+            }
 
             if (Doc.Fields != null)
             {
@@ -447,10 +526,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 }
             }
 
-            if (errors.Count > 0)
-                return false;
-
-            return true;
+            return errors.Count <= 0;
         }
 
         /// <summary>
@@ -490,7 +566,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             }
 
             SetDocMenuButtons();
-            RefreshMenuButtons();
+           // RefreshMenuButtons();
         }
 
         /// <summary>
@@ -534,14 +610,14 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         /// </summary>
         protected virtual void PrepareDocToCopy(Document doc)
         {
-            doc.Id = null;
+            doc.Id = "0";
             doc.Number = string.Empty;
             doc.DocumentData.Id = string.Empty;
             doc.ChangePersonID = 0;
             doc.DocumentData.ChangePersonID = 0;
-            doc.ChangeDate = DateTime.MinValue;
+            doc.Changed = DateTime.MinValue;
             doc.DocumentData.ChangeDate = DateTime.MinValue;
-            doc.Date = DateTime.MinValue;
+            //doc.Date = DateTime.MinValue;
             doc.DocSignsClear();
         }
 
@@ -793,10 +869,48 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 case "SaveButton":
                     ShowSaveData = param["ShowSaveData"] == "1";
                     SaveDocument();
+                    break;
+                // Сохранение документа
+                case "SaveDocument":
+                    List<DBCommand> cmds = null;
+                    Doc.Save(false, cmds);
+                    JS.Write("v4_closeSaveConfirmForm();");
+                    if (param["AfterSaveProcess"] == "1")
+                    {
+                        RefreshDocument();
+                    }
+                    else
+                    {
+                        var sendMessage = DocViewParams.SignMessageWorkDone;
+                        var employeeInstead = CurrentUser.EmployeeId;
+                        AfterSave("", sendMessage, employeeInstead, false, false);   
+                    }
 
                     break;
-
+                case "BeforeDocCopy":
+                    if (Doc.CompareToChanges(OriginalDoc))
+                    {
+                        ShowConfirm("Перед копированием текущий документ будет сохранен. Продолжить?",
+                        Resx.GetString("errDoisserWarrning"),
+                        Resx.GetString("CONFIRM_StdCaptionYes"),
+                        Resx.GetString("CONFIRM_StdCaptionNo"),
+                        "cmd('cmd', 'SaveAndCopy');", null, null);
+                    }
+                    else
+                    {
+                        CopyDoc();
+                    }
+                    break;
                 // Копировать на основании текущего документа
+                case "SaveAndCopy":
+                    if (CheckBeforeSave())
+                    {
+                        List<DBCommand> cmdsc = null;
+                        Doc.Save(false, cmdsc);
+
+                        CopyDoc();
+                    }
+                    break;
                 case "DocCopy":
                     CopyDoc();
                     break;
@@ -974,13 +1088,35 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         /// </summary>
         protected void CopyDoc()
         {
-            var clone = Doc.Clone();
+            // отвязать bind
+            var field = DocumentToControlsUnBind();
+            var docNum = Doc.Number;
+            var docDesc = Doc.Description;
 
+            Doc.NumberBind = null;
+            Doc.DescriptionBinder = null;
+
+            var clone = Doc.Clone();
+            
+            // восстановить bind
+            // восстановить bind
+
+            Doc.NumberBind = new BinderValue();
+            Doc.DescriptionBinder = new BinderValue();
+
+            Doc.Number = docNum;
+            Doc.Description = docDesc;
+
+            DocumentToControlsRestoreBind(field);
+            Doc.DocumentData.Id = Doc.Id = EntityId;
+            //InitFields();
+
+            clone.NumberBind = new BinderValue();
+            clone.DescriptionBinder = new BinderValue();
             PrepareDocToCopy(clone);
 
             Cache["CopyDoc" + IDPage] = clone;
-            var urlForCopy = V4Request.RawUrl.Substring(0, V4Request.RawUrl.IndexOf('?')) + "?CopyDoc=" + IDPage +
-                             "&CopyId=" + Doc.Id;
+            var urlForCopy = V4Request.RawUrl.Substring(0, V4Request.RawUrl.IndexOf('?')) + "?CopyDoc=" + IDPage + "&CopyId=" + Doc.Id;
             JS.Write("v4_windowOpen('{0}');", urlForCopy);
         }
 
@@ -1045,7 +1181,9 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                     IconJQueryUI = ButtonIconsEnum.Save,
                     //Style = "BACKGROUND: buttonface url(/Styles/Save.gif) no-repeat left center;",
                     Width = 105,
-                    OnClick = "cmd('cmd', 'SaveButton', 'ShowSaveData', v4_showSaveData(event));"
+                    OnClick = (!CopyId.IsNullEmptyOrZero())
+                        ? string.Format("v4_createDialogSaveContent('{0}','{1}');save_dialogShow('{2}');", Resx.GetString("TTN_lblOpenInDocumentsArchive"), Resx.GetString("TTN_lblContinueEditing"), Resx.GetString("TTN_lblSaveDocument")) 
+                        : "cmd('cmd', 'SaveButton', 'ShowSaveData', v4_showSaveData(event));"
                 };
                 AddMenuButton(btnSave);
             }
@@ -1067,7 +1205,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 AddMenuButton(btnRefresh);
             }
 
-            if (ShowCopyButton)
+            if (ShowCopyButton && !Doc.IsNew)
             {
                 var btnCopy = new Button
                 {
@@ -1078,11 +1216,12 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                     //Style = "BACKGROUND: buttonface url(/Styles/copy.gif) no-repeat left center;",
                     IconJQueryUI = ButtonIconsEnum.Copy,
                     Width = 105,
-                    OnClick = "cmd('cmd', 'DocCopy');"
+                    OnClick = "cmd('cmd', 'BeforeDocCopy');"
                 };
 
                 AddMenuButton(btnCopy);
             }
+
         }
 
         /// <summary>
@@ -1216,30 +1355,38 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 }
             }
 
-            //проверка на похожие документы !!!может смениться ID
-            if (saveAs.Equals(""))
-                if (!CheckForSimilarity(out saveAs))
-                    return;
-
-            if (!saveAs.Equals("0") || Doc.DocumentData.Unavailable)
-                if (!CheckForRewriting(saveAs))
-                    //проверка возможности добавления электронной формы к существующему документу
-                    return;
-
-            //проверка данных перед сохранением
-            if (!Doc.IsNew && !Doc.Signed)
+            if (Doc.CompareToChanges(OriginalDoc))
             {
-                // if (!CheckForChanged()) return;
+
+                //проверка на похожие документы !!!может смениться ID
+                if (saveAs.Equals(""))
+                    if (!CheckForSimilarity(out saveAs))
+                        return;
+
+                if (!saveAs.Equals("0") || Doc.DocumentData.Unavailable)
+                    if (!CheckForRewriting(saveAs))
+                        //проверка возможности добавления электронной формы к существующему документу
+                        return;
+
+                //проверка данных перед сохранением
+                if (!Doc.IsNew && !Doc.Signed)
+                {
+                    // if (!CheckForChanged()) return;
+                }
+
+                if (GenerateNumber || NumberNotExists) Doc.Number = null;
+
+                if (DocEditable)
+                    EntityId = DocumentSave(saveAs);
+
+                if (!EntityId.IsNullEmptyOrZero())
+                {
+                    OnDocumentSaved();
+                }
             }
-
-            if (GenerateNumber || NumberNotExists) Doc.Number = null;
-
-            if (DocEditable)
-                EntityId = DocumentSave(saveAs);
 
             if (!EntityId.IsNullEmptyOrZero())
             {
-                OnDocumentSaved();
                 _signsManager.AddSignRecord(employeeInstead, type, out isfirstSign);
                 OnSignChanged();
             }
@@ -1252,6 +1399,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             }
 
             AfterSave(type, sendMessage, employeeInstead, true, isfirstSign);
+           
         }
 
         /// <summary>
@@ -1282,33 +1430,32 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             if (!CheckBeforeSave())
                 return false;
 
-            //if (!DocNumberIsCorrect)
-            //    if (!CheckDocNumber())
-            //        return;
-
-            //проверка на похожие документы !!!может смениться ID
-            if (saveAs.Equals(""))
-                if (!CheckForSimilarity(out saveAs))
-                    return false;
-
-            if (!saveAs.Equals("0") || Doc.DocumentData.Unavailable)
-                if (!CheckForRewriting(saveAs))
-                    //проверка возможности добавления электронной формы к существующему документу
-                    return false;
-
-            //проверка данных перед сохранением
-            if (!Doc.IsNew && !Doc.Signed)
+            if (Doc.CompareToChanges(OriginalDoc))
             {
-                // if (!CheckForChanged()) return;
-            }
+                //проверка на похожие документы !!!может смениться ID
+                if (saveAs.Equals(""))
+                    if (!CheckForSimilarity(out saveAs))
+                        return false;
 
-            if (GenerateNumber || NumberNotExists) Doc.Number = null;
-            
-            EntityId = DocumentSave(saveAs);
+                if (!saveAs.Equals("0") || Doc.DocumentData.Unavailable)
+                    if (!CheckForRewriting(saveAs))
+                        //проверка возможности добавления электронной формы к существующему документу
+                        return false;
 
-            if (!EntityId.IsNullEmptyOrZero())
-            {
-                OnDocumentSaved();
+                //проверка данных перед сохранением
+                if (!Doc.IsNew && !Doc.Signed)
+                {
+                    // if (!CheckForChanged()) return;
+                }
+
+                if (GenerateNumber || NumberNotExists) Doc.Number = null;
+
+                EntityId = DocumentSave(saveAs);
+
+                if (!EntityId.IsNullEmptyOrZero())
+                {
+                    OnDocumentSaved();
+                }
             }
 
             if (!ShowSaveData)
@@ -1322,9 +1469,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             return true;
         }
 
-
-        private void AfterSave(string SignType, bool SendMessage, int EmployeeInsteadOf, bool signChanged,
-            bool isfirstSign)
+        private void AfterSave(string SignType, bool SendMessage, int EmployeeInsteadOf, bool signChanged, bool isfirstSign)
         {
             if (IsKescoRun)
                 AfterSave_KescoRun(SignType,  SendMessage,  EmployeeInsteadOf,  signChanged, isfirstSign);
@@ -1538,12 +1683,16 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         /// <remarks>
         ///     Если документ не сохранен и не имеет Id, то введеные данные сотрутся
         /// </remarks>
-        public void RefreshDocument()
+        public void RefreshDocument(string addParam = "")
         {
             if (_cometUsers != null)
                 _cometUsers.DisposeComet();
 
-            V4Navigate(Url4Reload);
+            if (addParam.Length > 0)
+            {
+                addParam = Doc.Id.Length > 0 || IsInDocView || NoSign ? "&" + addParam : "?" + addParam;
+            }
+            V4Navigate(Url4Reload + addParam);
         }
 
         public string Url4Reload
@@ -1580,7 +1729,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             var doc = Doc as IDocumentWithPositions;
             if (doc != null)
                     doc.SaveDocumentPositions(false, cmds);
-                
             
             if (ShowSaveData)
             {
@@ -1672,7 +1820,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         /// </summary>
         private bool CheckForChanged()
         {
-            var dt = Doc.ChangeDate;
+            var dt = Doc.Changed;
             int usr;
             bool hasFinishSign;
             bool hasSign;
@@ -1680,7 +1828,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             Document.CheckForChanged(Doc.DocId, ref dt, out hasFinishSign, out hasSign, out usr);
 
             if (hasFinishSign || hasSign ||
-                (dt != DateTime.MinValue && usr > 0 && !dt.Equals(Doc.ChangeDate) && usr != CurrentUser.EmployeeId))
+                (dt != DateTime.MinValue && usr > 0 && !dt.Equals(Doc.Changed) && usr != CurrentUser.EmployeeId))
             {
                 RenderChangeSignsConfirmDialog(usr.ToString(), "RemoveSignsAll",
                     "Удалить все подписи с документа и сохранить свою версию документа;",
@@ -1971,10 +2119,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         {
             List<string> li;
 
-            if (ValidateDocument(out li))
+            if (ValidateDocument(out li, sParam["callMethod"]))
                 return true;
 
             RenderErrors(li);
+            sParam.Clear();
 
             return false;
         }
@@ -2070,7 +2219,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         /// </summary>
         protected void StartRenderVariablePart(TextWriter w, int labelWidth, int fieldWidth, int fielsetWidth)
         {
-            w.WriteLine("<fieldset style=\"width: {0}px; background-color: rgb(241, 241, 241);\">", fielsetWidth);
+            w.WriteLine("<fieldset style=\"margin-top:5px; width: {0}px; background-color: rgb(241, 241, 241);\">", fielsetWidth);
             w.WriteLine("<legend>{0}</legend>", Resx.GetString("lblVariablePartDoc"));
             w.WriteLine("<div style=\"padding: 5px; margin-left: 5px;\">");
 
@@ -2158,7 +2307,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 w.Write("<a href=\"javascript:cmd('cmd', 'ShowInDocView', 'DocId', {0},'openImage', {1});\">", d.Id, 0);
 
                 if (d.Unavailable) w.Write("#" + d.Id);
-                else w.Write(d.FullDocName);
+                else w.Write(d.GetFullDocumentName(CurrentUser));
                 RenderLinkEnd(w);
 
                 w.Write("</td>");
@@ -2222,7 +2371,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 w.Write(@"<td vAlign=""top"" noWrap>");
                 if (DocEditable && !IsPrintVersion)
                 {
-                    var docDate = new DatePicker
+                    _dateDoc = new DatePicker
                     {
                         // TabIndex = 2,
                         ID = "DocDate",
@@ -2233,9 +2382,9 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                         NextControl = NextControlAfterDate
                     };
 
-                    docDate.Changed += OnDocDateChanged;
-                    V4Controls.Add(docDate);
-                    docDate.RenderControl(w);
+                    _dateDoc.Changed += OnDocDateChanged;
+                    V4Controls.Add(_dateDoc);
+                    _dateDoc.RenderControl(w);
                 }
                 else
                 {
@@ -2369,7 +2518,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 else
                 {
                     RenderNumberInput(w);
-                    RenderNumberNotExistsInput(w);
+                    if (Doc.IsNew)
+                        RenderNumberNotExistsInput(w);
                 }
             }
         }
@@ -2421,7 +2571,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         /// <summary>
         ///     Обязательность номера документа
         /// </summary>
-        protected bool NumberRequired;
+        public bool NumberRequired;
 
         /// <summary>
         ///     Обработчик изменения флага "у документа нет номера"
@@ -2432,6 +2582,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             NumberNotExists = notExist;
             NumberReadOnly = NumberNotExists && !NumberRequired;
             RefreshNumber();
+            _dateDoc.Focus();
         }
 
         /// <summary>
@@ -2452,6 +2603,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         {
             GenerateNumber = gn;
             RefreshHtmlBlock("docNumber", RenderNumberContent);
+            _dateDoc.Focus();
         }
 
         /// <summary>
@@ -2500,9 +2652,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             switch (cmd)
             {
                 case "RefreshDoc":
+                    JS.Write("$('#btnRefresh').attr('disabled', 'disabled');Wait.render(true);");
+                    JS.Write("setTimeout(function(){{$('#btnRefresh').removeAttr('disabled'); Wait.render(false);}}, 7000);");
+                    break;
                 case "RefreshSigns":
                     break;
-
                 case "AddSign":
                     if (!fDocSigned)//Подписей до этого не было
                         cmd = "RefreshDoc";

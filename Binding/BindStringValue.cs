@@ -8,6 +8,7 @@ namespace Kesco.Lib.Web.Controls.V4.Binding
     ///     Класс двухстороннего байдинга значения string и контрола
     /// </summary>
     /// <remarks>Инструкция по применению в базовом классе</remarks>
+    [Serializable]
     public class BindStringValue : V4Binding, IDisposable
     {
         private readonly IBinderValue<string> _valueBind;

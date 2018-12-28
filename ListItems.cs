@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Resources;
 using System.Web;
 using Kesco.Lib.BaseExtention.Enums.Controls;
+using Kesco.Lib.Entities.Corporate;
 using Kesco.Lib.Localization;
 
 namespace Kesco.Lib.Web.Controls.V4
@@ -87,6 +90,11 @@ namespace Kesco.Lib.Web.Controls.V4
         ///     Тип сущности абонента
         /// </summary>
         public CallerTypeEnum CallerType { get; set; }
+
+        /// <summary>
+        /// Список, указывающий на то, что чтобы получить значение поля у объекта используется функция
+        /// </summary>
+        public List<SelectMethodGetEntityValue> MethodsGetEntityValue;
 
         /// <summary>
         ///     Признак отображения в тултипе списка компаний, к которым принадлежит сущность (для множественного выбора)
@@ -225,8 +233,12 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
                 var to = o.GetType();
                 var oId = to.GetProperty(key).GetValue(o, null) ?? "";
                 var id = oId.ToString();
-                var oText = to.GetProperty(field).GetValue(o, null) ?? "";
-                var text = oText.ToString();
+
+                //var oText = to.GetProperty(field).GetValue(o, null) ?? "";
+                //var text = oText.ToString();
+
+                var text = GetFieldValue(o, field.Trim()); 
+
                 if (String.IsNullOrEmpty(text))
                     text = "#" + id;
                 if (isCaller && !callerType.Equals(CallerTypeEnum.Empty))
@@ -289,5 +301,48 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
             }
             w.Write("</table>");
         }
+
+        private string GetFieldValue(object obj, string currentField)
+        {
+            var val = "";
+            var t = obj.GetType();
+            if (MethodsGetEntityValue == null || MethodsGetEntityValue.Count == 0 ||
+                                       MethodsGetEntityValue.FirstOrDefault(
+                                           x =>
+                                               String.Equals(x.ValueField, currentField,
+                                                   StringComparison.InvariantCultureIgnoreCase)) == null)
+            {
+                val = t.GetProperty(currentField).GetValue(obj, null).ToString();
+            }
+            else
+            {
+                var mSettings =
+                    MethodsGetEntityValue.FirstOrDefault(
+                        x =>
+                            String.Equals(x.ValueField, currentField,
+                                StringComparison.InvariantCultureIgnoreCase));
+                if (mSettings == null)
+                    throw new Exception(string.Format("Некорретно настроен элемент управления #{0}!", ID));
+
+                var mInfo = t.GetMethod(mSettings.MethodName);
+                if (mInfo == null)
+                    throw new Exception(
+                        string.Format("В классе объекта элемента управления #{0} не найден метод #{1}!", ID,
+                            mSettings.MethodName));
+
+                var paramObjects = mSettings.MethodParams;
+                var urs =
+                    paramObjects.FirstOrDefault(
+                        x => x.GetType() == typeof(Employee) && ((Employee)x).IsLazyLoadingByCurrentUser);
+                if (urs != null)
+                {
+                    var inx = Array.IndexOf(paramObjects, urs);
+                    paramObjects[inx] = V4Page.CurrentUser;
+                }
+                val = mInfo.Invoke(obj, paramObjects).ToString();
+            }
+            return val;
+        }
+
     }
 }

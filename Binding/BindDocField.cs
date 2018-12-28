@@ -8,6 +8,7 @@ namespace Kesco.Lib.Web.Controls.V4.Binding
     ///     Класс двухстороннего байдинга поля документа и контрола
     /// </summary>
     /// <remarks>Инструкция по применению в базовом классе</remarks>
+    [Serializable]
     public class BindDocField : V4Binding, IDisposable
     {
         private readonly DocField _field;
@@ -18,6 +19,7 @@ namespace Kesco.Lib.Web.Controls.V4.Binding
         public BindDocField(V4Control control, DocField field) : base(control)
         {
             _field = field;
+            if (_field != null)
             _field.ValueChangedEvent += FieldOnValueChangedEventHandler;
         }
 
@@ -100,6 +102,7 @@ namespace Kesco.Lib.Web.Controls.V4.Binding
         protected override void Unsubscribe()
         {
             _control.ValueChanged -= ControlOnValueChanged;
+            if (_field != null)
             _field.ValueChangedEvent -= FieldOnValueChangedEventHandler;
         }
 

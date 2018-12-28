@@ -47,8 +47,8 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
                     p = (context.Handler as Page);
                     if (p != null)
                     {
-                        Thread.CurrentThread.CurrentUICulture =
-                            CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
+                        Thread.CurrentThread.CurrentUICulture = CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
+                        Thread.CurrentThread.CurrentCulture = CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
 
                         p.Data["StartDate"] = DateTime.UtcNow;
                         p.Data["Url"] = context.Request.Url.PathAndQuery;
@@ -78,9 +78,10 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
                     }
                     else
                     {
-                        Thread.CurrentThread.CurrentUICulture =
-                            CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
+                        Thread.CurrentThread.CurrentUICulture = CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
+                        Thread.CurrentThread.CurrentCulture = CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
                         p.V4IsPostBack = true;
+                        p.IDPostRequest = Guid.NewGuid().ToString();
                         p.V4Request = context.Request;
                         p.V4Response = context.Response;
                         p.ProcessRequest();

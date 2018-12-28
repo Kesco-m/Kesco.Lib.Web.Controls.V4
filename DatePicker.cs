@@ -4,6 +4,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Threading;
 using System.Web;
 using System.Web.UI;
 using Kesco.Lib.BaseExtention;
@@ -82,10 +83,18 @@ namespace Kesco.Lib.Web.Controls.V4
                 if (base.Value != value)
                 {
                     DateTime date;
-                    var succeed = DateTime.TryParse(value, CultureInfo.GetCultureInfo("ru-RU"), DateTimeStyles.None,
-                        out date);
-                    _valueDate = succeed ? date : (DateTime?) null;
-                    base.Value = succeed ? ToDateFormat(date) : "";
+                    var succeed = DateTime.TryParse(value, CultureInfo.GetCultureInfo("ru-RU"), DateTimeStyles.None, out date);
+
+                    _valueDate = succeed ? date : (DateTime?)null;
+
+                    if (MonthYearFormat)
+                    {
+                        base.Value = succeed ? date.ToString("MMMM yyyy") : "";
+                    }
+                    else
+                    {
+                        base.Value = succeed ? ToDateFormat(date) : "";
+                    }
                 }
             }
         }
@@ -242,8 +251,8 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             w.Write("<span id='{0}'>", HtmlID);
             w.Write(
-                "<input type='text' value='{0}' id='{1}_0' class=\"{3}\" ctrltype=\"{4}\" style=\"width:80px;\" onchange=\"v4_ctrlChanged('{1}',true, true);\" onkeydown='v4d_keyDown(event, this);' {2}",
-                Value, HtmlID, Visible ? "" : "style=\"display:none;\"", MonthYearFormat ? "v4d_monthdatepicker" : "v4d_datepicker", MonthYearFormat ? "month" : "date");
+                "<input type='text' value='{0}' id='{1}_0' class=\"{3}\" ctrltype=\"{4}\" style=\"width:80px;\" onchange=\"v4_ctrlChanged('{1}',true, true,{5});\" onkeydown='v4d_keyDown(event, this);' {2}",
+                MonthYearFormat ? MonthFormat(Value) : Value, HtmlID, Visible ? "" : "style=\"display:none;\"", MonthYearFormat ? "v4d_monthdatepicker" : "v4d_datepicker", MonthYearFormat ? "month" : "date", MonthYearFormat ? "true" : "false");
 
             w.Write(" t='{0}' help='{1}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help));
             
@@ -263,6 +272,15 @@ namespace Kesco.Lib.Web.Controls.V4
 
             if (!V4Page.V4IsPostBack)
                 w.Write("<script>v4_Datepicker.init('{0}_0', '{1}', '{2}'); v4_replaceStyleRequired(gi('{0}_0'));</script>", HtmlID, V4Page.CurrentUser.Language, MonthYearFormat);
+        }
+
+        private string MonthFormat(string val)
+        {
+            if (!val.IsNullEmptyOrZero())
+            {
+                val = DateTime.Parse(val).ToString("MMMM yyyy");
+            }
+            return val;
         }
 
         /// <summary>
@@ -459,7 +477,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
 
             if (IsReadOnly) return;
 
-            JS.Write("v4_Datepicker.init('{0}_0', '{1}');", ID, V4Page.CurrentUser.Language);
+            JS.Write("v4_Datepicker.init('{0}_0', '{1}', '{2}');", ID, V4Page.CurrentUser.Language, MonthYearFormat);
                 
             if (IsDisabled) IsRequired = false;
             JS.Write("gi('{0}_0').setAttribute('isRequired','{1}');", ID, IsRequired ? 1 : 0);

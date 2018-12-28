@@ -283,7 +283,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 (int) GridColumnUserFilterEnum.Между, _cssClassInterval, Settings.GridId);
             page.JS.Write("v4_selectFilterUserClause_OnChange(\"{2}\", null, {0}, \"{1}\");",
                 (int) GridColumnUserFilterEnum.Между, _cssClassInterval, Settings.GridId);
-            page.JS.Write("setTimeout(function(){$(\"#v4_ctrlFilterClause_1_0\").focus();},10);");
+            page.JS.Write("setTimeout(function(){{$(\"#{0}_{1}_1_0\").focus();}},10);", FilterUserCtrlBaseName, Settings.GridId);
         }
 
         /// <summary>
@@ -362,8 +362,8 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// <param name="setValue"></param>
         private void RenderControlsV4UserFilterClause(TextWriter w, Page page, int inx, bool setValue)
         {
-            var ctrlId = FilterUserCtrlBaseName + "_" + inx;
-            var nextCtrl = inx == 2 ? "btnUFilter_Apply" : FilterUserCtrlBaseName + "_2" + "_0";
+            var ctrlId = FilterUserCtrlBaseName + "_" + Settings.GridId + "_" + inx;
+            var nextCtrl = inx == 2 ? "btnUFilter_Apply_" + Settings.GridId : FilterUserCtrlBaseName + "_" + Settings.GridId + "_2" + "_0";
 
             if (page.V4Controls.ContainsKey(ctrlId))
                 page.V4Controls.Remove(ctrlId);
@@ -495,16 +495,18 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             switch (ColumnType)
             {
                 case GridColumnTypeEnum.Date:
-                    w.Write(FilterUser.FilterType.GetAttribute<GridColumnUserFilterAttribute>().AliasDate);
+                    w.Write(Settings.V4Page.Resx.GetString(FilterUser.FilterType.GetAttribute<GridColumnUserFilterAttribute>().AliasDate));
                     break;
                 case GridColumnTypeEnum.Decimal:
                 case GridColumnTypeEnum.Double:
                 case GridColumnTypeEnum.Float:
                 case GridColumnTypeEnum.Int:
-                    w.Write(FilterUser.FilterType.GetAttribute<GridColumnUserFilterAttribute>().AliasNumber);
+                    
+                    w.Write(Settings.V4Page.Resx.GetString(FilterUser.FilterType.GetAttribute<GridColumnUserFilterAttribute>().AliasNumber));
+                    
                     break;
                 default:
-                    w.Write(FilterUser.FilterType.GetAttribute<GridColumnUserFilterAttribute>().AliasString);
+                    w.Write(Settings.V4Page.Resx.GetString(FilterUser.FilterType.GetAttribute<GridColumnUserFilterAttribute>().AliasString));
                     break;
             }
 
@@ -737,19 +739,21 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                         Settings.GridCmdListnerIndex, FieldName));
             }
             w.Write(@"
-<th {1}>
-    <div class=""v4DivTable"">
-	    <div class=""v4DivTableRow"">
-		    <div class=""v4DivTableCell v4PaddingCell"" style=""width:100%;"">{0}</div>
-		    <div class=""v4DivTableCell v4PaddingCell"" style=""text-align:right;""><nobr>{2}{3}{4}</nobr></div>
+<th {1} >
+    <div class=""v4DivBlock"" column-id=""{6}"">
+	    <div class=""v4DivBlock"">
+		    {5}
+            <div class=""v4DivInline v4PaddingCell"" >{0}</div>
+		    <div class=""v4DivInline v4PaddingCell""><nobr>{2}{3}{4}</nobr></div>    
+            {7}       
 	    </div>
     </div>
 </th>
 ",
-                "<span class=\"v4GroupingData\">" + Alias + "</span>",
+                Alias,
                 !string.IsNullOrEmpty(HeaderTitle) ? string.Format("title=\"{0}\"", HeaderTitle) : "",
                 string.Format(
-                    "<img src=\"/styles/DownGrayed.gif\" id=\"imgSettings{1}_{3}\" style=\"cursor:pointer\" onclick=\" Wait.render(true); cmdasync('cmd', 'Listener', 'ctrlId', '{3}', 'cmdName', 'RenderColumnSettings','ColumnId','{0}');\" border=0 title=\"{2}\"/>",
+                    "<img src=\"/styles/DownGrayed.gif\" id=\"imgSettings{1}_{3}\" style=\"cursor:pointer\"  onclick=\" Wait.render(true); cmdasync('cmd', 'Listener', 'ctrlId', '{3}', 'cmdName', 'RenderColumnSettings','ColumnId','{0}');\" border=0 title=\"{2}\"/>",
                     FieldName, DisplayOrder, Settings.V4Page.Resx.GetString("msgOpenSettingFilter"),
                     Settings.GridCmdListnerIndex),
                 (FilterUniqueValues != null && FilterUniqueValues.Count > 0) || FilterUser != null
@@ -773,7 +777,10 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                       +
                       string.Format("<span style=\"font-size:5pt\" title=\"{1}\">{0}</span>", OrderByNumber,
                           Settings.V4Page.Resx.GetString("lblColumnSortOrder"))
-                    : ""
+                    : "",
+                    (!Settings.IsGroupEnable ? "" : @"<div class=""v4DivInline v4PaddingCell""><span class=""v4GroupToggle ui-icon ui-icon-arrow-4""></span></div>"),
+                    Id,
+                    !Settings.IsGroupEnable?"":string.Format("<div class=\"v4DivInline v4PaddingCell v4DeleteColumn\" style=\"display:none;\"><img src=\"/styles/RemoveFromList.gif\" style=\"cursor:pointer;\" border=0 title=\"{0}\"/></div>", Settings.Resx.GetString("lblGridDeleteCulumnGrouping"))
                 );
         }
 

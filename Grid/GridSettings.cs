@@ -16,6 +16,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         public int GridCmdListnerIndex { get; private set; }
         public string GridId { get; private set; }
         public bool IsPrintVersion { get; set; }
+        public bool IsGroupEnable { get; set; }
 
         public DataTable DT;
         public List<GridColumn> TableColumns;
@@ -51,6 +52,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         {
             TableColumns = new List<GridColumn>();
             var inx = 0;
+            if (DT == null) return;
             foreach (DataColumn clmn in DT.Columns)
             {
                 var x = new GridColumn(this)

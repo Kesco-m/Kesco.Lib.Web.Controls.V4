@@ -196,6 +196,7 @@ namespace Kesco.Lib.Web.Controls.V4
     /// <summary>
     ///     Базовый класс всех контролов версии 4
     /// </summary>
+       
     public abstract class V4Control : Control
     {
         /// <summary>
@@ -219,6 +220,7 @@ namespace Kesco.Lib.Web.Controls.V4
         private bool _isDisabled;
         private bool _isReadOnly;
         private bool _isRequired;
+        private bool _refreshRequired;
         private string _value = "";
 
         /// <summary>
@@ -428,6 +430,19 @@ namespace Kesco.Lib.Web.Controls.V4
                     SetPropertyChanged("IsReadOnly");
                 }
                 _isReadOnly = value;
+            }
+        }
+
+        /// <summary>
+        ///     Принудительно перерисовать значение контрола
+        /// </summary>
+        public bool RefreshRequired
+        {
+            get { return _refreshRequired; }
+            set
+            {
+                 if (value) SetPropertyChanged("RefreshRequired");
+                _refreshRequired = value;
             }
         }
 
@@ -739,6 +754,15 @@ namespace Kesco.Lib.Web.Controls.V4
                 JS.Write("if (gi('{0}_cptn'!=='undefined')) {{gi('{0}_cptn').style.display='{1}'}};", HtmlID,
                     Visible ? DisplayCaptionStyle : "none");
             }
+
+            
+            if (RefreshRequired)
+            {
+                V4Page.RefreshHtmlBlock(HtmlID, RenderControl);
+                V4Page.RefreshHtmlBlock(HtmlID + "_ntf", RenderNtf);
+                return;
+            }
+
 
             if (PropertyChanged.Contains("IsReadOnly") || PropertyChanged.Contains("IsDisabled"))
             {

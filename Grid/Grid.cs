@@ -13,6 +13,7 @@ using Kesco.Lib.Localization;
 using Kesco.Lib.Web.Controls.V4.Common;
 using Page = Kesco.Lib.Web.Controls.V4.Common.Page;
 using System.Collections.Generic;
+using Kesco.Lib.BaseExtention.Enums;
 using Kesco.Lib.BaseExtention.Enums.Controls;
 using Kesco.Lib.DALC;
 using Kesco.Lib.Web.Settings;
@@ -26,14 +27,18 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
     public class Grid: V4Control, IClientCommandProcessor
     {
         private const string _constIdTag = "[CID]";
+        private const string _constGroupingTag = "[GROUPING]";
         private const string _constCtrlPagingBar = "[C_PAGINGBAR]";
         private const string _constMarginBottom = "[MARGIN_BOTTOM]";
         private const string _constGridHeight = "[GRID_HEIGHT]";
+        private const string _consGroupingPanelEmptyText = "[GROUPINGPANELEMPTYTEXT]";
+        
 
         private int _rowsPerPage = 50;
         private int _marginBottom = 100;
         private int _gridHeight = 0;
-        private string _emptyDataString ="";
+        private string _emptyDataString = "";
+        private NtfStatus _emptyDataNtfStatus = NtfStatus.Empty;
         private int? _maxPrintRenderRows;
         private const int MAX_RENDER_ROWS = 4000;
 
@@ -80,6 +85,15 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         }
 
         /// <summary>
+        /// Тип строки, которая выводится, если источник данных пустой
+        /// </summary>
+        public NtfStatus EmptyDataNtfStatus
+        {
+            get { return _emptyDataNtfStatus; }
+            set { _emptyDataNtfStatus = value; }
+        }
+        
+        /// <summary>
         /// Максимальное количество строк
         /// </summary>
         public int MaxPrintRenderRows
@@ -93,6 +107,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// </summary>
         public bool ShowGroupPanel { get; set; }
 
+        /// <summary>
+        ///     Акцессор V4Page
+        /// </summary>
         public Page V4Page
         {
             get { return Page as Page; }
@@ -174,8 +191,11 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             var sourceContent = reader.ReadToEnd();
             
             sourceContent = sourceContent.Replace(_constIdTag, ID);
+            sourceContent = sourceContent.Replace(_constGroupingTag, ShowGroupPanel?"true":"false");
             sourceContent = sourceContent.Replace(_constMarginBottom, _marginBottom.ToString());
             sourceContent = sourceContent.Replace(_constGridHeight, _gridHeight.ToString());
+            sourceContent = sourceContent.Replace(_consGroupingPanelEmptyText, Resx.GetString("lblGridGroupingPanelEmptyText"));
+            
 
             using (TextWriter currentPageTextWriter = new StringWriter())
             {
@@ -268,7 +288,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             _dbSourceSettings = null;
             ClearDataFilter(false);
             _dtLocal = dt;
-            _gridSettings = new GridSettings(_dtLocal, ID, GridCmdListnerIndex, V4Page);
+            _gridSettings = new GridSettings(_dtLocal, ID, GridCmdListnerIndex, V4Page) {IsGroupEnable = ShowGroupPanel};
         }
 
         /// <summary>
@@ -295,9 +315,14 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             ClearDataFilter(false, reloadDbSourceSettings);
             if (_currentPagingBarCtrl != null) _currentPagingBarCtrl.CurrentPageNumber = 1;
             _dtLocal = DBManager.GetData(_dbSourceSettings.SqlQuery, _dbSourceSettings.ConnectionString, _dbSourceSettings.SqlCommandType, _dbSourceSettings.SqlParams = args);
-           
-            if (reloadDbSourceSettings) 
-                _gridSettings = new GridSettings(_dtLocal, ID, GridCmdListnerIndex, V4Page);
+
+            if (reloadDbSourceSettings)
+            {
+                _gridSettings = new GridSettings(_dtLocal, ID, GridCmdListnerIndex, V4Page)
+                {
+                    IsGroupEnable = ShowGroupPanel
+                };
+            }
         }
 
         /// <summary>
@@ -314,7 +339,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 _dtLocal.Dispose();
             }
 
-            if (_gridSettings != null && dropGridSettings)
+            if (_gridSettings != null && _gridSettings.DT != null && dropGridSettings)
             {
                 _gridSettings.DT.Clear();
                 _gridSettings.DT.Dispose();
@@ -349,13 +374,8 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             RenderGridData(w);
 
             if (ShowGroupPanel)
-            {
-                V4Page.JS.Write("$('#divGroupingPanel_{0}').show();", ID);
-                V4Page.JS.Write("v4_gridEnableGrouping();");
-            }
-            else
-                V4Page.JS.Write("$('#divGroupingPanel_{0}').hide();", ID);
-
+               V4Page.JS.Write("setTimeout(function(){{v4_gridEnableGrouping('{0}');}},50);", ID);
+            
             V4Page.JS.Write("v4_fixedHeaderDestroy();");
             V4Page.JS.Write("$('#{0}').html('{1}');", ID, HttpUtility.JavaScriptStringEncode(w.ToString()));
             V4Page.JS.Write("setTimeout(v4_fixedHeader,50);");
@@ -369,6 +389,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 Resx.GetString("msgEmptyFilterValue")
             );
 
+            if (ShowGroupPanel)
+                V4Page.JS.Write("v4_setWidthGroupingPanel('{0}');", ID);
+
             V4Page.RestoreCursor();
         }
 
@@ -378,9 +401,12 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// <param name="w"></param>
         public void RenderGridData(TextWriter w)
         {
-            if (_dtLocal.Rows.Count == 0)
+            if (_dtLocal == null || _dtLocal.Rows.Count == 0)
             {
-                w.Write(EmptyDataString);
+                var className = EnumAccessors.GetCssClassByNtfStatus(_emptyDataNtfStatus);
+
+                w.Write("<div{1}>{0}</div>", EmptyDataString, string.IsNullOrEmpty(className) ? "" : " class='" + className + "'");
+                //w.Write(EmptyDataString);
                 _currentPagingBarCtrl.SetDisabled(true, false);
                 JS.Write("$('#divPageBar_{0}').hide();", ID);
                 return;
@@ -477,9 +503,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             results = results.DefaultView.ToTable();
             //-----------------------------------------------
 
-            w.Write("<table class='grid'>");
-            w.Write("<thead>");
-            w.Write("<tr class=\"gridHeader\">");
+            w.Write("<table class='grid' id='table_{0}'>", ID);
+            w.Write("<thead class='v4DropPanel'>");
+            w.Write("<tr id='thead_{0}' class=\"gridHeader\">", ID);
 
             if (ExistServiceColumn)
                 w.Write(@"<th>&nbsp;</th>");
@@ -692,9 +718,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             }
             else
             {
-                objField1 = GetFilterUserControlValue(clmn, clmn.FilterUserCtrlBaseName + "_1");
+                objField1 = GetFilterUserControlValue(clmn, clmn.FilterUserCtrlBaseName + "_" + ID + "_1");
                 if (filter == GridColumnUserFilterEnum.Между)
-                    objField2 = GetFilterUserControlValue(clmn, clmn.FilterUserCtrlBaseName + "_2");
+                    objField2 = GetFilterUserControlValue(clmn, clmn.FilterUserCtrlBaseName + "_" + ID + "_2");
             }
 
             clmn.FilterUser = new GridColumnUserFilter
@@ -722,9 +748,17 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             else if (ctrl is Number)
             {
                 if (clmn.ColumnType == GridColumnTypeEnum.Int)
-                    value = ((Number)ctrl).ValueInt;
+                    value = ((Number) ctrl).ValueInt;
                 else
-                    value = ((Number)ctrl).ValueDecimal;
+                {
+                    if (clmn.ColumnType == GridColumnTypeEnum.Double)
+                    {
+                        var valueDecimal = ((Number)ctrl).ValueDecimal;
+                        if (valueDecimal != null) value = (double)valueDecimal;
+                    }
+                    else
+                        value = ((Number) ctrl).ValueDecimal;
+                }
             }
             else
                 value = ctrl.Value;
@@ -985,11 +1019,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         #endregion
 
         #region DetailColumn
-        private bool _existServiceColumnDetail = false;
         private string _detailClientFuncName = "";
         private List<string> _detailPkFieldsName;
         private string _detailTitle = "";
-        private int _detailColumn = -1;
 
         /// <summary>
         /// Настройка кнопки детализации записи в таблице
@@ -999,7 +1031,6 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// <param name="title">Всплывающая подсказка</param>
         public void SetServiceColumnDetail(string clientFuncName, List<string> pkFieldsName, string title = "")
         {
-            _existServiceColumnDetail = true;
             _detailClientFuncName = clientFuncName;
             _detailPkFieldsName = pkFieldsName;
             _detailTitle = title;
@@ -1029,5 +1060,41 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             if (_dtLocal == null) return 0;
             return _dtLocal.AsEnumerable().Sum(f => f.Field<decimal>(fieldName));
         }
+
+        /// <summary>
+        /// Переход на указанную страницу
+        /// </summary>
+        public void GoToPage(int pageNumber)
+        {
+            if (_currentPagingBarCtrl.CurrentPageNumber == pageNumber)
+                return;
+
+            if (pageNumber > _currentPagingBarCtrl.MaxPageNumber) 
+               pageNumber = _currentPagingBarCtrl.MaxPageNumber;
+
+            _currentPagingBarCtrl.CurrentPageNumber = pageNumber;
+             RefreshGridData();
+        }
+
+        /// <summary>
+        /// Переход на последнюю страницу
+        /// </summary>
+        public void GoToLastPage()
+        {
+            if (_currentPagingBarCtrl.CurrentPageNumber == _currentPagingBarCtrl.MaxPageNumber)
+                return;
+            _currentPagingBarCtrl.CurrentPageNumber = _currentPagingBarCtrl.MaxPageNumber;
+            RefreshGridData();
+        }
+
+        /// <summary>
+        /// Возвращает текущую страницу
+        /// </summary>
+        public int GеtCurrentPage()
+        {
+            return _currentPagingBarCtrl.CurrentPageNumber;
+        }
+
+
     }
 }

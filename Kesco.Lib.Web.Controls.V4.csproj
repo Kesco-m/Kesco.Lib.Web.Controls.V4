@@ -106,6 +106,7 @@
     <Compile Include="Comet.cs" />
     <Compile Include="DBControls\Changed.cs" />
     <Compile Include="FilterGroupBox.cs" />
+    <Compile Include="SelectMethodGetEntityValue.cs" />
     <Compile Include="Grid\Grid.cs" />
     <Compile Include="Grid\GridColumn.cs" />
     <Compile Include="Grid\GridColumnUserFilter.cs" />

@@ -19,10 +19,12 @@ using Kesco.Lib.BaseExtention.Enums;
 using Kesco.Lib.BaseExtention.Enums.Controls;
 using Kesco.Lib.Entities;
 using Kesco.Lib.Entities.Corporate;
+using Kesco.Lib.Entities.Documents;
 using Kesco.Lib.Entities.Persons;
 using Kesco.Lib.Localization;
 using Kesco.Lib.Log;
 using Kesco.Lib.Web.Comet;
+using Kesco.Lib.Web.Controls.V4.Common.DocumentPage;
 using Kesco.Lib.Web.Controls.V4.Renderer;
 using Kesco.Lib.Web.Settings;
 
@@ -80,8 +82,12 @@ namespace Kesco.Lib.Web.Controls.V4.Common
     /// </summary>
     public abstract class Page : System.Web.UI.Page
     {
-        public bool IsKescoRun = true;
-
+        public bool IsKescoRun = false;
+        
+        /// <summary>
+        /// Параметры строки запроса, полученные при первом запросе GET
+        /// </summary>
+        protected NameValueCollection CurrentQS;
         /// <summary>
         ///     Делегат рендеринга части страницы
         /// </summary>
@@ -146,6 +152,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             LastUpdate = DateTime.Now;
             EnableViewState = false;
             CurrentUser = new Employee(true);
+
             IsComet = true;
             
             RegisterCss("/Styles/Kesco.V4/CSS/jquery.qtip.min.css");
@@ -162,7 +169,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             }
             RegisterScript("jquery", "<script src='/Styles/Kesco.V4/JS/jquery-1.12.4.min.js' type='text/javascript'></script>");
             //RegisterScript("jquery", "<script src='/Styles/Kesco.V4/JS/jquery-3.3.1.min.js' type='text/javascript'></script>");
-            //RegisterScript("jquery", "<script src='/Styles/Kesco.V4/JS/jquery-migrate-3.0.1.min.js' type='text/javascript'></script>");
+            //RegisterScrweb browseript("jquery", "<script src='/Styles/Kesco.V4/JS/jquery-migrate-3.0.1.min.js' type='text/javascript'></script>");
             RegisterScript("jqueryui", "<script src='/Styles/Kesco.V4/JS/jquery-ui.js' type='text/javascript'></script>");
             RegisterScript("jquerycookie", "<script src='/Styles/Kesco.V4/JS/jquery.cookie.js' type='text/javascript'></script>");
             RegisterScript("jqueryqtipmin", "<script src='/Styles/Kesco.V4/JS/jquery.qtip.min.js' type='text/javascript'></script>");
@@ -181,6 +188,9 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             RegisterScript("Dialog","<script src='/Styles/Kesco.V4/JS/Kesco.Dialog.js' type='text/javascript'></script>");
             RegisterScript("Menu", "<script src='/Styles/Kesco.V4/JS/Kesco.Menu.js' type='text/javascript'></script>");
             RegisterScript("LocalTime", "<script src='/Styles/Kesco.V4/JS/Kesco.LocalTime.js' type='text/javascript'></script>");
+
+            if (this is DocPage)
+                RegisterScript("DocPage", "<script src='/Styles/Kesco.V4/JS/Kesco.DocPage.js' type='text/javascript'></script>");
         }
 
         /// <summary>
@@ -227,6 +237,14 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         ///     ID страницы (GUID)
         /// </summary>
         public string IDPage { get; set; }
+
+
+        
+        /// <summary>
+        ///     ID post request (GUID)
+        /// </summary>
+        public string IDPostRequest { get; set; }
+
 
         /// <summary>
         ///     Дата и время последнего обращения к странице
@@ -567,6 +585,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                     ItemName = match.Success ? match.Value : AppRelativeVirtualPath;
                     if (!string.IsNullOrEmpty(ItemName)) ItemName = ItemName.Replace(".","_");
                 }
+
+                CurrentQS = Request.QueryString;
             }
 
             CometAsyncState state = new CometAsyncState(null, null, null);
@@ -589,8 +609,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
 
             GetV4Controls(this);
             base.OnLoad(e);
-
-            //Вставка скриптов инициализации в начало заголовка
+            
             if (!IsComet)
             {
                 Header.Controls.AddAt(0,
@@ -891,7 +910,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             var _dashSpace = dashSpace ? " - " : "";
             if (n > 0)
             {
-                w.Write("<div {2} {3} style=\"color:{0};font-size:7pt;font-family:Verdana;font-weight:normal;\">{1}", 
+                w.Write("<div {2} {3} style=\"color:{0} !important;;font-size:7pt !important;font-family:Verdana;font-weight:normal;\">{1}", 
                     color, 
                     _dashSpace, 
                     string.IsNullOrEmpty(divId) ? "" : "id=\"" + divId + "\"",
@@ -992,6 +1011,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             foreach (var ctrl in V4Controls.Values)
             {
                 ctrl.Flush();
+                ctrl.RefreshRequired = false;
                 ctrl.PropertyChanged.Clear();
             }
 
@@ -1454,6 +1474,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 tabIndex.Length > 0 ? " tabIndex=" + tabIndex : "");
         }
 
+        public void RenderLinkLocation(TextWriter w, string id, string value, string text, NtfStatus ntf = NtfStatus.Empty, string tabIndex = "")
+        {
+            RenderLink(w, "hrefLoc"+ id, "", text, "", Config.location_search + ((Config.location_search.IndexOf('?') == -1) ? "?" : "&") + "id=" + value, "", "", tabIndex, ntf);
+        }
+
         /// <summary>
         ///     Отрисовать ссылку на оборудование
         /// </summary>
@@ -1523,7 +1548,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         #region RendeLink
 
         /// <summary>
-        ///     Отсисовка ссылки на сотрудника
+        ///     Отрисовка ссылки на сотрудника
         /// </summary>
         /// <param name="w">Поток</param>
         /// <param name="emplId">КодСотрудника</param>
@@ -1535,7 +1560,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         }
 
         /// <summary>
-        ///     Отсисовка ссылки на сотрудника
+        ///     Отрисовка ссылки на сотрудника
         /// </summary>
         public void RenderLinkEmployee(TextWriter w, string htmlId, Employee empl, NtfStatus ntf)
         {
@@ -1705,12 +1730,19 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             if (tabIndex.Length > 0)
                 w.Write("tabIndex={0} ", tabIndex);
 
-            var ntfClass = EnumAccessors.GetCssClassByNtfStatus(ntf);
+           
+            var className = EnumAccessors.GetCssClassByNtfStatus(ntf);
 
             if (!callerType.Equals(CallerTypeEnum.Empty) && value.Length > 0)
-                w.Write(" class=\"" + ntfClass + " v4_callerControl\" data-id=\"" +
+            {
+                className += " v4_callerControl";
+                w.Write(" data-id=\"" +
                         HttpUtility.UrlEncode(value) + "\" caller-type=\"" +
                         (int) callerType + "\"");
+            }
+
+            if (className.Length > 0)
+                w.Write(" class=\"" + className + " \"");
 
             w.Write(">");
             w.Write(HttpUtility.HtmlEncode(text));
@@ -1769,20 +1801,45 @@ namespace Kesco.Lib.Web.Controls.V4.Common
 
         public Entity GetObjectById(Type t, string id)
         {
-            var ret = ObjList.Find(o => o.Type == t && o.Object.Id == id);
+            var ret = ObjList.Find(o => (o.Type == t || t == typeof(Document)) && o.Object.Id == id);
 
+            if (ret != null  
+                && V4IsPostBack
+                && (string.IsNullOrEmpty(ret.Object.CurrentPostRequest) || ret.Object.CurrentPostRequest != IDPostRequest)
+                && ret.Object.GetLastChanged(id) != ret.Object.Changed)
+            {
+                objList.Remove(ret);
+                ret = null;
+            }
+            
             if (ret == null)
             {
                 var ci = t.GetConstructor(new Type[] { typeof(string) });
                 if (ci != null)
                 {
-                    var o = ci.Invoke(new object[] { id });
-                    ret = new V4PageObj {Type = t, Object = o as Entity};
-                    objList.Add(ret);
+                    var o = ci.Invoke(new object[] { id }) as Entity;
+                    if (o != null)
+                    {
+                        o.CurrentPostRequest = IDPostRequest;
+                        ret = new V4PageObj { Type = t, Object = o };
+                        objList.Add(ret);
+                    }
+                  
+                }
+            }
+            else if (V4IsPostBack)
+            {
+                if (string.IsNullOrEmpty(ret.Object.CurrentPostRequest) || ret.Object.CurrentPostRequest != IDPostRequest)
+                {
+                    ret.Object.CurrentPostRequest = IDPostRequest;
                 }
             }
 
-            if (ret != null) return ret.Object;
+            if (ret != null)
+            {
+                return ret.Object;
+            }
+
             return null;
         }
 
