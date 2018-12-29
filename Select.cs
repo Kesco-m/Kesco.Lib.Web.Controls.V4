@@ -1395,7 +1395,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     val = CustomRecordText;
                 else
                 {
-                    if (String.IsNullOrEmpty(val) && key != "0")
+                    if (String.IsNullOrEmpty(val))
                         val = "#" + key;
                 }
                 ValueText = val;

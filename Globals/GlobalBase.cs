@@ -70,6 +70,7 @@ namespace Kesco.Lib.Web.Controls.V4.Globals
         /// <param name="e">Параметры</param>
         protected virtual void Application_BeginRequest(object sender, EventArgs e)
         {
+            HttpContext.Current.Response.AddHeader("Access-Control-Allow-Origin", Domain);
             HttpContext.Current.Response.AddHeader("Access-Control-Allow-Credentials", "true");
 
             if (Request.Url.Host.IndexOf(Domain, StringComparison.Ordinal) == -1)

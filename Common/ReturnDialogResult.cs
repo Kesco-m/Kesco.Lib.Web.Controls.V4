@@ -32,7 +32,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 if (url.IndexOf('?') == -1) url += "?";
                 else url += "&";
 
-                url += string.Format("return={0}&mvc=4&clid={1}&control={2}&callbackKey={3}&callbackUrl={4}",
+                //todo: Заменить на mvc=4 после публикации ТТН и скриптов V4
+                url += string.Format("return={0}&mvc=1&clid={1}&control={2}&callbackKey={3}&callbackUrl={4}",
                     isMultiReturn ? 2 : 1,
                     clid,
                     HttpUtility.UrlEncode(ctrlId),

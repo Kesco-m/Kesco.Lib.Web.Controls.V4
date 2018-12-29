@@ -920,6 +920,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             for (var i = 0; i < n; i++)
             {
                 var n4check = ntf[i];
+                if (n4check == null) continue;
                 if (n4check.IndexOf("<ns>", StringComparison.Ordinal) != -1)
                 {
                     n4check = n4check.Remove(0, 4);
