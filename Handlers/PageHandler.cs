@@ -167,10 +167,21 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             var sb = new StringBuilder();
             sb.Append("<f><js>");
 
+/*
             sb.AppendFormat(
                 @"v4_isConfirmDelete = true; ConfirmReload.render('{0}', '{1}', '{2}', '{3}', 'false');",
                 Resx.GetString("msgOsnAttention0"), Resx.GetString("lSession"), Resx.GetString("lCont"),
                 Resx.GetString("lEnd"));
+*/
+            var dex = new LogicalException(Resx.GetString("lSession"),
+                Resx.GetString("lSession"),
+                System.Reflection.Assembly.GetExecutingAssembly().GetName(), Priority.ExternalError);
+            Logger.WriteEx(dex);
+
+            sb.AppendFormat(
+                @"v4_isConfirmDelete = false; location.href = location.href;");
+
+            
 
             sb.Append("</js></f>");
             context.Response.Write(sb.ToString());
@@ -186,9 +197,9 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             sb0.Append("<title>");
             sb0.Append("Ошибка!");
             sb0.Append("</title>");
-            sb0.Append("<script src='/Styles/Kesco.V4/JS/jquery-1.12.4.min.js' type='text/javascript'></script>");
-            sb0.Append("<script src='/Styles/Kesco.V4/JS/jquery-ui.js' type='text/javascript'></script>");
-            sb0.Append("<script src='/Styles/Kesco.V4/JS/Kesco.Confirm.js' type='text/javascript'></script>");
+            sb0.Append(string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery-1.12.4.min.js' type='text/javascript'></script>", Settings.Config.versionV4js));
+            sb0.Append(string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery-ui.js' type='text/javascript'></script>", Settings.Config.versionV4js));
+            sb0.Append(string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Confirm.js' type='text/javascript'></script>", Settings.Config.versionV4js));
             sb0.Append("<link href='/Styles/Kesco.V4/CSS/Kesco.V4.css' rel='stylesheet' type='text/css'/>");
             sb0.Append("</head>");
             sb0.Append("<body>");
@@ -251,7 +262,7 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             sb.Append("</tr>");
 
             sb.Append("<tr>");
-            sb.Append("<td style='font-size:7pt;' colspan=2>");
+            sb.Append("<td colspan=2>");
             sb.Append(
                 "<div id='v4DivStackTrace' style='display:none;background-color:#fafad2;height:150px; max-width:480px; overflow: auto'>");
             sb.Append("<pre>");

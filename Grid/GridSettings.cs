@@ -17,11 +17,19 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         public string GridId { get; private set; }
         public bool IsPrintVersion { get; set; }
         public bool IsGroupEnable { get; set; }
+        public int GroupingExpandIndex { get; set; }
+
+        /// <summary>
+        /// Признак разрешена ли фильтрация
+        /// </summary>
+        public bool IsFilterEnable { get; set; }
 
         public DataTable DT;
         public List<GridColumn> TableColumns;
+        public List<GridColumn> GroupingColumns;
+        public List<GridColumn> ColumnsDisplayOrder;
 
-        public Page V4Page
+        public new Page V4Page
         {
             get { return Page as Page; }
             set { Page = value; }
@@ -51,6 +59,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         private void FillTableColumns()
         {
             TableColumns = new List<GridColumn>();
+            
             var inx = 0;
             if (DT == null) return;
             foreach (DataColumn clmn in DT.Columns)
@@ -61,13 +70,33 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                     Alias = clmn.ColumnName,
                     FieldName = clmn.ColumnName,
                     DisplayVisible = true,
-                    DisplayOrder = inx++
+                    DisplayOrder = inx
                 };
                 var typeCode = Type.GetTypeCode(clmn.DataType);
                 x.ColumnType = GetColumnType(typeCode);
                 x.UniqueValuesOriginal = GetUniqueValues(clmn);
                 TableColumns.Add(x);
             }
+
+            if (ColumnsDisplayOrder != null && ColumnsDisplayOrder.Count > 0)
+            {
+                TableColumns.Where(x => ColumnsDisplayOrder.Any(y => y.FieldName == x.FieldName)).ToList().ForEach(
+                    delegate(GridColumn clmn)
+                    {
+                        var _clmn = ColumnsDisplayOrder.FirstOrDefault(y => y.FieldName == clmn.FieldName);
+                        if (_clmn != null)
+                        {
+                            clmn.DisplayOrder = _clmn.DisplayOrder;
+                            if (inx < clmn.DisplayOrder) inx = clmn.DisplayOrder;
+                        }
+                    });
+            }
+
+            TableColumns.Where(x => x.DisplayOrder==0).ToList().ForEach(delegate(GridColumn clmn)
+            {
+                clmn.DisplayOrder = inx++;
+            });
+
         }
 
         /// <summary>
@@ -471,6 +500,18 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
             if (clmn != null)
                 clmn.FormatString = formatString;
+        }
+
+        /// <summary>
+        /// Установить преобразование времени UTC в локальное время
+        /// </summary>
+        /// <param name="fieldName">Название колонки</param>
+        public void SetColumnLocalTime(string fieldName)
+        {
+            if (TableColumns == null) return;
+            var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
+            if (clmn != null)
+                clmn.IsLocalTime = true;
         }
 
         #endregion

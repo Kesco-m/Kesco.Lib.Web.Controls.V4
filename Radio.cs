@@ -39,6 +39,9 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public bool IsRow { get; set; }
 
+        public int PaddingLeftRadio { get; set; }
+        public int HeightRow { get; set; }
+        public int MarginLeftLabel { get; set; }
         /// <summary>
         ///     Проверка выделен ли элемент в коллекции radio
         /// </summary>
@@ -88,7 +91,7 @@ namespace Kesco.Lib.Web.Controls.V4
         ///     Отрисовка контрола
         /// </summary>
         /// <param name="w">Поток</param>
-        public override void RenderControl(TextWriter w)
+        protected override void RenderControlBody(TextWriter w)
         {
             if (Items.Count == 0) return;
             w.Write("<div id=\"{0}\" class=\"v4ch\">", HtmlID);
@@ -115,7 +118,7 @@ namespace Kesco.Lib.Web.Controls.V4
             w.Write("<table cellpadding=\"0\" cellspacing=\"0\">");
             foreach (var item in Items)
             {
-                w.Write("<tr><td>");
+                w.Write("<tr style=\"height:{1}px;\"><td style=\"padding-left:{0}px;\">", PaddingLeftRadio, HeightRow);
                 w.Write(
                     "<input type=\"radio\" id=\"{0}{4}_0\" name=\"{2}\" {1} Title=\"{3}\" onclick=\"cmd('ctrl','{0}','v',(this.checked?'1':'0'),'rb','{4}');\"",
                     HtmlID, GetChecked(item) ? "checked" : "", Name, Title, item.Code);
@@ -125,7 +128,7 @@ namespace Kesco.Lib.Web.Controls.V4
                     w.Write(" nc='{0}'", GetHtmlIdNextControl());
                 if (TabIndex.HasValue)
                     w.Write(" TabIndex={0} ", TabIndex);
-                w.Write(" onkeydown='v4cb_keyDown(event)' /><label for=\"{0}{1}_0\">{2}</label>", HtmlID, item.Code,
+                w.Write(" onkeydown='v4cb_keyDown(event)' /><label for=\"{0}{1}_0\" style=\"margin-left:{2}px;\">{3}</label>", HtmlID, item.Code, MarginLeftLabel,
                     HttpUtility.HtmlEncode(item.Name));
                 w.Write("</td></tr>");
             }

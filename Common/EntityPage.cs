@@ -146,34 +146,62 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         public void RenderButtons(StringWriter w)
         {
+            w.Write("<div id=\"pageHeader\" class=\"ui-widget-header ui-corner-all\" style=\"z-index:9999 {0}\">", _menuButtons.Count==0? ";height:23px":"");
+
+            foreach (var b in _menuButtons)
+            {
+                V4Controls.Add(b);
+                b.RenderControl(w);
+                b.PropertyChanged.Clear();
+            }
+
             if (_menuButtons.Count > 0)
             {
-                w.Write("<div id=\"pageHeader\" class=\"ui-widget-header ui-corner-all\" style=\"z-index:9999\">");
-                foreach (var b in _menuButtons)
-                {
-                    V4Controls.Add(b);
-                    b.RenderControl(w);
-                    b.PropertyChanged.Clear();
-                }
-
-               // if (false) // пока эта функция никому ну нужна, генирирует 
-                   
-
                 if (ItemId > 0) // блокируем на вермя показа
                     RenderCometControl(w);
-                
-
-                if (!string.IsNullOrEmpty(HelpUrl))
-                {
-                    // в v4контроле криво отображается
-                    w.Write(
-                        "<div id='btnHelp' title='{0}' onclick=\"v4_openHelp('<%= IDPage %>');\" style='float: right; margin-right: 11px;  display:table-cell; vertical-align: middle;  text-align: center; width: 25px; height: 20px;'></div>",
-                        Resx.GetString("Title_Help"));
-                    w.Write("<script>$('#{0}').button({{icons: {{primary: {1}}}}});</script>", "btnHelp", ButtonIconsEnum.Help);
-                }
-                
-                w.WriteLine(@"</div>");
             }
+
+            if (!string.IsNullOrEmpty(LogoImage))
+            {
+                w.Write("<img src=\"{0}\" style=\"float: left; margin-left: 2px; border: 0; height: 23px;\">", LogoImage);
+            }
+
+            if (!string.IsNullOrEmpty(HelpUrl))
+            {
+                var btnHelp = new Button
+                {
+                    ID = "btnHelp",
+                    V4Page = this,
+                    Text = "",
+                    Title = Resx.GetString("lblHelp"),
+                    Width = 27,
+                    Height = 22,
+                    IconJQueryUI = ButtonIconsEnum.Help,
+                    OnClick = string.Format("v4_openHelp('{0}');", IDPage),
+                    Style = "float: right; margin-right: 11px;"
+                };
+
+                V4Controls.Add(btnHelp);
+                btnHelp.RenderControl(w);
+                btnHelp.PropertyChanged.Clear();
+            }
+
+            if (LikeId != 0)
+            {
+                var btnLike = new LikeDislike
+                {
+                    ID = "btnLike",
+                    V4Page = this,
+                    LikeId = LikeId,
+                    InterfaceVersion = InterfaceVersion,
+                    Style = "float: right; margin-right: 11px; margin-top: 3px; cursor: pointer;"
+                };
+
+                V4Controls.Add(btnLike);
+                btnLike.RenderControl(w);
+            }
+
+            w.WriteLine(@"</div>");
         }
 
         /// <summary>

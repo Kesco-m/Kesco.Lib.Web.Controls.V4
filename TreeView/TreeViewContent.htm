@@ -1,0 +1,86 @@
+﻿    <div id="divTreeViewContainer_[CID]" сlass="v4TreeViewContainer">
+        <div id="divTreeViewHeader_[CID]">
+            <div id="divMenuTreeView_[CID]" class="v4divButtonHeader" style="border-top: 0px; border-left: 0px; min-width: 300px; [MENUSTYLE]">
+                <div class="predicate_menu_block">
+                    <b>&nbsp;[ORDERTEXT]</b> [ORDERBUTTON][C_SEARCHBUTTON]
+                </div>
+            </div>
+            <div id="divSearchTreeView_[CID]" class="v4divButtonHeader" style="border-top: 0px; border-left: 0px; min-width: 300px; [SEARCHSTYLE]">
+                <div style="overflow: hidden; width: 100%;">
+                    [C_SEARCHCLOSEBUTTON]
+                    <div style="display: inline-block;"><b>&nbsp;[C_FILTERNAME]&nbsp;</b></div>
+                    <div style="display: inline-block;">[C_SEARCHRADIO]</div>
+                    <div style="display: inline-block;">
+                        <div style="display: inline-block;">&nbsp;[C_SEARCHTEXTBOX]</div>
+                        <div style="display: inline-block;">&nbsp;[C_FINDBUTTON]</div>
+                    </div>
+                    <div style="margin-left: 4px;" id="divSearchCount_[CID]"></div>
+                </div>
+            </div>
+        </div>
+        <div id="divTreeView_[CID]" class="v4Treeview"></div>
+        <div id="divBottomMenuTreeView_[CID]" class="v4divButtonHeader" style="border-top: 0px; border-left: 0px; min-width: 300px; [BOTTOMMENUSTYLE]">
+            <div class="predicate_menu_block">
+                &nbsp;[SAVEBUTTON][CANCELBUTTON]
+            </div>
+        </div>
+    </div>
+ 
+<!-- Диалог редактирования item-->
+<div id="divEditNode_[CID]" style="display: none;">
+    <table cellspacing="0" cellpadding="5" border="0">
+        <tr>
+            <td colspan="2">[C_PATCH]</td>
+        </tr>
+        <tr>
+            <td>[C_HEADER]</td>
+            <td>[C_NAME]</td>
+        </tr>
+    </table>
+</div>
+
+<script type="text/javascript">
+ 
+    $(document).ready(function () {
+        var ctrlId = "[CID]";
+        if (v4_trees[ctrlId] == null)
+            v4_trees[ctrlId] = {
+                isSaveState: [IsSaveState],
+                isLoadData: [IsLoadData],
+                /*uri_getState: "[URL_GETSTATE]",*/
+                uri_saveState: "[URL_SAVESTATE]",
+                cmdIndex: [TreeViewCmdListnerIndex],
+                rootVisible: [C_ROOTVISIBLE],
+                rootCheckVisible: [C_ROOTCHECKVISIBLE],
+                docFill: [C_DOCKSTYLE],
+                loadId: [LoadId],
+                isLoadById: [IsLoadById],
+                checkboxMultiple: [CHECKBOXMULTIPLE],
+                contextMenu:[CONTEXT_MENU],
+                jsonData:"[JSON_DATA]",
+                returnData: "[RETURN_DATA]",
+                returnType: "[RETURN_TYPE]",
+                message1: "[MSG1]",
+                message2:"[MSG2]",
+                message3:"[MSG3]",
+                pluginCheckBox: "[PL_CHECKBOX]",
+                is_Draggable: "[PL_DND]",
+                behaviorCheckBox: [BH_CHECKBOX],
+                filtered: "[FILTERED]",
+                pageId: "[PAGEID]"
+            };
+
+        v4_treeViewInit(ctrlId);
+    });
+
+    $("#tbSearchText_[CID]_0").keydown(function (event) {
+        if (event.keyCode === 13) {
+            $("#btnFind_[CID]").click();
+        }
+    });
+
+    [FUNC_MENU]
+
+    [C_RESIZABLE]
+
+</script>

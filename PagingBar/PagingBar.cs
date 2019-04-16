@@ -121,7 +121,7 @@ namespace Kesco.Lib.Web.Controls.V4.PagingBar
         /// <summary>
         ///     Акцессор V4Page
         /// </summary>
-        public Page V4Page
+        public new Page V4Page
         {
             get { return Page as Page; }
             set { Page = value; }
@@ -187,17 +187,17 @@ namespace Kesco.Lib.Web.Controls.V4.PagingBar
         /// <summary>
         ///     TabIndex
         /// </summary>
-        public int TabIndex { get; set; }
+        public new int TabIndex { get; set; }
 
         /// <summary>
         ///     ID следующего контрола при переходе по Enter
         /// </summary>
-        public string NextControl { get; set; }
+        public new string NextControl { get; set; }
 
         /// <summary>
         ///     Атрибут для построения справки
         /// </summary>
-        public string Help { get; set; }
+        public new string Help { get; set; }
 
         /// <summary>
         ///     Событие смены текущей страницы

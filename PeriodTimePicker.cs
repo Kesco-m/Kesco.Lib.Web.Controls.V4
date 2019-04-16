@@ -652,15 +652,15 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
             switch (int.Parse(val))
             {
                 case (int) PeriodsEnum.Day:
-                    //if (ValueDateFrom == null)
-                    //{
-                    //    ValueDateFrom = ValueDateTo = DateTime.Now;
-                    //}
-                    //else
-                    //{
-                    //    ValueDateTo = ValueDateFrom;
-                    //}
-                    ValueDateFrom = ValueDateTo = DateTime.Now;
+                    if (ValueDateFrom == null)
+                    {
+                        ValueDateFrom = ValueDateTo = DateTime.Now;
+                    }
+                    else
+                    {
+                        ValueDateTo = ValueDateFrom;
+                    }
+                    //ValueDateFrom = ValueDateTo = DateTime.Now;
                     return true;
                 case (int) PeriodsEnum.Week:
                     if (ValueDateFrom == null)
@@ -847,6 +847,11 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
         {
             Code = code;
             Name = name;
+        }
+
+        public Item()
+        {
+            
         }
 
         /// <summary>

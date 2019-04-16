@@ -386,7 +386,7 @@ namespace Kesco.Lib.Web.Controls.V4
                     colSpan);
             }
 
-            if (URIsCreateEntity != null && n <= _maxItemsInPopup)
+            if (URIsCreateEntity != null && !IsNoAlwaysCreateEntity && n <= _maxItemsInPopup)
             {
                 foreach (var uce in URIsCreateEntity)
                 {
@@ -533,7 +533,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 else if (FuncShowEntity.Length > 0 && !string.IsNullOrEmpty(Value))
                 {
                     w.Write(
-                        "<a href=\"javascript:void(0);\" onclick=\"javascript:cmd('ctrl', '{1}', 'cmd', 'ShowDocumentInDocview', 'id', {2});\">{0}</a>",
+                        "<a href=\"javascript:void(0);\" onclick=\"javascript:cmd('ctrl', '{1}', 'cmd', 'OpenDocument', 'id', {2});\">{0}</a>",
                         HttpUtility.HtmlEncode(ValueText), HtmlID, Value);
                 }
                 else
@@ -837,7 +837,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 string checked_attribute = Checked ? "checked='checked'" : string.Empty;
 
                 string div_style = _fieldset_div_style;
-                if(!IsUseCondition) div_style+="margin-top:-5px;";
+                if (!IsUseCondition) div_style += "margin-top:-5px;";
 
                 w.Write("<div style='{3}' ><input id='{0}_2' type='checkbox' tabindex='0' {1} {2} onclick=\"{4}\"/></div>", HtmlID, checked_attribute, disabled_attribute, div_style, _fieldset_input_onclick(HtmlID));
             }
@@ -853,7 +853,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 string strClass = fEnabled ? "v4_selectClause" : "v4_selectClauseDisabled";
 
                 Item modeItem = _clauseItems.Find(x => x.Code == ValueSelectEnum);
-                if(null == modeItem  || null == modeItem.Name)
+                if (null == modeItem || null == modeItem.Name)
                     modeItem = _clauseItems.Find(x => x.Code == ((int)SelectEnum.Contain).ToString());
 
                 w.Write(@"<legend><div id=""{1}"" class=""{5}"" 
@@ -870,7 +870,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             }
             else
             {
-                w.Write(@"<div style='display: block; height: 5px;'></div>"); 
+                w.Write(@"<div style='display: block; height: 5px;'></div>");
             }
 
             if (IsMultiSelect)
@@ -905,7 +905,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
 
                 //При полной перерисовке элемента управления RenderControl не генерирует основной тэг <div>
                 //из-за того, что проверяемое в RenderControl свойство V4Page.V4IsPostBack установлено как True
-                w.Write("<div id='{0}'>",_list.HtmlID);
+                w.Write("<div id='{0}'>", _list.HtmlID);
                 RenderSelectedItems(w);
                 w.Write("</div>", _list.HtmlID);
                 //_list.RenderControl(w);
@@ -1058,6 +1058,12 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         ///     количества найденных элементов
         /// </summary>
         public bool IsAlwaysAdvancedSearch { get; set; }
+
+        /// <summary>
+        ///     Признак, что при указанной ссылке на создание сущности
+        ///     ссылки будут рисоваться не всегда
+        /// </summary>
+        public bool IsNoAlwaysCreateEntity { get; set; }
 
         /// <summary>
         ///     Строка с перечислением через "," ID выбранных элементов

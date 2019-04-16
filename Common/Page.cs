@@ -27,6 +27,7 @@ using Kesco.Lib.Web.Comet;
 using Kesco.Lib.Web.Controls.V4.Common.DocumentPage;
 using Kesco.Lib.Web.Controls.V4.Renderer;
 using Kesco.Lib.Web.Settings;
+using Kesco.Lib.Web.Settings.Parameters;
 
 namespace Kesco.Lib.Web.Controls.V4.Common
 {
@@ -83,7 +84,14 @@ namespace Kesco.Lib.Web.Controls.V4.Common
     public abstract class Page : System.Web.UI.Page
     {
         public bool IsKescoRun = false;
-        
+
+        public bool IsSilverLight = true;
+
+        /// <summary>
+        /// Вспомогательный объект для сохранения и восстановления размеров и положения окна
+        /// </summary>
+        protected WndSizePosKeeper SizePosKeeper;
+
         /// <summary>
         /// Параметры строки запроса, полученные при первом запросе GET
         /// </summary>
@@ -154,43 +162,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             CurrentUser = new Employee(true);
 
             IsComet = true;
-            
-            RegisterCss("/Styles/Kesco.V4/CSS/jquery.qtip.min.css");
-            RegisterCss("/Styles/Kesco.V4/CSS/jquery-ui.css");
-            RegisterCss("/Styles/Kesco.V4/CSS/Kesco.V4.css");
-
-            if (!IsKescoRun)
-            {
-                RegisterScript("Kesco.Silver4js",
-                    "<script src='/Styles/Kesco.V4/JS/Kesco.Silver4js.js' type='text/javascript'></script>");
-                RegisterScript("Silverlight",
-                    "<script src='/Styles/Kesco.V4/JS/Silverlight.js' type='text/javascript'></script>");
-
-            }
-            RegisterScript("jquery", "<script src='/Styles/Kesco.V4/JS/jquery-1.12.4.min.js' type='text/javascript'></script>");
-            //RegisterScript("jquery", "<script src='/Styles/Kesco.V4/JS/jquery-3.3.1.min.js' type='text/javascript'></script>");
-            //RegisterScrweb browseript("jquery", "<script src='/Styles/Kesco.V4/JS/jquery-migrate-3.0.1.min.js' type='text/javascript'></script>");
-            RegisterScript("jqueryui", "<script src='/Styles/Kesco.V4/JS/jquery-ui.js' type='text/javascript'></script>");
-            RegisterScript("jquerycookie", "<script src='/Styles/Kesco.V4/JS/jquery.cookie.js' type='text/javascript'></script>");
-            RegisterScript("jqueryqtipmin", "<script src='/Styles/Kesco.V4/JS/jquery.qtip.min.js' type='text/javascript'></script>");
-            RegisterScript("jqueryvalidate", "<script src='/Styles/Kesco.V4/JS/jquery.validate.min.js' type='text/javascript'></script>");
-            RegisterScript("jquerymask", "<script src='/Styles/Kesco.V4/JS/jquery.ui.mask.js' type='text/javascript'></script>");
-
-            RegisterScript("v4", "<script src='/Styles/Kesco.V4/JS/Kesco.V4.js' type='text/javascript'></script>");
-            RegisterScript("Comet", "<script src='/Styles/Kesco.V4/JS/Kesco.Comet.js' type='text/javascript'></script>");
-            RegisterScript("ContactRedirector","<script src='/Styles/Kesco.V4/JS/Kesco.ContactRedirector.js' type='text/javascript'></script>");
-            RegisterScript("Datepicker", "<script src='/Styles/Kesco.V4/JS/Kesco.Datepicker.js' type='text/javascript'></script>");
-
-            RegisterScript("kescoqtip","<script src='/Styles/Kesco.V4/JS/kesco.qtip.js' type='text/javascript'></script>");
-
-
-            RegisterScript("Confirm","<script src='/Styles/Kesco.V4/JS/Kesco.Confirm.js' type='text/javascript'></script>");
-            RegisterScript("Dialog","<script src='/Styles/Kesco.V4/JS/Kesco.Dialog.js' type='text/javascript'></script>");
-            RegisterScript("Menu", "<script src='/Styles/Kesco.V4/JS/Kesco.Menu.js' type='text/javascript'></script>");
-            RegisterScript("LocalTime", "<script src='/Styles/Kesco.V4/JS/Kesco.LocalTime.js' type='text/javascript'></script>");
-
-            if (this is DocPage)
-                RegisterScript("DocPage", "<script src='/Styles/Kesco.V4/JS/Kesco.DocPage.js' type='text/javascript'></script>");
         }
 
         /// <summary>
@@ -238,8 +209,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         public string IDPage { get; set; }
 
-
-        
+ 
         /// <summary>
         ///     ID post request (GUID)
         /// </summary>
@@ -386,23 +356,45 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public HttpResponse V4Response { get; set; }
 
         /// <summary>
+        ///     Признак сохранения позиции и размера окна
+        /// </summary>
+        public bool IsRememberWindowProperties { get; set; }
+
+        /// <summary>
+        ///     Параметры окна формы
+        /// </summary>
+        public WindowParameters WindowParameters { get; set; }
+
+        /// <summary>
+        ///     Ссылка на логотип страницы
+        /// </summary>
+        public string LogoImage { get; set; }
+
+        /// <summary>
         ///     Абстрактное свойство, требующее обязательно переопределения на странице и устанавливающее ссылку на справку
         /// </summary>
-        protected abstract string HelpUrl { get; set; }
+        public abstract string HelpUrl { get; set; }
 
-        
+        public virtual int LikeId { get; set; }
+        public virtual string InterfaceVersion { get; set; }
 
         /// <summary>
         ///     Освобождение ресурсов занятых страницей. Блокирует объект Application на время операции
         /// </summary>
         public virtual void V4Dispose(bool redirect = false)
         {
+            CometServer.WriteLog("Start V4Dispose -> " + IDPage);
+
             CometServer.UnregisterClient(IDPage, !redirect);
 
             Application.Lock();
 
             if (Application.AllKeys.Contains(IDPage))
+            {
                 Application.Remove(IDPage);
+
+                CometServer.WriteLog("Application.Remove -> " + IDPage);
+            }
 
             Application.UnLock();
         }
@@ -586,9 +578,14 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                     if (!string.IsNullOrEmpty(ItemName)) ItemName = ItemName.Replace(".","_");
                 }
 
+                if (!string.IsNullOrEmpty(Request.QueryString["title"]))
+                {
+                    Title = Request.QueryString["title"];
+                }
+
                 CurrentQS = Request.QueryString;
             }
-
+            
             CometAsyncState state = new CometAsyncState(null, null, null);
             state.ClientGuid = IDPage;
             state.Id = ItemId;
@@ -596,7 +593,64 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             state.Page = this;
             CometServer.RegisterClient(state);
 
+            CometServer.WriteLog("+++++++++++++++++++++++++++++++++++++++++++++++++++++");
+            CometServer.WriteLog("RegisterClient -> " + IDPage);
+
             base.OnInit(e);
+        }
+
+        private void RegisterScript()
+        {
+            RegisterCss("/Styles/Kesco.V4/CSS/jquery.qtip.min.css");
+            RegisterCss("/Styles/Kesco.V4/CSS/jquery-ui.css");
+            RegisterCss("/Styles/Kesco.V4/CSS/Kesco.V4.css");
+            
+            RegisterScript("jquery", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery-1.12.4.min.js' type='text/javascript'></script>", Config.versionV4js));
+            RegisterScript("jqueryui", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery-ui.js' type='text/javascript'></script>", Config.versionV4js));
+            RegisterScript("jquerycookie", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery.cookie.js' type='text/javascript'></script>", Config.versionV4js));
+            RegisterScript("jqueryqtipmin", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery.qtip.min.js' type='text/javascript'></script>", Config.versionV4js));
+            RegisterScript("jqueryvalidate", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery.validate.min.js' type='text/javascript'></script>", Config.versionV4js));
+            RegisterScript("jquerymask", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery.ui.mask.js' type='text/javascript'></script>", Config.versionV4js));
+
+            RegisterScript("v4", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.V4.js' type='text/javascript'></script>", Config.versionV4js));
+
+            if (!IsKescoRun && IsSilverLight)
+            {
+                RegisterScript("Kesco.Silver4js",
+                    string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Silver4js.js' type='text/javascript'></script>", Config.versionV4js));
+                RegisterScript("Silverlight",
+                    string.Format("<script src='/Styles/Kesco.V4/JS{0}/Silverlight.js' type='text/javascript'></script>", Config.versionV4js));
+            }
+
+            RegisterScript("Comet", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Comet.js' type='text/javascript'></script>", Config.versionV4js));
+            RegisterScript("ContactRedirector", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.ContactRedirector.js' type='text/javascript'></script>", Config.versionV4js));
+
+            RegisterScript("kescoqtip", string.Format("<script src='/Styles/Kesco.V4/JS{0}/kesco.qtip.js' type='text/javascript'></script>", Config.versionV4js));
+            if (V4Controls.Values.Any(c => c.GetType().Name.Contains("DatePicker")) || V4Controls.Values.Any(c => c.GetType().Name.Contains("PeriodTimePicker")))
+                RegisterScript("Datepicker", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Datepicker.js' type='text/javascript'></script>", Config.versionV4js));
+
+            if (V4Controls.Values.Any(c => c.GetType().Name.Contains("Grid")))
+            {
+                RegisterScript("GridfloatThead", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery.floatThead.min.js' type='text/javascript'></script>", Config.versionV4js));
+                RegisterScript("Grid", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Grid.js' type='text/javascript'></script>", Config.versionV4js));
+            }
+
+            if (V4Controls.Values.Any(c => c.GetType().Name.Contains("Menu")))
+                RegisterScript("Menu", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Menu.js' type='text/javascript'></script>", Config.versionV4js));
+
+            if (V4Controls.Values.Any(c => c.GetType().Name.Contains("TreeView")))
+            {
+                RegisterCss("/Styles/Kesco.V4/CSS/jquery-jstree.css");
+                RegisterScript("TreeView", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.TreeView.js' type='text/javascript'></script>", Config.versionV4js));
+                RegisterScript("jstree", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jstree.js' type='text/javascript'></script>", Config.versionV4js));
+            }
+
+            RegisterScript("Confirm", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Confirm.js' type='text/javascript'></script>", Config.versionV4js));
+            RegisterScript("Dialog", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Dialog.js' type='text/javascript'></script>", Config.versionV4js));
+            RegisterScript("LocalTime", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.LocalTime.js' type='text/javascript'></script>", Config.versionV4js));
+
+            if (this is DocPage)
+                RegisterScript("DocPage", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.DocPage.js' type='text/javascript'></script>", Config.versionV4js));            
         }
 
         /// <summary>
@@ -606,10 +660,18 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         protected override void OnLoad(EventArgs e)
         {
             if (V4IsPostBack) return;
-
             GetV4Controls(this);
+
+            RegisterScript();
+
             base.OnLoad(e);
-            
+
+            if (IsRememberWindowProperties)
+            {
+                SizePosKeeper = new WndSizePosKeeper(this);
+                SizePosKeeper.OnLoad();
+            }
+
             if (!IsComet)
             {
                 Header.Controls.AddAt(0,
@@ -785,6 +847,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             try
             {
+                if (IsRememberWindowProperties)
+                {
+                    SizePosKeeper.ProcessCommand(cmd, param);
+                }
+
                 switch (cmd)
                 {
                     case "Listener":
@@ -890,9 +957,9 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <summary>
         ///     Рендеринг надписей
         /// </summary>
-        public void RenderNtf(TextWriter w, List<string> ntf, NtfStatus status)
+        public void RenderNtf(TextWriter w, List<string> ntf, NtfStatus status, bool sizeIsNtf = true, bool dashSpace = true)
         {
-            RenderNtf(w, ntf, status, "", "", true);
+            RenderNtf(w, ntf, status, "", "", dashSpace, sizeIsNtf);
         }
 
         /// <summary>
@@ -903,18 +970,21 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="status">Статус надписей</param>
         /// <param name="divId">Идентификатор div</param>
         /// <param name="dashSpace">Рисовать ли тире</param>
-        public void RenderNtf(TextWriter w, List<string> ntf, NtfStatus status, string divId, string className, bool dashSpace)
+        public void RenderNtf(TextWriter w, List<string> ntf, NtfStatus status, string divId, string className, bool dashSpace, bool sizeIsNtf = true)
         {
             var n = ntf.Count;
             var color = EnumAccessors.GetColorByNtfStatus(status);
             var _dashSpace = dashSpace ? " - " : "";
             if (n > 0)
             {
-                w.Write("<div {2} {3} style=\"color:{0} !important;;font-size:7pt !important;font-family:Verdana;font-weight:normal;\">{1}", 
+                w.Write("<div {2} {3} style=\"color:{0} !important; {4}{5}\">{1}", 
                     color, 
                     _dashSpace, 
                     string.IsNullOrEmpty(divId) ? "" : "id=\"" + divId + "\"",
-                    string.IsNullOrEmpty(className) ? "" : "class=\"" + className + "\""
+                    string.IsNullOrEmpty(className) ? "" : "class=\"" + className + "\"",
+                    sizeIsNtf?"font-size:7.5pt !important;":"",
+                    !dashSpace?"margin-left:10px;":""
+
                     );
             }
             for (var i = 0; i < n; i++)
@@ -938,6 +1008,34 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 }
             }
             if (n > 0) w.Write("</div>");
+        }
+
+        /// <summary>
+        /// Рендеринг списка надписей в одну сроку
+        /// </summary>
+        /// <param name="w">Поток вывода</param>
+        /// <param name="ntfs">список надписей</param>
+        /// <param name="separator">разделитель</param>
+        /// /// <param name="separator">установить размер ntf</param>
+        public void RenderNtfInline(TextWriter w, Dictionary<string, NtfStatus> ntfs, string separator, bool sizeIsNtf = true, bool newLine = true)
+        {
+            if (ntfs == null) return;
+            var inx = 1;
+            foreach (var ntf in ntfs)
+            {
+                
+                var color = EnumAccessors.GetColorByNtfStatus(ntf.Value);
+
+                w.Write(
+                    "<span style=\"color:{0} !important; {1}\">{2}{3}{4}</span>",
+                    color,
+                    sizeIsNtf ? "font-size:7.5pt !important;" : "",
+                    inx == 1 && newLine ? "<br/>" : "",
+                    ntf.Key,
+                    inx < ntfs.Count ? separator + " " : "");
+
+                inx++;
+            }
         }
 
         /// <summary>
@@ -1528,6 +1626,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
         }
 
+
         /// <summary>
         ///     Метод открытия справки по странице
         /// </summary>
@@ -1546,6 +1645,13 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             //var a = dialogResult;
         }
 
+        /// <summary>
+        ///     Сохранить параметры пользователя
+        /// </summary>
+        public virtual void SaveParameters()
+        {
+        }
+
         #region RendeLink
 
         /// <summary>
@@ -1554,19 +1660,19 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="w">Поток</param>
         /// <param name="emplId">КодСотрудника</param>
         /// <param name="emplName">Название сотрудника</param>
-        public void RenderLinkEmployee(TextWriter w, string htmlId, string emplId, string emplName, NtfStatus ntf)
+        public void RenderLinkEmployee(TextWriter w, string htmlId, string emplId, string emplName, NtfStatus ntf, bool isNtf = true)
         {
             var url = string.Concat(Config.user_form, "?id=", emplId);
-            RenderLinkCaller(w, htmlId, emplId, emplName, url, ntf, CallerTypeEnum.Employee);
+            RenderLinkCaller(w, htmlId, emplId, emplName, url, ntf, isNtf, CallerTypeEnum.Employee);
         }
 
         /// <summary>
         ///     Отрисовка ссылки на сотрудника
         /// </summary>
-        public void RenderLinkEmployee(TextWriter w, string htmlId, Employee empl, NtfStatus ntf)
+        public void RenderLinkEmployee(TextWriter w, string htmlId, Employee empl, NtfStatus ntf, bool isNtf = true)
         {
             var name = IsRusLocal ? empl.FullName : empl.FullNameEn;
-            RenderLinkEmployee(w, htmlId, empl.Id, name, ntf);
+            RenderLinkEmployee(w, htmlId, empl.Id, name, ntf, isNtf);
         }
 
         /// <summary>
@@ -1574,12 +1680,13 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         /// <param name="w">Поток</param>
         /// <param name="personId">КодЛица</param>
-        /// <param name="personName">Название лица</param>
+        /// <param name="ntf">Стиль NTF</param>
+        /// <param name="isNtf">Размер NTF</param>
         public void RenderLinkPerson(TextWriter w, string htmlId, string personId, string personName,
-            NtfStatus ntf = NtfStatus.Empty)
+            NtfStatus ntf = NtfStatus.Empty, bool isNtf = true)
         {
             var url = string.Concat(Config.person_form, "?id=", personId);
-            RenderLinkCaller(w, htmlId, personId, personName, url, ntf, CallerTypeEnum.Person);
+            RenderLinkCaller(w, htmlId, personId, personName, url, ntf, isNtf, CallerTypeEnum.Person);
         }
 
 
@@ -1598,7 +1705,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public void RenderLinkCaller(TextWriter w, string id, string value, string text, string url, string urlParams,
             string urlTarget, string tabIndex, CallerTypeEnum callerType)
         {
-            RenderLink(w, id, value, text, "", url, urlParams, urlTarget, tabIndex, NtfStatus.Empty, callerType);
+            RenderLink(w, id, value, text, "", url, urlParams, urlTarget, tabIndex, NtfStatus.Empty, false, callerType);
         }
 
         /// <summary>
@@ -1612,24 +1719,41 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="urlTarget">Handler окна для window.open</param>
         /// <param name="tabIndex">Индекс табуляции</param>
         /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
-        public void RenderLinkCaller(TextWriter w, string value, string text, string url, string urlParams,
-            string urlTarget, string tabIndex, CallerTypeEnum callerType)
+        public void RenderLinkCaller(TextWriter w, string value, string text, string url, string urlParams, string urlTarget, string tabIndex, CallerTypeEnum callerType)
         {
-            RenderLink(w, "", value, text, "", url, urlParams, urlTarget, tabIndex, NtfStatus.Empty, callerType);
+            RenderLink(w, "", value, text, "", url, urlParams, urlTarget, tabIndex, NtfStatus.Empty, false, callerType);
         }
 
+        
         /// <summary>
-        ///     Отрисовка в поток гиперссылки со звонилкой
+        /// Отрисовка в поток гиперссылки со звонилкой
         /// </summary>
         /// <param name="w">Поток</param>
+        /// <param name="htmlId">Идентификатор ссылки</param>
         /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
         /// <param name="text">Текст гиперссылки</param>
         /// <param name="url">Ссылка, которая будет открыта через window.open</param>
+        /// <param name="ntf">Стиль отображения текста</param>
+        /// <param name="isNtf">Определяет размер текста</param>
         /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
-        public void RenderLinkCaller(TextWriter w, string htmlId, string value, string text, string url, NtfStatus ntf,
-            CallerTypeEnum callerType)
+        public void RenderLinkCaller(TextWriter w, string htmlId, string value, string text, string url, NtfStatus ntf, bool isNtf, CallerTypeEnum callerType)
         {
-            RenderLink(w, htmlId, value, text, "", url, "", "", "", ntf, callerType);
+            RenderLink(w, htmlId, value, text, "", url, "", "", "", ntf, isNtf, callerType);
+        }
+
+        /// <summary>
+        /// Отрисовка в поток гиперссылки со звонилкой
+        /// </summary>
+        /// <param name="w">Поток</param>
+        /// <param name="htmlId">Идентификатор ссылки</param>
+        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
+        /// <param name="text">Текст гиперссылки</param>
+        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
+        /// <param name="ntf">Стиль отображения текста</param>
+        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
+        public void RenderLinkCaller(TextWriter w, string htmlId, string value, string text, string url, NtfStatus ntf,  CallerTypeEnum callerType)
+        {
+            RenderLink(w, htmlId, value, text, "", url, "", "", "", ntf, true, callerType);
         }
 
         /// <summary>
@@ -1642,10 +1766,9 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="onClick">Javascript-функция, которая вызывается на Click по гиперссылке</param>
         /// <param name="tabIndex">Индекс табуляции</param>
         /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
-        public void RenderLinkCaller(TextWriter w, string id, string value, string text, string onClick, string tabIndex,
-            CallerTypeEnum callerType)
+        public void RenderLinkCaller(TextWriter w, string id, string value, string text, string onClick, string tabIndex, CallerTypeEnum callerType)
         {
-            RenderLink(w, id, value, text, onClick, "", "", "", tabIndex, NtfStatus.Empty, callerType);
+            RenderLink(w, id, value, text, onClick, "", "", "", tabIndex, NtfStatus.Empty, false, callerType);
         }
 
         /// <summary>
@@ -1657,10 +1780,9 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="onClick">Javascript-функция, которая вызывается на Click по гиперссылке</param>
         /// <param name="tabIndex">Индекс табуляции</param>
         /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
-        public void RenderLinkCaller(TextWriter w, string value, string text, string onClick, string tabIndex,
-            CallerTypeEnum callerType)
+        public void RenderLinkCaller(TextWriter w, string value, string text, string onClick, string tabIndex, CallerTypeEnum callerType)
         {
-            RenderLink(w, "", value, text, onClick, "", "", "", tabIndex, NtfStatus.Empty, callerType);
+            RenderLink(w, "", value, text, onClick, "", "", "", tabIndex, NtfStatus.Empty, false, callerType);
         }
 
 
@@ -1705,7 +1827,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="tabIndex">Индекс табуляции</param>
         /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
         public void RenderLink(TextWriter w, string id, string value, string text, string onClick, string url,
-            string urlParams, string urlTarget, string tabIndex, NtfStatus ntf = NtfStatus.Empty,
+            string urlParams, string urlTarget, string tabIndex, NtfStatus ntf = NtfStatus.Empty, bool isNtf = false,
             CallerTypeEnum callerType = CallerTypeEnum.Empty)
         {
             if (onClick.Length > 0 && url.Length > 0)
@@ -1732,7 +1854,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 w.Write("tabIndex={0} ", tabIndex);
 
            
-            var className = EnumAccessors.GetCssClassByNtfStatus(ntf);
+            var className = EnumAccessors.GetCssClassByNtfStatus(ntf, isNtf);
 
             if (!callerType.Equals(CallerTypeEnum.Empty) && value.Length > 0)
             {

@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -196,7 +197,6 @@ namespace Kesco.Lib.Web.Controls.V4
     /// <summary>
     ///     Базовый класс всех контролов версии 4
     /// </summary>
-       
     public abstract class V4Control : Control
     {
         /// <summary>
@@ -273,6 +273,7 @@ namespace Kesco.Lib.Web.Controls.V4
         ///     Признак отрисовки контейнера контрола
         /// </summary>
         public bool RenderContainer { get; set; }
+
 
         /// <summary>
         ///     Признак использования условий для фильтра

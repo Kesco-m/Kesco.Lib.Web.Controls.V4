@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.Enums.Controls;
+using Kesco.Lib.Web.Controls.V4.Common;
 
 namespace Kesco.Lib.Web.Controls.V4
 {
@@ -24,15 +26,33 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="w">Поток</param>
         public override void RenderControl(TextWriter w)
         {
-            var menuTop = String.Format(@"<div id=""pageHeader"" class='v4divHeader' style=""z-index:9999;""><div> ");
-            var menuBottom = String.Format(@"</div></div>");
-            var menuBody = "";
+            w.Write(String.Format(@"<div id=""pageHeader"" class='v4divHeader' style=""z-index:9999; height:23px""><div> "));
+            
+            if (V4Page.ReturnId.IsNullEmptyOrZero())
+            {
+                w.Write(HtmlButtons(""));
+            }
 
-            menuBody = HtmlButtons(menuBody);
+            if (!string.IsNullOrEmpty(V4Page.HelpUrl))
+            {
+                var btnHelp = new Button
+                {
+                    ID = "btnHelp",
+                    Text = "",
+                    Title = Resx.GetString("lblHelp"),
+                    Width = 28,
+                    Height = 22,
+                    IconJQueryUI = ButtonIconsEnum.Help,
+                    OnClick = string.Format("v4_openHelp('{0}');", V4Page.IDPage),
+                    Style = "float: right; margin-right: 11px;"
+                };
+                btnHelp.RenderControl(w);
+                btnHelp.PropertyChanged.Clear();
+            }
 
-            var menuHtml = String.Format(@"{0}{1}{2}", menuTop, menuBody, menuBottom);
+            w.Write(String.Format(@"</div></div>"));
 
-            menuHtml += "<script>activateMenuScriptPart();</script>";
+            var menuHtml = "<script>activateMenuScriptPart();</script>";
             menuHtml += "<style>.ui-icon-menu-person { background-position: -147px -96px; padding-left: 2px; }" +
                         ".ui-icon-menu-home { background-position: 0 -114px; padding-left: 2px; }" +
                         ".ui-icon-menu-person { background-position: -144px -98px; padding-left: 2px;}" +
@@ -41,6 +61,7 @@ namespace Kesco.Lib.Web.Controls.V4
                         ".ui-icon-menu-print { background-position: -160px -98px; padding-left: 2px;}" +
                         ".ui-icon-menu-trash { background-position: -176px -98px; padding-left: 2px;}</style>";
             w.Write(menuHtml);
+
         }
 
         private string HtmlButtons(string menuBody)
@@ -155,7 +176,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 case MenuButtonActionType.UrlAction:
                     return
                         String.Format(
-                            "onclick='v4_windowOpen(\"{0}\", \"{1}\", \"menubar={2},location={3},resizable={4},scrollbars={5},status={6},height={7},width={8}\"); return false;'",
+                            "onclick='v4_windowOpen(\"{0}\", \"{1}\", \"menubar={2},location={3},resizable={4},scrollbars={5},status={6},height={7},width={8}\",\"{9}\"); return false;'",
                             Item.Action.Url,
                             Item.ItemID,
                             Item.Action.Menubar ? "1" : "0",
@@ -164,7 +185,8 @@ namespace Kesco.Lib.Web.Controls.V4
                             Item.Action.Scrollbars ? "1" : "0",
                             Item.Action.Status ? "1" : "0",
                             Item.Action.Height,
-                            Item.Action.Width);
+                            Item.Action.Width,
+                            Item.Action.Target);
                 case MenuButtonActionType.CmdAction:
                     var cmdParametrs = "";
                     foreach (var param in Item.Action.CmdParams)
@@ -213,6 +235,7 @@ namespace Kesco.Lib.Web.Controls.V4
             public int Height { get; set; }
             public int Width { get; set; }
             public string CmdActionName { get; set; }
+            public string Target { get; set; }
             public Dictionary<String, String> CmdParams { get; set; }
         }
 

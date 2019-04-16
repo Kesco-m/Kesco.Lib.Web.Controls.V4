@@ -34,6 +34,7 @@
 
 <script>
     $(document).ready(function () {
+        if ([GRID_AUTOSIZE] == false) return;
         var objFrom_ListData = gi("[CID]");
         var h = [GRID_HEIGHT];
         if (h != 0) {
@@ -47,7 +48,7 @@
 
             if (objFrom_ListData) $("#[CID]").height(h);
 
-            $(window).resize(function() {
+            $(window).resize(function () {
                 if (objFrom_ListData) {
                     var hr = $(window).height() - [MARGIN_BOTTOM];
                     if ([GROUPING]) hr = hr - 50;

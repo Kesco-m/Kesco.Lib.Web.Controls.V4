@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Net.Mime;
+using System.Reflection;
 using System.Web;
+using Kesco.Lib.Log;
 using Kesco.Lib.Web.Comet;
 using Kesco.Lib.Web.Controls.V4.Common;
 
@@ -28,9 +30,7 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
 
         private void ProcessRequestByIdPage(HttpContext context)
         {
-
-
-
+            
             var callbackKey = context.Request.Form["callbackKey"] ?? context.Request.QueryString["callbackKey"];
             var control = context.Request.Form["control"] ?? context.Request.Form["control"] ?? context.Request.QueryString["control"];
             var clientName = context.Request.Form["clientname"] ?? context.Request.QueryString["clientname"];
@@ -42,7 +42,29 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             {
                 var p = context.Application[callbackKey] as Page;
                 if (p != null)
+                {
+                    p.SaveParameters();
                     p.V4Dispose();
+                }
+                return;
+            }
+
+            //Реализуем отправки сообщения о клиентской ошибке
+            if (control == "window" && command == "error")
+            {
+                string message = HttpUtility.UrlDecode(context.Request["messageError"]);
+                int type = int.Parse(context.Request["typeError"] ?? "1");
+                Priority p = (Priority)type;
+
+                Logger.WriteEx(new LogicalException
+                (message,
+                    "Message: " + message + ";\n" +
+                    (context.Request["linenumberError"].Length > 0 ? "Line: " + context.Request["linenumberError"] + ";\n" : "") +
+                    (context.Request["urlError"].Length > 0 ? "Url: " + HttpUtility.UrlDecode(context.Request["urlError"]) : ""),
+                    Assembly.GetExecutingAssembly().GetName(),
+                    "window.onError",
+                    p));
+
                 return;
             }
 
@@ -159,8 +181,8 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             context.Response.Write("<html>");
             context.Response.Write("<head>");
             context.Response.Write(
-                "<script src='/Styles/Kesco.V4/JS/jquery-1.12.4.min.js' type='text/javascript'></script>");
-            context.Response.Write("<script src='/Styles/Kesco.V4/JS/kesco.Dialog.js' type='text/javascript'></script>");
+                string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery-1.12.4.min.js' type='text/javascript'></script>", Settings.Config.versionV4js));
+            context.Response.Write(string.Format("<script src='/Styles/Kesco.V4/JS{0}/kesco.Dialog.js' type='text/javascript'></script>", Settings.Config.versionV4js));
 
             context.Response.Write(@"
 <script>

@@ -1,4 +1,7 @@
-﻿using System.Timers;
+﻿using System;
+using System.IO;
+using System.Net.Mime;
+using System.Timers;
 using System.Web;
 using Kesco.Lib.Web.Comet;
 
@@ -24,8 +27,14 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             Application = application;
             var t = new Timer(120000);
-            t.Elapsed += DeleteOldPagesFromApplication;
+            t.Elapsed += TimerElapsed;
             t.Enabled = true;
+        }
+
+        public static void TimerElapsed(object sender, ElapsedEventArgs e)
+        {
+            CometServer.WriteLog("Start TimerElapsed");
+            DeleteOldPagesFromApplication(sender, e);
         }
 
         /// <summary>
@@ -35,6 +44,9 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="e">аргумент таймера</param>
         public static void DeleteOldPagesFromApplication(object sender, ElapsedEventArgs e)
         {
+            
+            CometServer.WriteLog("Start DeleteOldPagesFromApplication");
+
             CometServer.ClearExpiredConnections();
             Application.Lock();
             for (var i = Application.Keys.Count - 1; i >= 0; i--)
@@ -46,12 +58,17 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 if (Application[key] == null)
                 {
                     Application.Remove(key);
+                    CometServer.WriteLog("Application.Remove DeleteOldPages -> " + key);
                     continue;
                 }
                 if (p == null) continue;
 
                 if (!CometServer.Connections.Exists(s => s.ClientGuid == key))
+                {
                     p.V4Dispose();
+
+                    CometServer.WriteLog("V4Dispose DeleteOldPages -> " + key);
+                }
             }
 
             Application.UnLock();

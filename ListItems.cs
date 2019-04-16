@@ -17,11 +17,6 @@ namespace Kesco.Lib.Web.Controls.V4
     public class ListItems : V4Control
     {
         /// <summary>
-        ///     Идентификатор всплывающего контрола с контактами
-        /// </summary>
-        private string _idToolTip = "";
-
-        /// <summary>
         ///     Индекс поля (используется для вывода таблиц)
         /// </summary>
         public int Index;
@@ -30,6 +25,11 @@ namespace Kesco.Lib.Web.Controls.V4
         ///     Коллекция выбранных элементов
         /// </summary>
         public IEnumerable List;
+
+        /// <summary>
+        ///     Список, указывающий на то, что чтобы получить значение поля у объекта используется функция
+        /// </summary>
+        public List<SelectMethodGetEntityValue> MethodsGetEntityValue;
 
         /// <summary>
         ///     Локализация
@@ -84,17 +84,12 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <summary>
         ///     Признак использования приложения Контакты
         /// </summary>
-        public bool IsCaller { get; set; }
+        public new bool IsCaller { get; set; }
 
         /// <summary>
         ///     Тип сущности абонента
         /// </summary>
-        public CallerTypeEnum CallerType { get; set; }
-
-        /// <summary>
-        /// Список, указывающий на то, что чтобы получить значение поля у объекта используется функция
-        /// </summary>
-        public List<SelectMethodGetEntityValue> MethodsGetEntityValue;
+        public new CallerTypeEnum CallerType { get; set; }
 
         /// <summary>
         ///     Признак отображения в тултипе списка компаний, к которым принадлежит сущность (для множественного выбора)
@@ -145,10 +140,7 @@ namespace Kesco.Lib.Web.Controls.V4
             List = list;
             var toolTip = "";
             var arr = field.Split(new[] {","}, StringSplitOptions.RemoveEmptyEntries);
-            if (arr.Length > 1)
-            {
-                field = arr[Index];
-            }
+            if (arr.Length > 1) field = arr[Index];
             if (isRow)
             {
                 foreach (var item in List)
@@ -161,28 +153,23 @@ namespace Kesco.Lib.Web.Controls.V4
                     var id = oId.ToString();
                     var oText = to.GetProperty(field).GetValue(o, null) ?? "";
                     var text = oText.ToString();
-                    if (String.IsNullOrEmpty(text))
+                    if (string.IsNullOrEmpty(text))
                         text = "#" + id;
                     if (isCaller && !callerType.Equals(CallerTypeEnum.Empty))
-                    {
-                        toolTip = String.Format(" class=\"v4_callerControl\" data-id=\"{0}\" caller-type=\"{1}\"",
+                        toolTip = string.Format(" class=\"v4_callerControl\" data-id=\"{0}\" caller-type=\"{1}\"",
                             HttpUtility.UrlEncode(id), (int) callerType);
-                    }
                     else if (isItemCompany)
-                    {
-                        toolTip = String.Format(" class=\"v4_itemCompanyControl\" data-id=\"{0}\"",
+                        toolTip = string.Format(" class=\"v4_itemCompanyControl\" data-id=\"{0}\"",
                             HttpUtility.UrlEncode(id));
-                    }
                     w.Write("<span>");
                     if (isRemove && !IsReadOnly)
                     {
                         if (IsDisabled)
-                        {
-                            w.Write(@"<td><img src='/STYLES/DeleteGrayed.gif' alt='{0}'></td>", Resx.GetString("removeFromList"));
-                        }
+                            w.Write(@"<td><img src='/STYLES/DeleteGrayed.gif' alt='{0}'></td>",
+                                Resx.GetString("removeFromList"));
                         else
-                        {
-                            w.Write(@"<img src=""/STYLES/delete.gif"" style=""cursor:pointer;"" alt=""{1}"" title=""{1}"" {3}
+                            w.Write(
+                                @"<img src=""/STYLES/delete.gif"" style=""cursor:pointer;"" alt=""{1}"" title=""{1}"" {3}
 onclick=""cmdasync('ctrl', '{2}', 'cmd', 'RemoveSelectedItem','id', '{0}', 'ask', '{4}');""
 onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync('ctrl', '{2}', 'cmd', 'RemoveSelectedItem','id','{0}', 'ask', '{4}');""
 >",
@@ -191,7 +178,6 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
                                 htmlID == "" ? HtmlID : htmlID,
                                 tabIndex.HasValue ? "tabindex='" + tabIndex.Value + "'" : "tabindex='0'",
                                 confirmRemove ? 1 : 0); //removefromList.gif
-                        }
                     }
 
                     if (IsDisabled)
@@ -200,10 +186,10 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
                     }
                     else
                     {
-                        if (!String.IsNullOrEmpty(openPath))
+                        if (!string.IsNullOrEmpty(openPath))
                             w.Write("<a href=\"javascript:v4_windowOpen('{0}{1}id={2}');\"{3}>", openPath,
                                 openPath.IndexOf("?", StringComparison.InvariantCulture) > -1 ? "&" : "?", id, toolTip);
-                        else if (!String.IsNullOrEmpty(openFunc))
+                        else if (!string.IsNullOrEmpty(openFunc))
                             w.Write("<a href=\"#\" onclick='{0}' {1}>",
                                 string.Format(openFunc, id, htmlID == "" ? HtmlID : htmlID), toolTip);
                         else
@@ -212,12 +198,13 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
 
                     w.Write(text);
 
-                    if (!IsDisabled && (!String.IsNullOrEmpty(openPath) || !String.IsNullOrEmpty(openFunc)))
+                    if (!IsDisabled && (!string.IsNullOrEmpty(openPath) || !string.IsNullOrEmpty(openFunc)))
                         w.Write("</a>");
                     else
                         w.Write("</span>");
                     w.Write("</span>  ");
                 }
+
                 return;
             }
 
@@ -237,39 +224,33 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
                 //var oText = to.GetProperty(field).GetValue(o, null) ?? "";
                 //var text = oText.ToString();
 
-                var text = GetFieldValue(o, field.Trim()); 
+                var text = GetFieldValue(o, field.Trim());
 
-                if (String.IsNullOrEmpty(text))
+                if (string.IsNullOrEmpty(text))
                     text = "#" + id;
                 if (isCaller && !callerType.Equals(CallerTypeEnum.Empty))
-                {
-                    toolTip = String.Format(" class=\"v4_callerControl\" data-id=\"{0}\" caller-type=\"{1}\"",
+                    toolTip = string.Format(" class=\"v4_callerControl\" data-id=\"{0}\" caller-type=\"{1}\"",
                         HttpUtility.UrlEncode(id), (int) callerType);
-                }
                 else if (isItemCompany)
-                {
-                    toolTip = String.Format(" class=\"v4_itemCompanyControl\" data-id=\"{0}\"",
+                    toolTip = string.Format(" class=\"v4_itemCompanyControl\" data-id=\"{0}\"",
                         HttpUtility.UrlEncode(id));
-                }
                 w.Write("<tr>");
                 if (isRemove && !IsReadOnly)
                 {
                     if (IsDisabled)
-                    {
-                        w.Write(@"<td><img src='/STYLES/DeleteGrayed.gif' alt='{0}'></td>", Resx.GetString("removeFromList"));
-                    }
+                        w.Write(@"<td><img src='/STYLES/DeleteGrayed.gif' alt='{0}'></td>",
+                            Resx.GetString("removeFromList"));
                     else
-                    {
-                        w.Write(@"<td><img src=""/STYLES/delete.gif"" style=""cursor:pointer;"" alt=""{1}"" title=""{1}"" {3}
+                        w.Write(
+                            @"<td><img src=""/STYLES/delete.gif"" style=""cursor:pointer;"" alt=""{1}"" title=""{1}"" {3}
 onclick=""cmdasync('ctrl', '{2}', 'cmd', 'RemoveSelectedItem','id','{0}', 'ask', '{4}');""
 onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync('ctrl', '{2}', 'cmd', 'RemoveSelectedItem','id','{0}', 'ask', '{4}');""
 ></td>",
                             HttpUtility.JavaScriptStringEncode(id.Replace("\"", " ").Replace("'", " ")),
                             Resx.GetString("removeFromList"),
                             htmlID == "" ? HtmlID : htmlID,
-                            tabIndex.HasValue ? "tabindex='" + tabIndex.Value +"'": "tabindex='0'",
+                            tabIndex.HasValue ? "tabindex='" + tabIndex.Value + "'" : "tabindex='0'",
                             confirmRemove ? 1 : 0); //removefromList.gif
-                    }
                 }
 
                 w.Write("<td width='99%'>");
@@ -280,10 +261,10 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
                 }
                 else
                 {
-                    if (!String.IsNullOrEmpty(openPath))
+                    if (!string.IsNullOrEmpty(openPath))
                         w.Write("<a href=\"javascript:v4_windowOpen('{0}{1}id={2}');\"{3}>", openPath,
                             openPath.IndexOf("?", StringComparison.InvariantCulture) > -1 ? "&" : "?", id, toolTip);
-                    else if (!String.IsNullOrEmpty(openFunc))
+                    else if (!string.IsNullOrEmpty(openFunc))
                         w.Write("<a href=\"#\" onclick='{0}' {1}>",
                             string.Format(openFunc, id, htmlID == "" ? HtmlID : htmlID), toolTip);
                     else
@@ -292,13 +273,14 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
 
                 w.Write(text);
 
-                if (!IsDisabled && (!String.IsNullOrEmpty(openPath) || !String.IsNullOrEmpty(openFunc)))
+                if (!IsDisabled && (!string.IsNullOrEmpty(openPath) || !string.IsNullOrEmpty(openFunc)))
                     w.Write("</a>");
                 else
                     w.Write("</span>");
 
                 w.Write("</td></tr>");
             }
+
             w.Write("</table>");
         }
 
@@ -307,10 +289,10 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
             var val = "";
             var t = obj.GetType();
             if (MethodsGetEntityValue == null || MethodsGetEntityValue.Count == 0 ||
-                                       MethodsGetEntityValue.FirstOrDefault(
-                                           x =>
-                                               String.Equals(x.ValueField, currentField,
-                                                   StringComparison.InvariantCultureIgnoreCase)) == null)
+                MethodsGetEntityValue.FirstOrDefault(
+                    x =>
+                        string.Equals(x.ValueField, currentField,
+                            StringComparison.InvariantCultureIgnoreCase)) == null)
             {
                 val = t.GetProperty(currentField).GetValue(obj, null).ToString();
             }
@@ -319,7 +301,7 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
                 var mSettings =
                     MethodsGetEntityValue.FirstOrDefault(
                         x =>
-                            String.Equals(x.ValueField, currentField,
+                            string.Equals(x.ValueField, currentField,
                                 StringComparison.InvariantCultureIgnoreCase));
                 if (mSettings == null)
                     throw new Exception(string.Format("Некорретно настроен элемент управления #{0}!", ID));
@@ -333,16 +315,17 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
                 var paramObjects = mSettings.MethodParams;
                 var urs =
                     paramObjects.FirstOrDefault(
-                        x => x.GetType() == typeof(Employee) && ((Employee)x).IsLazyLoadingByCurrentUser);
+                        x => x.GetType() == typeof(Employee) && ((Employee) x).IsLazyLoadingByCurrentUser);
                 if (urs != null)
                 {
                     var inx = Array.IndexOf(paramObjects, urs);
                     paramObjects[inx] = V4Page.CurrentUser;
                 }
+
                 val = mInfo.Invoke(obj, paramObjects).ToString();
             }
+
             return val;
         }
-
     }
 }

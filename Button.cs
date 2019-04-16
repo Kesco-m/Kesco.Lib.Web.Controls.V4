@@ -136,7 +136,16 @@ namespace Kesco.Lib.Web.Controls.V4
                 w.Write("display:none;");
             if (Width != Unit.Empty)
                 w.Write("width:{0};", Width);
+
+
+
+            if (Height != Unit.Empty)
+                w.Write("height:{0};", Height);
+
+            w.Write(Style);
+
             w.Write("\"");
+
 
             if (!string.IsNullOrEmpty(Title))
                 w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));

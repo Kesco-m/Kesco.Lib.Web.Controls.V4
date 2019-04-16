@@ -20,6 +20,7 @@ using Kesco.Lib.Entities.Documents.EF;
 using Kesco.Lib.Log;
 using Unit = System.Web.UI.WebControls.Unit;
 using Kesco.Lib.Web.Comet;
+using Kesco.Lib.Entities.Documents.EF.Dogovora;
 
 namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 {
@@ -167,7 +168,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         /// <summary>
         ///     ссылка на справку
         /// </summary>
-        protected override string HelpUrl
+        public override string HelpUrl
         {
             get { return GetHelpUrl(); }
             set { Doc.DocType.HelpURL = value; }
@@ -190,11 +191,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 var copyid = "";
                 try
                 {
-                    copyid = Request["CopyId"];
+                    copyid = V4Request["CopyId"];
                 }
-                catch (Exception)
+                catch
                 {
-                    //
+                    // ignored
                 }
 
                 return CorrId.IsNullEmptyOrZero() ? copyid : CorrId;
@@ -295,7 +296,12 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 
             DocumentToControls();
             SetControlProperties();
-            
+
+            if (Doc.IsNew)
+            {
+                SetBaseDocTypeFilter();
+            }
+
             //TODO: ВОССТАНОВИТЬ!!!
             if (!Doc.IsNew)
             {
@@ -416,9 +422,16 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             {
                 if (item.Value.IsMultipleSelect)
                 {
-                    //todo: добавить обработку DocField.MultiSelect
-                    item.Key.IsReadOnly = !DocEditable;
+                    List<Entities.Item> selectedItems;
+                    if (!CopyId.IsNullEmptyOrZero())
+                        selectedItems = new Document(CopyId).GetDocLinksItems(Convert.ToInt32(item.Value.Id));
+                    else
+                        selectedItems = Doc.GetDocLinksItems(Convert.ToInt32(item.Value.Id));
 
+                    ((Select)item.Key).SelectedItems.Clear();
+                    ((Select)item.Key).SelectedItems.AddRange(selectedItems);
+                    ((Select)item.Key).RefreshRequired = true;
+                    item.Key.IsReadOnly = !DocEditable;
                 }
                 else
                 {
@@ -439,6 +452,32 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                     item.Key.BindDocField = item.Value;
                     item.Key.IsRequired = item.Value.IsRequired;
                     item.Key.IsReadOnly = !DocEditable;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Добавление Id документа основания соответствующему свойству объекта doc.
+        /// </summary>
+        protected void SetBaseDocTypeFilter()
+        {
+            if (!V4IsPostBack)
+            {
+                var fieldId = Request.QueryString["fieldId"];
+                if (!string.IsNullOrEmpty(fieldId) && FieldsToControlsMapping.Any(item => item.Value.Id == fieldId) && DocId != 0)
+                {
+                    var item = FieldsToControlsMapping.First(s => s.Value.Id == fieldId);
+                    var doc = new Document(DocId.ToString());
+                    if (item.Value.IsMultipleSelect)
+                    {
+                        ((Select) item.Key).SelectedItems.Clear();
+                        ((Select) item.Key).SelectedItems.AddRange(new List<Entities.Item> { new Entities.Item { Id = doc.Id, Value = doc } });
+                        ((Select) item.Key).RefreshRequired = true;
+                    }
+                    else
+                    {
+                        item.Key.BindDocField.Value = DocId;
+                    }
                 }
             }
         }
@@ -873,7 +912,21 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 // Сохранение документа
                 case "SaveDocument":
                     List<DBCommand> cmds = null;
+
+                    if (!CheckBeforeSave())
+                        break;
+
+                    //проверка на похожие документы
+                    var saveAs = V4Request["saveAs"] ?? "";
+                    if (saveAs.Equals(""))
+                        if (!CheckForSimilarity(out saveAs))
+                            break;
+
                     Doc.Save(false, cmds);
+
+                    var doc = Doc as IDocumentWithPositions;
+                    if (doc != null) doc.SaveDocumentPositions(false, cmds);
+
                     JS.Write("v4_closeSaveConfirmForm();");
                     if (param["AfterSaveProcess"] == "1")
                     {
@@ -939,7 +992,9 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 case "GenerateNumber":
                     SetGenerateNumber(param["gType"] == "1");
                     break;
-
+                case "SaveDocumentDesription":
+                    SaveDocumentDesription(param["Description"]);
+                    break;
                 default:
                     base.ProcessCommand(cmd, param);
                     break;
@@ -948,7 +1003,15 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             if (ItemId!=0)
                 TranslatePageEvent(V4Request.Params, fDocSigned);
         }
-        
+
+        private void SaveDocumentDesription(string _description)
+        {
+            Doc.Description = _description;
+            Doc.SaveDescription();
+            if (!IsInDocView)
+                RefreshDocument();
+        }
+
         private void HideDocSignDialog()
         {
             JS.Write("$('#v4cometSignDivOuter').remove();");
@@ -1282,12 +1345,12 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 if (Doc.ImageCode > 0)
                     w.Write("<img src=\"/Styles/DocMain.gif\" border=\"0\" style=\"vertical-align:middle;\"/>");
 
-                w.Write("<span style=\"font-weight: bold;\">" + titleText + "</span>");
+                w.Write("<span class=\"v4pageTitle\">" + titleText + "</span>");
                 w.Write("</a>");
             }
             else
             {
-                w.Write("<span style=\"font-weight: bold;\">" + titleText + "</span>");
+                w.Write("<span class=\"v4pageTitle\">" + titleText + "</span>");
             }
 
             w.Write("</div>");
@@ -1957,8 +2020,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 
             return false;
         }
-
-
+        
         /// <summary>
         ///     Проверка на похожесть документа
         /// </summary>
@@ -2217,15 +2279,15 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         /// <summary>
         ///     Начало рендера изменяемой части документа
         /// </summary>
-        protected void StartRenderVariablePart(TextWriter w, int labelWidth, int fieldWidth, int fielsetWidth)
+        protected void StartRenderVariablePart(TextWriter w, int labelWidth, int fieldWidth, int fieldsetWidth, int fieldRows=2, bool labelNoWrap = false)
         {
-            w.WriteLine("<fieldset style=\"margin-top:5px; width: {0}px; background-color: rgb(241, 241, 241);\">", fielsetWidth);
+            w.WriteLine("<fieldset style=\"margin-top:5px; {0} background-color: rgb(241, 241, 241);\">", fieldsetWidth > 0 ? string.Format("width: {0}px;", fieldsetWidth) : "display: inline-block;");
             w.WriteLine("<legend>{0}</legend>", Resx.GetString("lblVariablePartDoc"));
             w.WriteLine("<div style=\"padding: 5px; margin-left: 5px;\">");
 
             w.WriteLine(
-                "<div class=\"ctlMargMain\"> <div style=\"vertical-align: top; width: {1}px; display: inline-table;\">{0}</div>",
-                Resx.GetString("lblDescription") + ":", labelWidth);
+                "<div class=\"ctlMargMain\"> <div style=\"vertical-align: top; width: {0}px; display: inline-table; {1}\">{2}</div>",
+                labelWidth, labelNoWrap?"white-space: nowrap":"", Resx.GetString("lblDescription") + ":");
             w.Write("<div style=\"display: inline-table; vertical-align: bottom;\">");
 
             var txaDesc = new TextArea
@@ -2234,7 +2296,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 Value = Doc.Description,
                 MaxLength = 500,
                 Width = fieldWidth, //334,
-                ID = "txaDocDesc",
+                ID = "v4_txaDocDesc",
+                Rows = fieldRows,
                 BindStringValue = Doc.DescriptionBinder,
                 NextControl = NextControlAfterDocDesc
             };
@@ -2243,6 +2306,22 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             txaDesc.Changed += txaDocDesc_OnChanged;
             V4Controls.Add(txaDesc);
             txaDesc.RenderControl(w);
+
+            if (!DocEditable)
+            {
+                var btnSaveDescr = new Button
+                {
+                    ID = "v4_btnTxaDocDesc",
+                    Text = "Сохранить",
+                    Title = "сохранить описание документа",
+                    Width = 100,
+                    Height = 22,
+                    IconJQueryUI = ButtonIconsEnum.Save,
+                    OnClick = string.Format("v4_SaveDocumentDescription();"),
+                    Style = "margin-left:10px; display:none;"
+                };
+                btnSaveDescr.RenderControl(w);
+            }
 
             w.Write("</div></div>");
         }
@@ -2726,5 +2805,29 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                     break;
             }
         }
+
+        /// <summary>
+        /// Отрисовка сообщения, если документ не подписан куратором
+        /// </summary>
+        /// <returns></returns>
+        public virtual string RenderKuratorSign(string contractId)
+        {
+            using (var w = new StringWriter())
+            {
+                if (Doc.IsNew || contractId.IsNullEmptyOrZero()) return "";
+                var d = GetObjectById(typeof(Dogovor), contractId) as Dogovor;
+                if (d == null || d.Unavailable) return "";
+                if (!d.IsDogovor) return "";
+
+                var fl = Doc.DocSigns.Any(sign => sign.SignId > 0 && sign.EmployeeId.ToString() == d.Kurator.Id);
+                if (fl) { return ""; }
+
+                w.Write(IsRusLocal ? Doc.TypeDocRu : Doc.TypeDocEn);
+                w.Write(" " + Resx.GetString("TTN_msgNotSignedCurator"));
+
+                return w.ToString();
+            }
+        }
+
     }
 }

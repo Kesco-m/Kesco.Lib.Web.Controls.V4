@@ -83,6 +83,7 @@
     <Reference Include="System.Web" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
@@ -102,10 +103,12 @@
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="Common\ReturnDialogResult.cs" />
+    <Compile Include="Common\WndSizePosKeeper.cs" />
     <Compile Include="Control.cs" />
     <Compile Include="Comet.cs" />
     <Compile Include="DBControls\Changed.cs" />
     <Compile Include="FilterGroupBox.cs" />
+    <Compile Include="LikeDislike.cs" />
     <Compile Include="SelectMethodGetEntityValue.cs" />
     <Compile Include="Grid\Grid.cs" />
     <Compile Include="Grid\GridColumn.cs" />
@@ -118,7 +121,6 @@
     <Compile Include="Handlers\CometServerHandler.cs" />
     <Compile Include="Handlers\DialogResultHandler.cs" />
     <Compile Include="Div.cs" />
-    <Compile Include="Dynatree.cs" />
     <Compile Include="Globals\GlobalBase.cs" />
     <Compile Include="Common\IClientCommandProcessor.cs" />
     <Compile Include="Handlers\HtmlContentHandler.cs" />
@@ -152,6 +154,9 @@
     <Compile Include="TextBox.cs" />
     <Compile Include="PeriodTimePicker.cs" />
     <Compile Include="Time.cs" />
+    <Compile Include="TreeView\TreeViewDBSourceSettings.cs" />
+    <Compile Include="TreeView\TreeView.cs" />
+    <Compile Include="TreeView\TreeViewDataHandler.cs" />
     <Compile Include="URICreateEntity.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -199,6 +204,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Grid\GridContent.htm" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="TreeView\TreeViewContent.htm" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
