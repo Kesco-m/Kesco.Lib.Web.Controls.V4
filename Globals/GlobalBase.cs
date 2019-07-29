@@ -39,15 +39,18 @@ namespace Kesco.Lib.Web.Controls.V4.Globals
         /// <param name="e">Параметры</param>
         protected virtual void Application_Start(object sender, EventArgs e)
         {
+            CometServer.WriteLog("=====> Start Application_Start");
             PageManager.Start(Application);
 
             var log = new LogModule(Config.appName);
             log.Init(Config.smtpServer, Config.email_Support);
             log.OnDispose += log_OnDispose;
             Logger.Init(log);
-            CometServer.WriteLog("=====> Application_Start");
+            
             //Запуск обработчика Comet сервера
             CometServer.Start();
+
+            CometServer.WriteLog("=====> End Application_Start");
         }
 
         /// <summary>
@@ -60,6 +63,8 @@ namespace Kesco.Lib.Web.Controls.V4.Globals
             //Остановка обработчика Comet сервера
             CometServer.Stop();
         }
+
+
 
         /// <summary>
         ///     Вызывается первым каждый раз при получении нового запроса от пользователя.

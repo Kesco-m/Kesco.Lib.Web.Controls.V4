@@ -254,9 +254,9 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 if (IsRequired)
                     w.Write("v4_replaceStyleRequired(this);");
                 w.Write("\"");
-                w.Write(" onchange=\"v4_ctrlChanged('{0}', true);\"", HtmlID);
+                w.Write(" onchange=\"v4_ctrlChanged('{0}', false);\"", HtmlID);
 
-                w.Write(" t='{0}' help='{1}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help));
+                w.Write(" t='{0}' help='{1}' ov='{2}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help), HttpUtility.HtmlEncode(OriginalValue));
 
                 var className = "";
                 if (IsCaller)
@@ -467,8 +467,9 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             if (collection["vn"] != null)
             {
                 var oldVal = Value;
+                var origVal = collection["ov"];
                 Value = collection["vn"];
-                OnChanged(new ProperyChangedEventArgs(oldVal, Value));
+                OnChanged(new ProperyChangedEventArgs(oldVal, Value, origVal));
             }
             if (collection["cmd"] != null)
             {

@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -13,9 +12,12 @@ using System.Web.UI.WebControls;
 using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.BindModels;
 using Kesco.Lib.BaseExtention.Enums.Controls;
+using Kesco.Lib.Entities;
 using Kesco.Lib.Entities.Documents;
 using Kesco.Lib.Localization;
+using Kesco.Lib.Web.Comet;
 using Kesco.Lib.Web.Controls.V4.Binding;
+using Kesco.Lib.Web.Controls.V4.Common;
 using Page = Kesco.Lib.Web.Controls.V4.Common.Page;
 
 namespace Kesco.Lib.Web.Controls.V4
@@ -88,31 +90,6 @@ namespace Kesco.Lib.Web.Controls.V4
     /// <param name="id">идентификатор</param>
     public delegate object ObjectStringDelegate(string id, string name = "");
 
-    /// <summary>
-    ///     Структура нотификации контрола
-    /// </summary>
-    public struct NtfData
-    {
-        /// <summary>
-        ///     Цвет нотификации
-        /// </summary>
-        public string Color;
-
-        /// <summary>
-        ///     Класс CSS нотификации
-        /// </summary>
-        public string CssClass;
-
-        /// <summary>
-        ///     Статус нотификации
-        /// </summary>
-        public NtfStatus NtfStatus;
-
-        /// <summary>
-        ///     Текст нотификации
-        /// </summary>
-        public string Text;
-    }
 
     /// <summary>
     ///     Класс нотификации контрола
@@ -124,19 +101,19 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public Ntf()
         {
-            List = new List<NtfData>();
+            List = new List<Notification>();
         }
 
         /// <summary>
         ///     Коллекция нотификаций контрола
         /// </summary>
-        public List<NtfData> List { get; private set; }
+        public List<Notification> List { get; }
 
         /// <summary>
         /// </summary>
-        public bool Contains(string text)
+        public bool Contains(string message)
         {
-            return List.Exists(l => l.Text == text);
+            return List.Exists(l => l.Message == message);
         }
 
         /// <summary>
@@ -146,52 +123,16 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             List.Clear();
         }
-
+        
         /// <summary>
-        ///     Метод добавления нотификации (только текст)
+        ///     Метод добавления объекта нотификации
         /// </summary>
-        /// <param name="text">Текст</param>
-        public void Add(string text)
+        /// <param name="ntf">Объекта нотификации</param>
+        public void Add(Notification ntf)
         {
-            Add(text, null, null);
+            List.Add(ntf);
         }
 
-        /// <summary>
-        ///     Метод добавления нотификации (только текст и статус)
-        /// </summary>
-        /// <param name="text">Текст</param>
-        public void Add(string text, NtfStatus status)
-        {
-            if(string.IsNullOrEmpty(text))
-                return;
-
-            var cssClass = "v4NtfError";
-            if (status == NtfStatus.Information) cssClass = "v4NtfInformation";
-            else if (status == NtfStatus.Recommended) cssClass = "v4NtfRecommended";
-
-            Add(text, null, cssClass, status);
-        }
-
-        /// <summary>
-        ///     Метод добавления нотификации (текст и цвет)
-        /// </summary>
-        /// <param name="text">текст</param>
-        /// <param name="color">цвет</param>
-        public void Add(string text, string color)
-        {
-            Add(text, color, null);
-        }
-
-        /// <summary>
-        ///     Метод добавления нотификации (текст, цвет, класс CSS)
-        /// </summary>
-        /// <param name="text">текст</param>
-        /// <param name="color">цвет</param>
-        /// <param name="cssClass">класс CSS</param>
-        public void Add(string text, string color, string cssClass, NtfStatus status = NtfStatus.Information)
-        {
-            List.Add(new NtfData {Text = text, Color = color, CssClass = cssClass, NtfStatus = status});
-        }
     }
 
     /// <summary>
@@ -203,8 +144,6 @@ namespace Kesco.Lib.Web.Controls.V4
         ///     Путь к картинкам (папка STYLES) из web.config
         /// </summary>
         public static string PathPic = "/Styles/";
-
-        private string _bindingField = "";
 
         /// <summary>
         ///     Наименование стиля вывода на экран контрола V4, по-умолчанию "inline-block"
@@ -220,7 +159,14 @@ namespace Kesco.Lib.Web.Controls.V4
         private bool _isDisabled;
         private bool _isReadOnly;
         private bool _isRequired;
+        private string _originalValue = "";
         private bool _refreshRequired;
+
+        /// <summary>
+        ///     Стиль вывода на экран контрола V4
+        /// </summary>
+        private string _style = "";
+
         private string _value = "";
 
         /// <summary>
@@ -274,6 +220,10 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public bool RenderContainer { get; set; }
 
+        /// <summary>
+        ///     Показывать изменение контрола в виде рамки
+        /// </summary>
+        public bool IsShowEditingStatus { get; set; }
 
         /// <summary>
         ///     Признак использования условий для фильтра
@@ -340,6 +290,15 @@ namespace Kesco.Lib.Web.Controls.V4
         }
 
         /// <summary>
+        ///     Стиль вывода на экран контрола V4
+        /// </summary>
+        public string Style
+        {
+            get { return _style; }
+            set { _style = value; }
+        }
+
+        /// <summary>
         ///     Доступ к наименованию стиля вывода на экран контрола V4, по-умолчанию "inline-block"
         /// </summary>
         public string DisplayCaptionStyle
@@ -351,10 +310,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <summary>
         ///     Коллекция скриптов
         /// </summary>
-        public TextWriter JS
-        {
-            get { return V4Page.JS; }
-        }
+        public TextWriter JS => V4Page.JS;
 
         /// <summary>
         ///     Id контрола для установки фокуса
@@ -367,7 +323,7 @@ namespace Kesco.Lib.Web.Controls.V4
         public virtual string HtmlID
         {
             set { _htmlID = value; }
-            get { return _htmlID.Length == 0 ? (_htmlID = ID) : _htmlID; }
+            get { return _htmlID.Length == 0 ? _htmlID = ID : _htmlID; }
         }
 
         /// <summary>
@@ -388,19 +344,12 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <summary>
         ///     Связанное поле контрола
         /// </summary>
-        public string BindingField
-        {
-            set { _bindingField = value; }
-            get { return _bindingField; }
-        }
+        public string BindingField { set; get; } = "";
 
         /// <summary>
         ///     Признак имплементации события Changed
         /// </summary>
-        public bool AttachedChangedEventHandler
-        {
-            get { return Changed != null; }
-        }
+        public bool AttachedChangedEventHandler => Changed != null;
 
         /// <summary>
         ///     Признак обязательности заполнения
@@ -410,10 +359,7 @@ namespace Kesco.Lib.Web.Controls.V4
             get { return _isRequired; }
             set
             {
-                if (_isRequired != value)
-                {
-                    SetPropertyChanged("IsRequired");
-                }
+                if (_isRequired != value) SetPropertyChanged("IsRequired");
                 _isRequired = value;
             }
         }
@@ -426,10 +372,7 @@ namespace Kesco.Lib.Web.Controls.V4
             get { return _isReadOnly; }
             set
             {
-                if (_isReadOnly != value)
-                {
-                    SetPropertyChanged("IsReadOnly");
-                }
+                if (_isReadOnly != value) SetPropertyChanged("IsReadOnly");
                 _isReadOnly = value;
             }
         }
@@ -442,7 +385,7 @@ namespace Kesco.Lib.Web.Controls.V4
             get { return _refreshRequired; }
             set
             {
-                 if (value) SetPropertyChanged("RefreshRequired");
+                if (value) SetPropertyChanged("RefreshRequired");
                 _refreshRequired = value;
             }
         }
@@ -455,10 +398,7 @@ namespace Kesco.Lib.Web.Controls.V4
             get { return _isDisabled; }
             set
             {
-                if (_isDisabled != value)
-                {
-                    SetPropertyChanged("IsDisabled");
-                }
+                if (_isDisabled != value) SetPropertyChanged("IsDisabled");
                 _isDisabled = value;
             }
         }
@@ -504,6 +444,19 @@ namespace Kesco.Lib.Web.Controls.V4
         }
 
         /// <summary>
+        ///     Оригинальное значение контрола
+        /// </summary>
+        public virtual string OriginalValue
+        {
+            get { return _originalValue; }
+            set
+            {
+                value = value.TrimNoNullError();
+                _originalValue = value;
+            }
+        }
+
+        /// <summary>
         ///     Признак видимости контрола
         /// </summary>
         public override bool Visible
@@ -525,10 +478,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="propertyName">Наименование свойства</param>
         public void SetPropertyChanged(string propertyName)
         {
-            if (!PropertyChanged.Contains(propertyName))
-            {
-                PropertyChanged.Add(propertyName);
-            }
+            if (!PropertyChanged.Contains(propertyName)) PropertyChanged.Add(propertyName);
         }
 
         /// <summary>
@@ -600,9 +550,23 @@ namespace Kesco.Lib.Web.Controls.V4
                 OnValueChanged(new ValueChangedEventArgs(e.NewValue, e.OldValue));
                 Changed(this, e);
             }
-            if (OnRenderNtf != null)
+
+            if (OnRenderNtf != null) RenderNtf();
+
+            if (V4Page is EntityPage)
             {
-                RenderNtf();
+                if (e.NewValue != e.OriginalValue && IsShowEditingStatus)
+                    JS.Write("$('#{0}_0').css('outline','1px solid goldenrod');", HtmlID);
+
+                var entity = ((EntityPage) V4Page).Entity;
+                if (entity != null && !entity.IsModified && e.NewValue != e.OldValue)
+                {
+                    var page = (EntityPage) V4Page;
+                    page.Entity.IsModified = true;
+                    var conn = CometServer.Connections.Find(u =>
+                        u.Id.ToString() == page.EntityId && u.Name == page.EntityName && u.ClientGuid == page.IDPage);
+                    if (conn != null) conn.IsModified = true;
+                }
             }
         }
 
@@ -611,10 +575,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public void OnValueChanged(ValueChangedEventArgs e)
         {
-            if (ValueChanged != null)
-            {
-                ValueChanged(this, e);
-            }
+            if (ValueChanged != null) ValueChanged(this, e);
         }
 
         /// <summary>
@@ -622,10 +583,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public virtual void OnDeleted(ProperyDeletedEventArgs e)
         {
-            if (Deleted != null)
-            {
-                Deleted(this, e);
-            }
+            if (Deleted != null) Deleted(this, e);
         }
 
         /// <summary>
@@ -647,32 +605,23 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="w">Поток</param>
         public virtual void RenderControl(TextWriter w)
         {
-            if (!V4Page.V4IsPostBack && !String.IsNullOrEmpty(Caption)) //render caption
-            {
+            if (!V4Page.V4IsPostBack && !string.IsNullOrEmpty(Caption)) //render caption
                 w.Write("<span id='{0}' class='v4caption' style='display:{2}'>{1}</span>",
-                    string.Concat(HtmlID, "_cptn"), string.Concat(Caption, ":"), Visible ? DisplayCaptionStyle : "none");
-            }
+                    string.Concat(HtmlID, "_cptn"), string.Concat(Caption, ":"),
+                    Visible ? DisplayCaptionStyle : "none");
             if (!V4Page.V4IsPostBack) //render body
             {
                 w.Write("<div id='{0}'", HtmlID);
-                foreach (var attr in V4Attributes)
-                {
-                    w.Write(" {0}=\"{1}\"", attr.Key, attr.Value);
-                }
+                foreach (var attr in V4Attributes) w.Write(" {0}=\"{1}\"", attr.Key, attr.Value);
 
-                w.Write(" style='{0}display:{1}'", Height.IsEmpty ? "" : string.Concat("height:", Height, ";"),
-                    Visible ? DisplayStyle : "none");
+                w.Write(" style='{2}{0}display:{1}'", Height.IsEmpty ? "" : string.Concat("height:", Height, ";"),
+                    Visible ? DisplayStyle : "none", Style);
 
-                if (!string.IsNullOrEmpty(CSSClass))
-                {
-                    w.Write(" class='{0}'", CSSClass);
-                }
-                if (!string.IsNullOrEmpty(Help))
-                {
-                    w.Write(" help='{0}'", Help);
-                }
+                if (!string.IsNullOrEmpty(CSSClass)) w.Write(" class='{0}'", CSSClass);
+                if (!string.IsNullOrEmpty(Help)) w.Write(" help='{0}'", Help);
                 w.Write(">");
             }
+
             RenderControlBody(w);
             if (OnRenderNtf != null)
             {
@@ -682,22 +631,19 @@ namespace Kesco.Lib.Web.Controls.V4
                     foreach (var id in ids)
                     {
                         var ctrl = V4Page.V4Controls.Values.FirstOrDefault(x => x.ID == id);
-                        if (ctrl == null)
-                        {
-                            throw new Exception("Контрол с id:" + id + " остутствует на форме.");
-                        }
+                        if (ctrl == null) throw new Exception("Контрол с id:" + id + " остутствует на форме.");
                         ctrl.Changed += (x, y) => RenderNtf();
                     }
                 }
+
                 OnRenderNtf(this, _ntf);
                 w.Write("<div class='ntf' id='{0}_ntf'>", HtmlID);
                 RenderNtf(w);
                 w.Write("</div>");
             }
+
             if (!V4Page.V4IsPostBack) //render body
-            {
                 w.Write("</div>");
-            }
             PropertyChanged.Clear();
         }
 
@@ -723,10 +669,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <returns>Валидный/не валидный</returns>
         public virtual bool Validation()
         {
-            if (!IsReadOnly && !IsDisabled && IsRequired && Value.Length == 0)
-            {
-                return false;
-            }
+            if (!IsReadOnly && !IsDisabled && IsRequired && Value.Length == 0) return false;
             return true;
         }
 
@@ -736,12 +679,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="w">Поток</param>
         public virtual void RenderNtf(TextWriter w)
         {
-            foreach (var ntf in _ntf.List)
-            {
-                w.Write("<div{1}{2}>- {0}</div>", ntf.Text,
-                    string.IsNullOrEmpty(ntf.Color) ? "" : " style='color:" + ntf.Color + "'",
-                    string.IsNullOrEmpty(ntf.CssClass) ? "" : " class='" + ntf.CssClass + "'");
-            }
+            V4Page?.RenderNtf(w, _ntf.List);
         }
 
         /// <summary>
@@ -756,7 +694,7 @@ namespace Kesco.Lib.Web.Controls.V4
                     Visible ? DisplayCaptionStyle : "none");
             }
 
-            
+
             if (RefreshRequired)
             {
                 V4Page.RefreshHtmlBlock(HtmlID, RenderControl);
@@ -772,14 +710,9 @@ namespace Kesco.Lib.Web.Controls.V4
             }
 
             if (OnRenderNtf != null && PropertyChanged.Contains("Ntf"))
-            {
                 V4Page.RefreshHtmlBlock(HtmlID + "_ntf", RenderNtf);
-            }
 
-            if (PropertyChanged.Contains("Caption"))
-            {
-                JS.Write("gi('{0}_cptn').innerHTML='{1}';", HtmlID, Caption);
-            }
+            if (PropertyChanged.Contains("Caption")) JS.Write("gi('{0}_cptn').innerHTML='{1}';", HtmlID, Caption);
         }
 
         /// <summary>
@@ -791,13 +724,11 @@ namespace Kesco.Lib.Web.Controls.V4
             if (!string.IsNullOrEmpty(NextControl))
             {
                 var nextCtrl = V4Page.V4Controls.Values.FirstOrDefault(x => x.ID == NextControl);
-                if (nextCtrl != null)
-                {
-                    return nextCtrl.GetFocusControl();
-                }
+                if (nextCtrl != null) return nextCtrl.GetFocusControl();
                 //return HtmlID;
                 return NextControl;
             }
+
             return NextControl;
         }
 
@@ -813,13 +744,9 @@ namespace Kesco.Lib.Web.Controls.V4
                 {
                     if ((nextCtrl.IsReadOnly || nextCtrl.IsDisabled || !nextCtrl.Visible) &&
                         nextCtrl.HtmlID != NextControl)
-                    {
                         nextCtrl.FocusToNextCtrl();
-                    }
                     else
-                    {
                         nextCtrl.Focus(); //перейдем на следующий контрол если он задан явно
-                    }
                 }
                 else
                 {
@@ -836,10 +763,8 @@ namespace Kesco.Lib.Web.Controls.V4
                         V4Page.V4Controls[key].Focus();
                         break;
                     }
-                    if (key.Equals(HtmlID))
-                    {
-                        thisCtrl = true;
-                    }
+
+                    if (key.Equals(HtmlID)) thisCtrl = true;
                 }
             }
         }
@@ -850,20 +775,17 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="collection">Коллекция параметров</param>
         public virtual void ProcessCommand(NameValueCollection collection)
         {
-            
             if (collection["v"] != null)
             {
                 var oldVal = Value;
                 Value = collection["v"];
-                OnChanged(new ProperyChangedEventArgs(oldVal, Value));
+                var originalValue = collection["ov"];
+                OnChanged(new ProperyChangedEventArgs(oldVal, Value, originalValue));
                 if (!V4Page.JS.ToString().Contains("isChanged=true;"))
                     JS.Write("isChanged=true;");
             }
-            if (collection["next"] == "1")
-            {
-                JS.Write("v4_setFocus2NextCtrl('{0}');", GetFocusControl());
-            }
-            
+
+            if (collection["next"] == "1") JS.Write("v4_setFocus2NextCtrl('{0}');", GetFocusControl());
         }
 
         #region Ntf
@@ -883,25 +805,16 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <summary>
         ///     Поле, возвращающее информацию о наличии о контрола нотификаций в статусе ошибка
         /// </summary>
-        public bool NtfValid
-        {
-            get { return NtfValidation(); }
-        }
+        public bool NtfValid => NtfValidation();
 
         /// <summary>
         ///     Отрисовка нотификаций контрола
         /// </summary>
         public void RenderNtf()
         {
-            if (_ntf.List.Count > 0)
-            {
-                _ntf.List.Clear();
-            }
+            if (_ntf.List.Count > 0) _ntf.List.Clear();
 
-            if (OnRenderNtf != null)
-            {
-                OnRenderNtf(this, _ntf);
-            }
+            if (OnRenderNtf != null) OnRenderNtf(this, _ntf);
 
             SetPropertyChanged("Ntf");
         }
@@ -911,15 +824,15 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         private bool NtfValidation()
         {
-            return _ntf.List.Select(m => m.NtfStatus).Any(t => t == NtfStatus.Error);
+            return _ntf.List.Select(m => m.Status).Any(t => t == NtfStatus.Error);
         }
 
         /// <summary>
         ///     Возвращает все нотификации контрола в статусе ошибка
         /// </summary>
-        public IEnumerable<NtfData> NtfNotValidData()
+        public IEnumerable<Notification> NtfNotValidData()
         {
-            return _ntf.List.Select(m => m).Where(t => t.NtfStatus == NtfStatus.Error);
+            return _ntf.List.Select(m => m).Where(t => t.Status == NtfStatus.Error);
         }
 
         #endregion
@@ -951,11 +864,11 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <example>Для использования достаточно один раз присвоить поле документа</example>
         public DocField BindDocField
         {
-			get
-			{
-				if (null == _bindDocField) return null;
-				return _bindDocField.Field;
-			}
+            get
+            {
+                if (null == _bindDocField) return null;
+                return _bindDocField.Field;
+            }
 
             set
             {
@@ -990,6 +903,8 @@ namespace Kesco.Lib.Web.Controls.V4
                     _bindStringValue.Dispose();
 
                 _bindStringValue = new BindStringValue(this, value);
+
+                IsShowEditingStatus = true;
             }
         }
 
@@ -1002,10 +917,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <returns>Признак успешного связывания</returns>
         public bool BindSimple(object source, string field, BindingDirection direction)
         {
-            if (source == null || field.Length == 0)
-            {
-                return false;
-            }
+            if (source == null || field.Length == 0) return false;
             bool changed;
 
             if (field.Equals("this"))
@@ -1016,18 +928,12 @@ namespace Kesco.Lib.Web.Controls.V4
             {
                 var t = source.GetType();
                 var p = t.GetProperty(field);
-                if (p == null)
-                {
-                    throw new Exception("Object has no field: " + field);
-                }
+                if (p == null) throw new Exception("Object has no field: " + field);
 
                 var val = p.GetValue(source, null);
 
                 changed = DirectBind(ref val, p.PropertyType, direction);
-                if (direction == BindingDirection.ToSource)
-                {
-                    p.SetValue(source, val, null);
-                }
+                if (direction == BindingDirection.ToSource) p.SetValue(source, val, null);
             }
 
             return changed;
@@ -1046,100 +952,69 @@ namespace Kesco.Lib.Web.Controls.V4
             if (direction == BindingDirection.FromSource)
             {
                 if (val == null)
-                {
                     Value = "";
-                }
-                else if (type == typeof (DateTime))
-                {
+                else if (type == typeof(DateTime))
                     Value = ((DateTime) val).ToString("dd.MM.yyyy");
-                }
-                else if (type == typeof (DateTime?))
-                {
+                else if (type == typeof(DateTime?))
                     Value = ((DateTime?) val).Value.ToString("dd.MM.yyyy");
-                }
-                else if (type == typeof (bool))
-                {
+                else if (type == typeof(bool))
                     Value = (bool) val ? "1" : "0";
-                }
-                else if (type == typeof (bool?))
-                {
+                else if (type == typeof(bool?))
                     Value = (bool) val ? "1" : "0";
-                }
                 else
-                {
                     Value = val.ToString();
-                }
             }
             else
             {
                 object newval = null;
-                if (type == typeof (string))
+                if (type == typeof(string))
                 {
                     newval = Value;
                 }
-                else if (type == typeof (int) || type == typeof (int?))
+                else if (type == typeof(int) || type == typeof(int?))
                 {
-                    if (Value.Length > 0)
-                    {
-                        newval = int.Parse(Value, NumberStyles.Any);
-                    }
+                    if (Value.Length > 0) newval = int.Parse(Value, NumberStyles.Any);
                 }
-                else if (type == typeof (short) || type == typeof (short?))
+                else if (type == typeof(short) || type == typeof(short?))
                 {
-                    if (Value.Length > 0)
-                    {
-                        newval = short.Parse(Value, NumberStyles.Any);
-                    }
+                    if (Value.Length > 0) newval = short.Parse(Value, NumberStyles.Any);
                 }
-                else if (type == typeof (Guid))
+                else if (type == typeof(Guid))
                 {
                     newval = Value.Length > 0 ? Guid.Parse(Value) : Guid.Empty;
                 }
-                else if (type == typeof (Guid?))
+                else if (type == typeof(Guid?))
                 {
-                    if (Value.Length > 0 && !Guid.Empty.Equals(Guid.Parse(Value)))
-                    {
-                        newval = Guid.Parse(Value);
-                    }
+                    if (Value.Length > 0 && !Guid.Empty.Equals(Guid.Parse(Value))) newval = Guid.Parse(Value);
                 }
-                else if (type == typeof (DateTime) || type == typeof (DateTime?))
+                else if (type == typeof(DateTime) || type == typeof(DateTime?))
                 {
-                    if (Value.Length > 0)
-                    {
-                        newval = DateTime.ParseExact(Value, "dd.MM.yyyy", null);
-                    }
+                    if (Value.Length > 0) newval = DateTime.ParseExact(Value, "dd.MM.yyyy", null);
                 }
-                else if (type == typeof (bool))
+                else if (type == typeof(bool))
                 {
                     newval = Value.Equals("1");
                 }
-                else if (type == typeof (bool?) && Value.Length > 0)
+                else if (type == typeof(bool?) && Value.Length > 0)
                 {
                     newval = Value.Equals("1");
                 }
-                else if (type == typeof (byte))
+                else if (type == typeof(byte))
                 {
                     newval = byte.Parse(Value.Length == 0 ? "0" : Value);
                 }
-                else if (type == typeof (decimal))
+                else if (type == typeof(decimal))
                 {
                     newval = Value.Length == 0 ? 0m : decimal.Parse(Value);
                 }
-                else if (type == typeof (decimal?))
+                else if (type == typeof(decimal?))
                 {
-                    if (Value.Length > 0)
-                    {
-                        newval = decimal.Parse(Value);
-                    }
+                    if (Value.Length > 0) newval = decimal.Parse(Value);
                 }
+
                 if (newval == null && val != null)
-                {
                     changed = true;
-                }
-                else if (newval != null)
-                {
-                    changed = !newval.Equals(val);
-                }
+                else if (newval != null) changed = !newval.Equals(val);
                 val = newval;
             }
 
@@ -1158,14 +1033,6 @@ namespace Kesco.Lib.Web.Controls.V4
     public class ProperyChangedEventArgs : EventArgs
     {
         /// <summary>
-        ///     Признак принятия изменения значения зависимыми контролами (по умолчанию - true)
-        /// </summary>
-        public bool IsChange
-        {
-            get { return NewValue != OldValue; }
-        }
-
-        /// <summary>
         ///     Новое значение
         /// </summary>
         public string NewValue;
@@ -1176,15 +1043,26 @@ namespace Kesco.Lib.Web.Controls.V4
         public string OldValue;
 
         /// <summary>
+        ///     Оригинальное значение
+        /// </summary>
+        public string OriginalValue;
+
+        /// <summary>
         ///     Конструктор
         /// </summary>
         /// <param name="oldValue">Старое значение</param>
         /// <param name="newValue">Новое значение</param>
-        public ProperyChangedEventArgs(string oldValue, string newValue)
+        public ProperyChangedEventArgs(string oldValue, string newValue, string originalValue = null)
         {
             OldValue = oldValue;
             NewValue = newValue;
+            OriginalValue = originalValue ?? oldValue;
         }
+
+        /// <summary>
+        ///     Признак принятия изменения значения зависимыми контролами (по умолчанию - true)
+        /// </summary>
+        public bool IsChange => NewValue != OldValue;
     }
 
     /// <summary>

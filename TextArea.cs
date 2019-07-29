@@ -56,7 +56,7 @@ namespace Kesco.Lib.Web.Controls.V4
                     w.Write(" disabled='true'");
                 }
 
-                w.Write(" t='{0}' help='{1}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help));
+                w.Write(" t='{0}' help='{1}' ov='{2}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help), HttpUtility.HtmlEncode(OriginalValue));
 
                 if (!string.IsNullOrEmpty(NextControl))
                     w.Write(" nc='{0}'", GetHtmlIdNextControl());

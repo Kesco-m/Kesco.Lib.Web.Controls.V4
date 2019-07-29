@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Data;
 using System.IO;
+using System.Linq;
 using System.Web;
+using System.Web.UI;
 using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.BindModels;
 using Kesco.Lib.BaseExtention.Enums.Controls;
@@ -19,9 +22,23 @@ namespace Kesco.Lib.Web.Controls.V4.Common
     public abstract class EntityPage : Page
     {
         /// <summary>
-        ///     Коллекция кнопок меню
+        ///     URL страницы
         /// </summary>
-        private readonly List<Button> _menuButtons;
+        protected string CurrentUrl{get; set;}
+
+        protected void SetCurrentUrlParams(Dictionary<string, object> parameters)
+        {
+            if (parameters.Count == 0) return;
+            var ub = new UriBuilder(CurrentUrl);
+            var qs = HttpUtility.ParseQueryString(ub.Query);
+            foreach (var p in parameters)
+                qs.Set(p.Key, p.Value.ToString());
+
+            ub.Query= string.Join("&",
+                qs.AllKeys.Select(a => a + "=" + HttpUtility.UrlEncode(qs[a])));
+            CurrentUrl = ub.Uri.AbsoluteUri;
+
+        }
 
         /// <summary>
         /// Элемент управления для контроля совместной работы над сущностью
@@ -33,7 +50,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         protected EntityPage()
         {
-            _menuButtons = new List<Button>();
+            IsEditable = true;
         }
 
         /// <summary>
@@ -41,11 +58,202 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         public Entity Entity;
 
+        /// <summary>
+        ///     идентификатор сущности страницы
+        /// </summary>
+        protected string id;
+
+        /// <summary>
+        ///     Первоначальное состояние сущности
+        /// </summary>
+        protected Entity OriginalEntity;
+
+           /// <summary>
+           /// Инициализация формы
+           /// </summary>
+           /// <param name="e">Аргументы</param>
         protected override void OnInit(EventArgs e)
         {
+            if (RedirectPageByCondition()) return;
+
+            CurrentUrl = Request.Url.AbsoluteUri;
+
             base.OnInit(e);
+
+            if (!V4IsPostBack)
+            {
+                id = Request.QueryString["id"];
+            }
+
+            if (!V4IsPostBack) EntitySyncModifiedData();
+
+            EntityInitialization();
             EntityFieldInit();
         }
+        /// <summary>
+        /// Синхронизация несохраненных изменений, сделанных другими пользователями в текущей сущности
+        /// </summary>
+        public void EntitySyncModifiedData()
+        {
+            if (ItemId != 0)
+            {
+                var list = CometServer.Connections.FindAll(u => u.Id.ToString() == EntityId && u.Name == EntityName && u.ClientGuid != IDPage && u.IsModified).AsEnumerable().OrderBy(o => o.Start);
+                if (list.Any())
+                {
+                    var p = Application[list.First().ClientGuid] as EntityPage;
+                    if (p != null) Entity = p.Entity;
+
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Инициализация конкретного типа сущности
+        /// </summary>
+        protected abstract void EntityInitialization(Entity copy = null);
+
+
+        /// <summary>
+        ///     Загружает данные связаные с текущей сущностью
+        /// </summary>
+        protected virtual void EntityLoadData(string idEntity)
+        {
+        }
+
+        /// <summary>
+        ///     Обработка клиентских команд
+        /// </summary>
+        /// <param name="cmd">Команды</param>
+        /// <param name="param">Параметры</param>
+        protected override void ProcessCommand(string cmd, NameValueCollection param)
+        {
+            switch (cmd)
+            {
+                case "Refresh":
+                    if (Entity.IsModified)
+                    {
+                        // Изменения не сохранены! Вы действительно хотите заново загрузить данные?
+                        ShowConfirm(Resx.GetString("Confirm_msgRefreshNoSave"),
+                        Resx.GetString("errDoisserWarrning"),
+                        Resx.GetString("CONFIRM_StdCaptionYes"),
+                        Resx.GetString("CONFIRM_StdCaptionNo"),
+                        "cmdasync('cmd', 'RefreshNoSave');", null, null);
+                    }
+                    else
+                    {
+                        RefreshPage();
+                    }
+                    break;
+                case "RefreshNoSave":
+                    var list = CometServer.Connections.FindAll(u => u.Id.ToString() == EntityId && u.Name == EntityName && u.ClientGuid != IDPage && u.IsModified);
+                    if (list.Any())
+                    {
+
+                        var clientGUIDList = list.Select(s => s.ClientGuid).ToList();
+                        var clientList = new List<string>();
+                        foreach (var user in clientGUIDList)
+                        {
+                            var p = Application[user] as Page;
+                            clientList.Add(p == null ? "<не определен>" : p.CurrentUser.FIO);
+                        }
+
+                        // Данную форму сейчас редактируют сотрудники: {0}.
+                        // В результате повторной загрузки данных все изменения сделанные ими на своих формах будут отменены.
+                        // Выполнить обновление данных формы?
+                        ShowConfirm(String.Format(Resx.GetString("Confirm_msgRefreshNoSaveUsers"), String.Join(",", clientList.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct())),
+                            Resx.GetString("errDoisserWarrning"),
+                            Resx.GetString("CONFIRM_StdCaptionYes"),
+                            Resx.GetString("CONFIRM_StdCaptionNo"),
+                            "cmdasync('cmd', 'RefreshNoUsersSave');", null, null);
+                    }
+                    else
+                    {
+                        RefreshPage();
+                    }
+                    break;
+                case "RefreshNoUsersSave":
+                    RefreshPage();
+                    break;
+                default:
+                    base.ProcessCommand(cmd, param);
+                    break;
+            }
+
+            //if (ItemId != 0)
+            //    TranslatePageEvent(V4Request.Params);
+        }
+
+        public override void TranslatePageEvent(NameValueCollection Params)
+        {
+            var cmd = Params["cmd"];
+            var m = new CometMessage
+            {
+                ClientGuid = IDPage,
+                IsV4Script = true,
+                Message = "<js>cmdasync();</js>",
+                Status = 0,
+                UserName = ""
+            };
+
+            Predicate<CometAsyncState> pred = (client) =>
+            {
+                if (client.Page == null) return false;
+                if (client.Page == this) return false;
+                
+                if (client.Id != ItemId) return false;
+                if (((Page)client.Page).IDPage == IDPage) return false;
+
+                var p = client.Page as EntityPage;
+
+                switch (cmd)
+                {
+                    case "RefreshForce":
+                        ClearCacheObjects();
+                        client.Start = DateTime.MinValue;
+                        if (p != null)
+                        {
+                            //client.CompleteRequest();
+                            p.JS.Write("location.href='{0}';", CurrentUrl);
+                            //p.ShowMessage("!!!");
+                        }
+
+                        break;
+                }
+                return true;
+            };
+
+            CometServer.PushMessage(m, pred);
+            CometServer.Process();
+        }
+
+        /// <summary>
+        ///    Обновление страницы с повторной загрузкой данных из БД
+        /// </summary>
+        /// <returns></returns>
+        protected void RefreshPage()
+        {
+            var connList = CometServer.Connections.FindAll(u =>
+                u.Id.ToString() == EntityId && u.Name == EntityName && u.ClientGuid != IDPage);
+            var hasOtherModified = false;
+            foreach (var conn in connList)
+            {
+                if (!conn.IsModified) continue;
+                hasOtherModified = true;
+                conn.IsModified = false;
+            }
+
+            if (hasOtherModified) TranslatePageEvent(new NameValueCollection { { "cmd", "RefreshForce" } });
+
+            V4Navigate(CurrentUrl);
+        }
+
+        ///// <summary>
+        ///// Событие изменения сатуса страницы
+        ///// </summary>
+        //public override void EditingStatusChanged()
+        //{
+        //    if (Entity != null) Entity.IsModified = true;
+        //}
 
         protected virtual void EntityFieldInit()
         {
@@ -60,6 +268,18 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                         method.Invoke(((BinderValue)field.GetValue(Entity)), new object[] { ((BinderValue)field.GetValue(Entity)).Value, "" });
                     }
                 }
+
+                //var saveButton = MenuButtons?.Find(mb => mb.ID == "btnSave");
+                //if (saveButton != null && Entity != null)
+                //{
+                //    saveButton.IsDisabled = !Entity.IsModified;
+                //}
+                var applyButton = MenuButtons.Find(mb => mb.ID == "btnApply");
+                if (applyButton != null && Entity != null)
+                {
+                    applyButton.IsDisabled = !Entity.IsModified;
+                }
+
             }
         }
 
@@ -90,6 +310,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             V4Dispose(true);
             Response.Redirect(path + (withQueryParams ? Request.Url.Query : ""), false);
+            Response.Flush();
+            Response.SuppressContent = true;
+            HttpContext.Current.ApplicationInstance.CompleteRequest();
+            
         }
 
         /// <summary>
@@ -118,102 +342,21 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             _cometUsers.RenderControl(w);
         }
 
-        /// <summary>
-        ///     Добавление кнопок в меню
-        /// </summary>
-        /// <remarks>
-        ///     В качестве параметра может получать:
-        ///     одиночный объект,
-        ///     объекты через запятую,
-        ///     массив объектов Button
-        /// </remarks>
-        /// <param name="buttons">объект контрола button</param>
-        public void AddMenuButton(params Button[] buttons)
+        protected override void RenderAddControl(StringWriter w)
         {
-            _menuButtons.AddRange(buttons);
-        }
-
-        /// <summary>
-        ///     Очистить коллекцию кнопок
-        /// </summary>
-        public void ClearMenuButtons()
-        {
-            _menuButtons.Clear();
+            if (MenuButtons.Count > 0)
+            {
+                if (ItemId > 0)
+                    RenderCometControl(w);
+            }
         }
 
         /// <summary>
         ///     Сформировать кнопки меню
         /// </summary>
-        public void RenderButtons(StringWriter w)
+        public override void RenderButtons(StringWriter w)
         {
-            w.Write("<div id=\"pageHeader\" class=\"ui-widget-header ui-corner-all\" style=\"z-index:9999 {0}\">", _menuButtons.Count==0? ";height:23px":"");
-
-            foreach (var b in _menuButtons)
-            {
-                V4Controls.Add(b);
-                b.RenderControl(w);
-                b.PropertyChanged.Clear();
-            }
-
-            if (_menuButtons.Count > 0)
-            {
-                if (ItemId > 0) // блокируем на вермя показа
-                    RenderCometControl(w);
-            }
-
-            if (!string.IsNullOrEmpty(LogoImage))
-            {
-                w.Write("<img src=\"{0}\" style=\"float: left; margin-left: 2px; border: 0; height: 23px;\">", LogoImage);
-            }
-
-            if (!string.IsNullOrEmpty(HelpUrl))
-            {
-                var btnHelp = new Button
-                {
-                    ID = "btnHelp",
-                    V4Page = this,
-                    Text = "",
-                    Title = Resx.GetString("lblHelp"),
-                    Width = 27,
-                    Height = 22,
-                    IconJQueryUI = ButtonIconsEnum.Help,
-                    OnClick = string.Format("v4_openHelp('{0}');", IDPage),
-                    Style = "float: right; margin-right: 11px;"
-                };
-
-                V4Controls.Add(btnHelp);
-                btnHelp.RenderControl(w);
-                btnHelp.PropertyChanged.Clear();
-            }
-
-            if (LikeId != 0)
-            {
-                var btnLike = new LikeDislike
-                {
-                    ID = "btnLike",
-                    V4Page = this,
-                    LikeId = LikeId,
-                    InterfaceVersion = InterfaceVersion,
-                    Style = "float: right; margin-right: 11px; margin-top: 3px; cursor: pointer;"
-                };
-
-                V4Controls.Add(btnLike);
-                btnLike.RenderControl(w);
-            }
-
-            w.WriteLine(@"</div>");
-        }
-
-        /// <summary>
-        ///     Обновить кнопки меню
-        /// </summary>
-        public void RefreshMenuButtons()
-        {
-            using (var w = new StringWriter())
-            {
-                RenderButtons(w);
-                JS.Write("gi('pageHeader').innerHTML={0};", HttpUtility.JavaScriptStringEncode(w.ToString(), true));
-            }
+            base.RenderButtons(w);
         }
 
         /// <summary>
@@ -255,6 +398,21 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public override void ProcessRequest()
         {
             base.ProcessRequest();
+
+            if (MenuButtons != null)
+            {
+                //var saveButton = MenuButtons.Find(mb => mb.ID == "btnSave");
+                //if (saveButton != null && Entity != null)
+                //{
+                //    saveButton.IsDisabled = !Entity.IsModified;
+                //}
+                var applyButton = MenuButtons.Find(mb => mb.ID == "btnApply");
+                if (applyButton != null && Entity != null)
+                {
+                    applyButton.IsDisabled = !Entity.IsModified;
+                }
+            }
+
             if (V4Request.Params.Count == 0)
             {
                 return;

@@ -376,10 +376,10 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 else
                 {
                     var addClass = CSSClass;
-                    w.Write("<input  style='width:{0};{1};' id='{2}_0' value='{3}' type='Text' ",
+                    w.Write("<input  style='width:{0};{1};' id='{2}_0' value='{3}' ov='{4}' type='Text' ",
                         Width.IsEmpty ? "100%" : Width.ToString(),
                         Height.IsEmpty ? "" : "height:" + Height,
-                        HtmlID, HttpUtility.HtmlEncode(Value));
+                        HtmlID, HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(OriginalValue));
                     if (IsDisabled)
                         w.Write(" disabled='true'");
 
@@ -669,12 +669,12 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 {
                     if (_minValue != decimal.MinValue && rez < MinValue)
                     {
-                        JS.Write("Alert.render('Minimal value: {0}');", MinValue);
+                        JS.Write("v4_showMessage('Minimal value: {0}','{1}',{2});", MinValue, Resx.GetString("alertError"), (int)MessageStatus.Error);
                         Value = e.OldValue;
                     }
                     else if (_maxValue != decimal.MinValue && rez > MaxValue)
                     {
-                        JS.Write("Alert.render('Maximal value: {0}');", MaxValue);
+                        JS.Write("v4_showMessage('Maximal value: {0}','{1}',{2});", MaxValue, Resx.GetString("alertError"), (int)MessageStatus.Error);
                         Value = e.OldValue;
                     }
                     else

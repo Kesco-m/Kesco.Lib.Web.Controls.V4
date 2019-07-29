@@ -1,32 +1,39 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Data;
+using System.Globalization;
 using System.Resources;
+using System.Threading;
 using System.Web;
 using System.Web.Script.Serialization;
 using Kesco.Lib.BaseExtention;
+using Kesco.Lib.BaseExtention.Enums.Docs;
 using Kesco.Lib.DALC;
 using Kesco.Lib.Localization;
 using Kesco.Lib.Web.Controls.V4.Common;
-using System.Collections.Specialized;
+using Kesco.Lib.Web.Settings;
 using Kesco.Lib.Web.Settings.Parameters;
-using System.Threading;
-using System.Globalization;
-using Kesco.Lib.BaseExtention.Enums.Docs;
 using SQLQueries = Kesco.Lib.Entities.SQLQueries;
 
 namespace Kesco.Lib.Web.Controls.V4.TreeView
 {
     public class TreeViewDataHandler : IHttpHandler
     {
+        protected TreeViewDbSourceSettings dbSource;
 
+        protected ResourceManager Resx;
+        protected TreeView treeView;
+        protected static string RootIds { get; set; }
+        protected static string SelectedIds { get; set; }
         protected static string ReturnId { get; set; }
         protected static string ReturnType { get; set; }
         protected static string OrderByField { get; set; }
+        protected static string OrderByDirection { get; set; }
         protected static string SearchText { get; set; }
         protected static string SearchParam { get; set; }
         protected static string MassLoad { get; set; }
-        protected static string StateLoad { get; set; }
+        protected static bool StateLoad { get; set; }
         protected static string OpenList { get; set; }
         protected static string SelectedNode { get; set; }
         protected static string LoadId { get; set; }
@@ -34,9 +41,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         protected static string IDPage { get; set; }
         protected static string CtrlID { get; set; }
 
-        Page page;
-        protected ResourceManager Resx;
-        protected TreeViewDbSourceSettings dbSource;
+        protected static bool ShowTopNodesInSearchResult { get; set; }
 
         /// <summary>
         ///     Обработка клиентских команд
@@ -57,43 +62,64 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                 return;
             }
 
-            var id = string.IsNullOrWhiteSpace(context.Request.QueryString["nodeid"]) ||
-                 context.Request.QueryString["nodeid"] == "#"
+            var id = string.IsNullOrWhiteSpace(context.Request.QueryString["nodeid"])
+                     || context.Request.QueryString["nodeid"] == "#"
                 ? 0
                 : int.Parse(context.Request.QueryString["nodeid"]);
+
+            if (!string.IsNullOrWhiteSpace(context.Request.QueryString["rootids"]))
+                RootIds = context.Request.QueryString["rootids"];
+            else if (!string.IsNullOrWhiteSpace(context.Request.QueryString["root"]))
+                RootIds = context.Request.QueryString["root"];
+            else if (!string.IsNullOrWhiteSpace(context.Request.QueryString["parent"]))
+                RootIds = context.Request.QueryString["parent"];
+            else
+                RootIds = string.Empty;
+
+            SelectedIds = string.IsNullOrWhiteSpace(context.Request.QueryString["selectedids"])
+                ? string.Empty
+                : context.Request.QueryString["selectedids"];
+
             ReturnId = string.IsNullOrWhiteSpace(context.Request.QueryString["return"])
                 ? ""
                 : context.Request.QueryString["return"];
             ReturnType = string.IsNullOrWhiteSpace(context.Request.QueryString["returntype"])
                 ? ""
                 : context.Request.QueryString["returntype"];
-            OrderByField = string.IsNullOrWhiteSpace(context.Request.QueryString["orderBy"])
+            OrderByField = string.IsNullOrWhiteSpace(context.Request.QueryString["orderByField"])
                 ? "L"
-                : context.Request.QueryString["orderBy"];
+                : context.Request.QueryString["orderByField"];
+            OrderByDirection = string.IsNullOrWhiteSpace(context.Request.QueryString["orderByDirection"])
+                ? "ASC"
+                : context.Request.QueryString["orderByDirection"];
             SearchText = string.IsNullOrWhiteSpace(context.Request.QueryString["searchText"])
                 ? ""
                 : context.Request.QueryString["searchText"];
             SearchParam = string.IsNullOrWhiteSpace(context.Request.QueryString["searchParam"])
                 ? ""
                 : context.Request.QueryString["searchParam"];
-            MassLoad = string.IsNullOrWhiteSpace(context.Request.QueryString["massload"])
-                ? ""
-                : context.Request.QueryString["massload"];
+            //MassLoad = string.IsNullOrWhiteSpace(context.Request.QueryString["massload"])
+            //    ? ""
+            //    : context.Request.QueryString["massload"];
             IDPage = string.IsNullOrWhiteSpace(context.Request.QueryString["idpage"])
                 ? ""
                 : context.Request.QueryString["idpage"];
             CtrlID = string.IsNullOrWhiteSpace(context.Request.QueryString["ctrlid"])
                 ? ""
                 : context.Request.QueryString["ctrlid"];
-            StateLoad = string.IsNullOrWhiteSpace(context.Request.QueryString["stateLoad"])
-                ? "false"
-                : context.Request.QueryString["stateLoad"];
+            StateLoad = string.IsNullOrWhiteSpace(context.Request.QueryString["stateLoad"]) ||
+                        !string.IsNullOrWhiteSpace(RootIds)
+                ? false
+                : bool.Parse(context.Request.QueryString["stateLoad"]);
             LoadId = string.IsNullOrWhiteSpace(context.Request.QueryString["loadId"])
                 ? "0"
                 : context.Request.QueryString["loadId"];
+            ShowTopNodesInSearchResult = string.IsNullOrWhiteSpace(context.Request.QueryString["searchShowTop"])
+                ? false
+                : bool.Parse(context.Request.QueryString["searchShowTop"]);
             var json = string.Empty;
 
-            var p = (Page)context.Application[IDPage];
+            var p = (Page) context.Application[IDPage];
 
             if (p == null) return;
 
@@ -101,92 +127,67 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             Thread.CurrentThread.CurrentCulture = CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
             Resx = Resources.Resx;
 
-            var treeview = (TreeView)p.V4Controls[CtrlID];
-            dbSource = treeview.DbSourceSettings;
+            treeView = (TreeView) p.V4Controls[CtrlID];
+            dbSource = treeView.DbSourceSettings;
+            OpenList = string.Empty;
 
-            if (SearchText.IsNullEmptyOrZero())
+            var partialLoad = id == 0 && !string.IsNullOrEmpty(RootIds);
+            var openSingleNode = id == 0 && !LoadId.IsNullEmptyOrZero();
+            var openSeveralNodes = id == 0 && !string.IsNullOrEmpty(SelectedIds);
+
+            if (string.IsNullOrEmpty(SearchText))
             {
-                if (StateLoad == "true")
+                treeView.SearchResultCount = 0;
+
+                if (openSingleNode)
                 {
-                    if (!LoadId.IsNullEmptyOrZero())
-                    {
-                        json = GetStateTreeData(LoadId);
-                    }
-                    else
-                    {
-                        var clid = "0";
-                        var paramName = treeview.ParamName;
-                        var parametersManager = new AppParamsManager(Convert.ToInt32(clid), new StringCollection { paramName });
-                        var appParam = parametersManager.Params.Find(x => x.Name == paramName);
-                        var jsonState = appParam.Value;
-                        if (jsonState.IndexOf("open") > 0)
-                        {
-                            var openState = jsonState.Substring(jsonState.IndexOf("open"));
-                            var startArray = openState.IndexOf("[");
-                            var endArray = openState.IndexOf("]");
-                            if (startArray != -1)
-                            {
-                                OpenList = openState.Substring(startArray + 1, (endArray - startArray) - 1).Replace("\"", "'");
-                            }
-                        }
-                        if (jsonState.IndexOf("selected") > 0)
-                        {
-                            var selectedState = jsonState.Substring(jsonState.IndexOf("selected"));
-                            var startArray = selectedState.IndexOf("[");
-                            var endArray = selectedState.IndexOf("]");
-                            if (startArray != -1)
-                            {
-                                SelectedNode = selectedState.Substring(startArray + 1, (endArray - startArray) - 1).Replace("\"", "");
-                                var sqlParams = new Dictionary<string, object> { { "@id", SelectedNode } };
-
-                                var sqlQuery = string.Format(SQLQueries.SELECT_ПолучениеОткрытыхУзловДерева, dbSource.ViewName, dbSource.PkField);
-
-                                var dtParent = DBManager.GetData(
-                                    sqlQuery, dbSource.ConnectionString, CommandType.Text, sqlParams); 
-                                
-                                OpenList = "";
-                                foreach (DataRow row in dtParent.Rows)
-                                {
-                                    if (OpenList != "") OpenList += ",";
-                                    OpenList += "'" + row[dbSource.PkField] + "'";
-                                }
-                            }
-                        }
-
-                        json = GetStateTreeData();
-                    }
+                    InitOpenList(true);
+                    json = GetTreeDataOpenList();
+                }
+                else if (openSeveralNodes)
+                {
+                    InitOpenList(false);
+                    json = GetTreeDataOpenList();
+                }
+                else if (partialLoad)
+                {
+                    json = GetTreeDataPartial();
+                }
+                else if (StateLoad)
+                {
+                    InitOpenListState();
+                    json = GetTreeDataOpenList();
                 }
                 else
                 {
-                    json = GetTreedata(id);
+                    json = GetTreeData(id);
                 }
             }
             else
             {
-                var jsonArr = GetSearchTreeData(SearchText, SearchParam);
+                var jsonArr = partialLoad
+                    ? GetSearchTreeDataPartial(SearchText, SearchParam)
+                    : GetSearchTreeData(SearchText, SearchParam);
                 json = jsonArr[0];
-                treeview.SearchResultCount = Convert.ToInt32(jsonArr[1]);
+                treeView.SearchResultCount = Convert.ToInt32(jsonArr[1]);
             }
 
             context.Response.ContentType = "text/json";
             context.Response.Write(json);
         }
 
-        public bool IsReusable
-        {
-            get { return false; }
-        }
+        public bool IsReusable => false;
 
         /// <summary>
         ///     Получение данных для дерева
         /// </summary>
         /// <param name="nodeid">Идентификатор узла</param>
         /// <returns>JSON данные</returns>
-        private string GetTreedata(int nodeid)
+        private string GetTreeData(int nodeid)
         {
             var sqlParams = new Dictionary<string, object> {{"@Код", nodeid}, {"@Потомки", 1}};
 
-            var sql = GetTreedata_Sql(OrderByField, SearchText, SearchParam);
+            var sql = GetTreeData_Sql(OrderByField, OrderByDirection, SearchText, SearchParam);
             var dt = DBManager.GetData(sql, dbSource.ConnectionString, CommandType.Text, sqlParams);
 
             Node root = null;
@@ -198,7 +199,8 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                     text = dbSource.RootName,
                     type = "folder",
                     state = new NodeState {opened = true, selected = false, loaded = true},
-                    li_attr = new NodeAttr { text = dbSource.RootName, parentId = "0"}
+                    li_attr = new NodeAttr {text = dbSource.RootName, parentId = "#"}
+                    //li_attr = new NodeAttr { text = dbSource.RootName, parentId = "0"}
                 };
             }
             else
@@ -215,7 +217,8 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                         type = Convert.ToInt32(rootNode["ЕстьДети"]) == 1 ? "file" : "folder",
                         text = GetPrefixIcon(rootNode) + rootNode["text"] + GetPostFixIcon(rootNode),
                         state = new NodeState {opened = true, selected = false, loaded = true},
-                        li_attr = new NodeAttr { text = rootNode["text"].ToString(), parentId = rootNode["ParentId"].ToString() }
+                        li_attr = new NodeAttr
+                            {text = rootNode["text"].ToString(), parentId = rootNode["ParentId"].ToString()}
                     };
                 }
             }
@@ -233,10 +236,11 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                     text = GetPrefixIcon(kvp) + kvp["text"] + GetPostFixIcon(kvp),
                     state = new NodeState
                     {
-                        opened = !kvp["Фильтр"].ToString().IsNullEmptyOrZero(), selected = false,
+                        opened = !string.IsNullOrEmpty(kvp["Фильтр"].ToString()),
+                        selected = false,
                         loaded = Convert.ToInt32(kvp["ЕстьДети"]) == 1
                     },
-                    li_attr = new NodeAttr { text = kvp["text"].ToString(), parentId = kvp["ParentId"].ToString() }
+                    li_attr = new NodeAttr {text = kvp["text"].ToString(), parentId = kvp["ParentId"].ToString()}
                 };
 
                 root.children.Add(node);
@@ -244,6 +248,63 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             }
 
             return new JavaScriptSerializer().Serialize(root);
+        }
+
+        /// <summary>
+        ///     Получение данных для дерева (при частичной загрузке)
+        /// </summary>
+        /// <returns>JSON данные</returns>
+        private string GetTreeDataPartial()
+        {
+            var sqlParams = new Dictionary<string, object> {{"@Код", string.Empty}, {"@Потомки", 2}};
+
+            var sql = GetTreeData_Sql(OrderByField, OrderByDirection, SearchText, SearchParam);
+
+            var dt = DBManager.GetData(sql, dbSource.ConnectionString, CommandType.Text, sqlParams);
+
+            var rootsView = new DataView(dt) {RowFilter = "Id IN (" + RootIds + ")"};
+
+            var roots = new List<Node>();
+
+            foreach (DataRowView r in rootsView)
+            {
+                var root = new Node
+                {
+                    id = r["Id"].ToString(),
+                    type = Convert.ToInt32(r["ЕстьДети"]) == 1 ? "file" : "folder",
+                    text = GetPrefixIcon(r) + r["text"] + GetPostFixIcon(r),
+                    state = new NodeState {opened = true, selected = false, loaded = true},
+                    li_attr = new NodeAttr {text = r["text"].ToString(), parentId = r["ParentId"].ToString()}
+                };
+
+                roots.Add(root);
+
+                var childsView = new DataView(dt) {RowFilter = "ParentId=" + r["Id"]};
+
+                foreach (DataRowView drv in childsView)
+                {
+                    var parentId = drv["Id"].ToString();
+
+                    var node = new Node
+                    {
+                        id = drv["Id"].ToString(),
+                        type = (int) drv["ЕстьДети"] == 1 ? "file" : "folder",
+                        text = GetPrefixIcon(drv) + drv["text"] + GetPostFixIcon(drv),
+                        state = new NodeState
+                        {
+                            opened = !string.IsNullOrEmpty(drv["Фильтр"].ToString()),
+                            selected = false,
+                            loaded = Convert.ToInt32(drv["ЕстьДети"]) == 1
+                        },
+                        li_attr = new NodeAttr {text = drv["text"].ToString(), parentId = drv["ParentId"].ToString()}
+                    };
+
+                    root.children.Add(node);
+                    //AddChildItems(dt, node, parentId);
+                }
+            }
+
+            return new JavaScriptSerializer().Serialize(roots);
         }
 
         /// <summary>
@@ -255,7 +316,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         protected string[] GetSearchTreeData(string searchText, string searchParam)
         {
             var parametersOut = new Dictionary<string, object> {{"@КоличествоНайденных", 0}};
-            var sql = GetTreedata_Sql(OrderByField, SearchText, SearchParam);
+            var sql = GetTreeData_Sql(OrderByField, OrderByDirection, SearchText, SearchParam);
             var recCount = 0;
             //var dt = DBManager.GetData(sql, DbSourceSettings.ConnectionString);
             var dt = new DataTable();
@@ -268,66 +329,220 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             }
 
             Node root = null;
+
             root = new Node
             {
                 id = "0",
                 text = dbSource.RootName,
                 type = "folder",
                 state = new NodeState {opened = true, selected = false, loaded = true},
-                li_attr = new NodeAttr { text = dbSource.RootName, parentId = "0" }
+                li_attr = new NodeAttr {text = dbSource.RootName, parentId = "#"}
+                //li_attr = new NodeAttr { text = dbSource.RootName, parentId = "0" }
             };
 
-            var view = new DataView(dt) {RowFilter = "[ParentId] is null"};
-            foreach (DataRowView row in view)
+            if (dt.Columns.Contains("ParentId"))
             {
-                var parentId = row["Id"].ToString();
-                var node = new Node
+                var view = new DataView(dt) {RowFilter = "[ParentId] is null"};
+                foreach (DataRowView row in view)
                 {
-                    id = row["Id"].ToString(),
-                    type = Convert.ToInt32(row["ЕстьДети"]) == 1 ? "file" : "folder",
-                    text = GetPrefixIcon(row) + GetFilteredText(row["text"].ToString(), searchText, row["BitMask"].ToString()) + 
-                           GetPostFixIcon(row) + GetFilter(row["BitMask"].ToString()),
-                    state = new NodeState
+                    var parentId = row["Id"].ToString();
+                    var node = new Node
                     {
-                        opened = row["BitMask"].ToString() != "4" && row["BitMask"].ToString() != "5", selected = false,
-                        loaded = row["BitMask"].ToString() != "4" && row["BitMask"].ToString() != "5"
-                    },
-                    li_attr = new NodeAttr { text = row["text"].ToString(), parentId = row["ParentId"].ToString() }
-                };
-                root.children.Add(node);
-                AddChildItems(dt, node, parentId, searchText);
+                        id = row["Id"].ToString(),
+                        type = Convert.ToInt32(row["ЕстьДети"]) == 1 ? "file" : "folder",
+                        text = GetPrefixIcon(row) +
+                               GetFilteredText(row["text"].ToString(), searchText, row["BitMask"].ToString()) +
+                               GetPostFixIcon(row) +
+                               GetFilter(row["BitMask"].ToString()),
+                        state = new NodeState
+                        {
+                            opened = row["BitMask"].ToString() != "4" &&
+                                     row["BitMask"].ToString() != "5" ||
+                                     Convert.ToInt32(row["ЕстьДети"]) == 1,
+                            selected = false,
+                            loaded = row["BitMask"].ToString() != "4" &&
+                                     row["BitMask"].ToString() != "5" ||
+                                     Convert.ToInt32(row["ЕстьДети"]) == 1
+                        },
+                        li_attr = new NodeAttr {text = row["text"].ToString(), parentId = row["ParentId"].ToString()}
+                    };
+                    root.children.Add(node);
+                    AddChildItemsSearch(dt, node, parentId, searchText);
+                }
             }
 
             return new[] {new JavaScriptSerializer().Serialize(root), recCount.ToString()};
         }
 
         /// <summary>
-        ///     Получение данных для дерева для State
+        ///     Получение данных для дерева при поиске (при частичной загрузке)
         /// </summary>
+        /// <param name="searchText">Что ищем</param>
+        /// <param name="searchParam">Как ищем</param>
         /// <returns>JSON данные</returns>
-        protected string GetStateTreeData(string id="")
+        protected string[] GetSearchTreeDataPartial(string searchText, string searchParam)
         {
-            if (!id.IsNullEmptyOrZero())
+            var sql = GetTreeData_Sql(OrderByField, OrderByDirection, SearchText, SearchParam);
+
+            var parametersOut = new Dictionary<string, object> {{"@КоличествоНайденных", 0}};
+            var recCount = 0;
+            //var dt = DBManager.GetData(sql, DbSourceSettings.ConnectionString);
+            var dt = new DataTable();
+            using (var dbReader = new DBReader(sql, CommandType.Text, dbSource.ConnectionString, null,
+                parametersOut))
             {
-                SelectedNode = id;
-                var sqlParams = new Dictionary<string, object> { { "@id", id } };
+                if (dbReader.HasRows) dt.Load(dbReader);
+                dbReader.Close();
+                recCount = Convert.ToInt16(parametersOut["@КоличествоНайденных"]);
+            }
 
-                var sqlQuery = string.Format(SQLQueries.SELECT_ПолучениеОткрытыхУзловДерева, dbSource.ViewName, dbSource.PkField);
+            var roots = new List<Node>();
 
-                var dtParent = DBManager.GetData(
-                    sqlQuery, Settings.Config.DS_user, CommandType.Text, sqlParams);
-               
-                OpenList = "";
-                foreach (DataRow row in dtParent.Rows)
+            if (dt.Columns.Contains("id") && dt.Columns.Contains("ParentId"))
+            {
+                var rootsView = new DataView(dt) {RowFilter = "id IN (" + RootIds + ")"};
+
+                foreach (DataRowView r in rootsView)
                 {
-                    if (OpenList != "") OpenList += ",";
-                    OpenList += "'" + row[dbSource.PkField] + "'";
+                    var root = new Node
+                    {
+                        id = r["id"].ToString(),
+                        type = (int) r["ЕстьДети"] == 1 ? "file" : "folder",
+                        text = GetPrefixIcon(r) +
+                               GetFilteredText(r["text"].ToString(), searchText, r["BitMask"].ToString()) +
+                               GetPostFixIcon(r) +
+                               GetFilter(r["BitMask"].ToString()),
+                        state = new NodeState
+                        {
+                            opened = r["BitMask"].ToString() != "4" &&
+                                     r["BitMask"].ToString() != "5" ||
+                                     (int) r["ЕстьДети"] == 1,
+                            selected = false,
+                            loaded = r["BitMask"].ToString() != "4" &&
+                                     r["BitMask"].ToString() != "5" ||
+                                     (int) r["ЕстьДети"] == 1
+                        },
+                        li_attr = new NodeAttr {text = r["text"].ToString(), parentId = r["ParentId"].ToString()}
+                    };
+
+                    roots.Add(root);
+
+                    var childsView = new DataView(dt) {RowFilter = "ParentId=" + r["id"]};
+
+                    foreach (DataRowView rc in childsView)
+                    {
+                        var parentId = rc["id"].ToString();
+                        var node = new Node
+                        {
+                            id = rc["id"].ToString(),
+                            type = (int) rc["ЕстьДети"] == 1 ? "file" : "folder",
+                            text = GetPrefixIcon(rc) +
+                                   GetFilteredText(rc["text"].ToString(), searchText, rc["BitMask"].ToString()) +
+                                   GetPostFixIcon(rc) +
+                                   GetFilter(rc["BitMask"].ToString()),
+                            state = new NodeState
+                            {
+                                opened = rc["BitMask"].ToString() != "4" &&
+                                         rc["BitMask"].ToString() != "5" ||
+                                         (int) rc["ЕстьДети"] == 1,
+                                selected = false,
+                                loaded = rc["BitMask"].ToString() != "4" &&
+                                         rc["BitMask"].ToString() != "5" ||
+                                         (int) rc["ЕстьДети"] == 1
+                            },
+                            li_attr = new NodeAttr
+                                {text = rc["text"].ToString(), parentId = rc["ParentId"].ToString()}
+                        };
+                        root.children.Add(node);
+                        //AddChildItems(dt, node, parentId, searchText);
+                    }
                 }
             }
 
+            return new[] {new JavaScriptSerializer().Serialize(roots), recCount.ToString()};
+        }
+
+        protected void InitOpenList(bool singleNode)
+        {
+            var sqlParams = new Dictionary<string, object>();
+            var sqlQuery = string.Empty;
+
+            if (singleNode)
+            {
+                SelectedNode = LoadId;
+                sqlParams.Add("@id", LoadId);
+                sqlQuery = string.Format(SQLQueries.SELECT_ДеревоВсеРодителиУзла, dbSource.ViewName, dbSource.PkField);
+            }
+            else
+            {
+                sqlParams.Add("@ids", SelectedIds);
+                sqlQuery = string.Format(SQLQueries.SELECT_ДеревоВсеРодителиУзлов, dbSource.ViewName, dbSource.PkField);
+            }
+
+            var dtParent = DBManager.GetData(
+                sqlQuery, Config.DS_user, CommandType.Text, sqlParams);
+
+            foreach (DataRow row in dtParent.Rows)
+            {
+                if (OpenList != "") OpenList += ",";
+                OpenList += "'" + row[dbSource.PkField] + "'";
+            }
+        }
+
+        protected void InitOpenListState()
+        {
+            var clid = "0";
+            var paramName = treeView.ParamName;
+            var parametersManager =
+                new AppParamsManager(Convert.ToInt32(clid), new StringCollection {paramName});
+            var appParam = parametersManager.Params.Find(x => x.Name == paramName);
+            var jsonState = appParam.Value;
+
+            if (jsonState.IndexOf("open") > 0)
+            {
+                var openState = jsonState.Substring(jsonState.IndexOf("open"));
+                var startArray = openState.IndexOf("[");
+                var endArray = openState.IndexOf("]");
+                if (startArray != -1)
+                    OpenList = openState.Substring(startArray + 1, endArray - startArray - 1)
+                        .Replace("\"", "'");
+            }
+
+            if (jsonState.IndexOf("selected") > 0)
+            {
+                var selectedState = jsonState.Substring(jsonState.IndexOf("selected"));
+                var startArray = selectedState.IndexOf("[");
+                var endArray = selectedState.IndexOf("]");
+                if (startArray != -1)
+                {
+                    SelectedNode = selectedState.Substring(startArray + 1, endArray - startArray - 1)
+                        .Replace("\"", "");
+                    var sqlParams = new Dictionary<string, object> {{"@id", SelectedNode}};
+
+                    var sqlQuery = string.Format(SQLQueries.SELECT_ДеревоВсеРодителиУзла, dbSource.ViewName,
+                        dbSource.PkField);
+
+                    var dtParent = DBManager.GetData(
+                        sqlQuery, dbSource.ConnectionString, CommandType.Text, sqlParams);
+
+                    foreach (DataRow row in dtParent.Rows)
+                    {
+                        if (OpenList != "") OpenList += ",";
+                        OpenList += "'" + row[dbSource.PkField] + "'";
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Получение данных из State, учитывая открытые узлы
+        /// </summary>
+        /// <returns>JSON данные</returns>
+        protected string GetTreeDataOpenList()
+        {
             if (OpenList.IsNullEmptyOrZero()) OpenList = "'0'";
 
-            var sql = GetTreedata_Sql(OrderByField, "", "", OpenList);
+            var sql = GetTreeData_Sql(OrderByField, OrderByDirection, "", "", OpenList);
             var dt = DBManager.GetData(sql, dbSource.ConnectionString);
             Node root = null;
             root = new Node
@@ -336,7 +551,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                 text = dbSource.RootName,
                 type = "folder",
                 state = new NodeState {opened = true, selected = false, loaded = true},
-                li_attr = new NodeAttr { text = dbSource.RootName, parentId = "0" }
+                li_attr = new NodeAttr {text = dbSource.RootName, parentId = "0"}
             };
 
             var view = new DataView(dt) {RowFilter = "[ParentId] is null"};
@@ -344,7 +559,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             {
                 var parentId = row["Id"].ToString();
                 var s = row["BitMask"].ToString();
-                bool hasChild = Convert.ToInt32(row["ЕстьДети"]) > 1;
+                var hasChild = Convert.ToInt32(row["ЕстьДети"]) > 1;
 
 
                 var node = new Node
@@ -355,39 +570,41 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                     state = new NodeState
                     {
                         opened = row["BitMask"].ToString() == "1" || !hasChild,
-                        selected = row["Id"].ToString() == SelectedNode,
+                        selected = ReturnId != "2" && row["Id"].ToString() == SelectedNode,
                         loaded = row["BitMask"].ToString() == "1" || !hasChild
                     },
-                    li_attr = new NodeAttr { text = row["text"].ToString(), parentId = row["ParentId"].ToString() }
+                    li_attr = new NodeAttr {text = row["text"].ToString(), parentId = "0"}
                 };
                 root.children.Add(node);
-                AddStateChildItems(dt, node, parentId);
+                AddChildItems(dt, node, parentId);
             }
 
             return new JavaScriptSerializer().Serialize(root);
         }
 
-        private void AddStateChildItems(DataTable dt, Node parentNode, string parentId)
+        private void AddChildItems(DataTable dt, Node parentNode, string parentId)
         {
-            var viewItem = new DataView(dt) { RowFilter = "[ParentId]=" + parentId };
+            var viewItem = new DataView(dt) {RowFilter = "[ParentId]=" + parentId};
             foreach (DataRowView childView in viewItem)
             {
-                bool hasChild = Convert.ToInt32(childView["ЕстьДети"]) > 1;
+                var hasChild = Convert.ToInt32(childView["ЕстьДети"]) > 1;
                 var node = new Node
                 {
                     id = childView["Id"].ToString(),
                     text = GetPrefixIcon(childView) + childView["text"] + GetPostFixIcon(childView),
                     type = !hasChild ? "file" : "folder",
-                    state = new NodeState {
+                    state = new NodeState
+                    {
                         opened = childView["BitMask"].ToString() == "1" || !hasChild,
-                        selected = childView["Id"].ToString() == SelectedNode,
+                        selected = ReturnId != "2" && childView["Id"].ToString() == SelectedNode,
                         loaded = childView["BitMask"].ToString() == "1" || !hasChild
                     },
-                    li_attr = new NodeAttr { text = childView["text"].ToString(), parentId = childView["ParentId"].ToString() }
+                    li_attr = new NodeAttr
+                        {text = childView["text"].ToString(), parentId = childView["ParentId"].ToString()}
                 };
                 parentNode.children.Add(node);
                 var pId = childView["Id"].ToString();
-                AddStateChildItems(dt, node, pId);
+                AddChildItems(dt, node, pId);
             }
         }
 
@@ -398,7 +615,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         /// <param name="parentNode">Корневой узел</param>
         /// <param name="parentId">Идентификатор корневого узла</param>
         /// <param name="searchText">Строка поиска</param>
-        private void AddChildItems(DataTable dt, Node parentNode, string parentId, string searchText = "")
+        private void AddChildItemsSearch(DataTable dt, Node parentNode, string parentId, string searchText = "")
         {
             var viewItem = new DataView(dt) {RowFilter = "[ParentId]=" + parentId};
             foreach (DataRowView childView in viewItem)
@@ -406,194 +623,90 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                 var node = new Node
                 {
                     id = childView["Id"].ToString(),
-                    text = searchText.IsNullEmptyOrZero()
+                    text = string.IsNullOrEmpty(searchText)
                         ? GetPrefixIcon(childView) + childView["text"] + GetPostFixIcon(childView)
-                        : GetPrefixIcon(childView) + GetFilteredText(childView["text"].ToString(), searchText, childView["BitMask"].ToString()) +
+                        : GetPrefixIcon(childView) + GetFilteredText(childView["text"].ToString(), searchText,
+                              childView["BitMask"].ToString()) +
                           GetPostFixIcon(childView) + GetFilter(childView["BitMask"].ToString()),
                     type = Convert.ToInt32(childView["ЕстьДети"]) == 1 ? "file" : "folder",
                     state = new NodeState {opened = true, selected = false, loaded = true},
-                    li_attr = new NodeAttr { text = childView["text"].ToString(), parentId = childView["ParentId"].ToString() }
+                    li_attr = new NodeAttr
+                        {text = childView["text"].ToString(), parentId = childView["ParentId"].ToString()}
                 };
                 parentNode.children.Add(node);
                 var pId = childView["Id"].ToString();
-                AddChildItems(dt, node, pId, searchText);
+                AddChildItemsSearch(dt, node, pId, searchText);
             }
         }
 
         /// <summary>
         ///     Получение строки запроса по переданным параметрам
         /// </summary>
-        /// <param name="orderBy">Порядок сортировки</param>
+        /// <param name="orderByField">Поле сортировки</param>
+        /// <param name="orderByDirection">Направление сортировки</param>
         /// <param name="searchText">Строка поиска</param>
         /// <param name="searchParam">Параметры поиска</param>
         /// <param name="openList">Список открытых нодов</param>
         /// <returns></returns>
-        protected virtual string GetTreedata_Sql(string orderBy = "L", string searchText = "", string searchParam = "", string openList = "")
+        protected virtual string GetTreeData_Sql(string orderByField = "L", string orderByDirection = "ASC",
+            string searchText = "", string searchParam = "", string openList = "")
         {
-            if (orderBy != "L") orderBy = dbSource.NameField;
+            if (orderByField != "L") orderByField = dbSource.NameField;
 
-            if (searchText.IsNullEmptyOrZero())
+            var orderBy = orderByField + " " + orderByDirection;
+
+            if (string.IsNullOrEmpty(searchText))
             {
                 if (openList.IsNullEmptyOrZero())
-                    return string.Format(SQLQueries.SELECT_ЗагрузкаУзловДерева, dbSource.ViewName, dbSource.PkField, dbSource.NameField);
+                    return string.Format(SQLQueries.SELECT_ДеревоВсеПотомкиУзла, dbSource.ViewName, dbSource.PkField,
+                        dbSource.NameField, orderBy, string.IsNullOrEmpty(RootIds) ? "-1" : RootIds);
 
-                return $@"
-                SET NOCOUNT ON
-
-                IF OBJECT_ID('tempdb.#TreeFilter') IS NOT NULL DROP TABLE #TreeFilter
-                CREATE TABLE #TreeFilter(
-                        TempID int IDENTITY(1,1),
-                        [{dbSource.PkField}] [int],
-                        {dbSource.NameField} [varchar](300),       
-                        [Parent] [int],
-                        [L] [int],
-                        [R] [int],
-                        {(string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : "[Изменил] [int],")} 
-                        {(string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : "[Изменено] [datetime],")} 
-                        BitMask tinyint    
-                )
-
-                INSERT #TreeFilter
-                SELECT	Parent.[{dbSource.PkField}],
-                        Parent.{dbSource.NameField},      
-                        Parent.[Parent],
-                        Parent.[L],
-                        Parent.[R],
-                        {(string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : "Parent." + dbSource.ModifyUserField + " [Изменил],")} 
-                        {(string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : "Parent." + dbSource.ModifyDateField + " [Изменено],")} 
-                        1 BitMask
-                FROM	{dbSource.ViewName} Parent 
-                WHERE EXISTS(SELECT * FROM {dbSource.ViewName} Child 
-					                WHERE	Child.{dbSource.PkField} IN ({openList})
-						                AND Parent.L <=	Child.L AND Parent.R>=Child.R)
-                ORDER BY Parent.L
-
-                INSERT #TreeFilter
-                SELECT	Child.[{dbSource.PkField}],
-                        Child.{dbSource.NameField},      
-                        Child.[Parent],
-                        Child.[L],
-                        Child.[R],
-                        {(string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : "Child." + dbSource.ModifyUserField + " [Изменил],")} 
-                        {(string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : "Child." + dbSource.ModifyDateField + " [Изменено],")}
-                        2 BitMask
-                FROM	{dbSource.ViewName} Parent
-                LEFT JOIN {dbSource.ViewName} Child ON Child.Parent = Parent.{dbSource.PkField}
-                WHERE Parent.{dbSource.PkField} IN ({openList}) AND NOT EXISTS(SELECT * FROM #TreeFilter X WHERE Child.{dbSource.PkField} = X.{dbSource.PkField})
-                ORDER BY Parent.L
-
-                INSERT #TreeFilter 
-                SELECT  [{dbSource.PkField}],
-                        {dbSource.NameField},      
-                        [Parent],
-                        [L],
-                        [R],
-                        {(string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : dbSource.ModifyUserField + " [Изменил],")} 
-                        {(string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : dbSource.ModifyDateField + " [Изменено],")} 
-                        4 BitMask
-                FROM    {dbSource.ViewName} 
-                WHERE   Parent IS NULL                                  
-                        AND NOT EXISTS(SELECT * FROM #TreeFilter X WHERE {dbSource.ViewName}.{dbSource.PkField} = X.{dbSource.PkField})
-
-                SELECT #TreeFilter.[{dbSource.PkField}] id,
-                        #TreeFilter.{dbSource.NameField} text,      
-                        #TreeFilter.[Parent] ParentId,
-                        #TreeFilter.[L],
-                        #TreeFilter.[R],
-                        {(string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : "#TreeFilter.[Изменил],")} 
-                        {(string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : "#TreeFilter.[Изменено],")} 
-                        #TreeFilter.BitMask,
-                        #TreeFilter.R-#TreeFilter.L ЕстьДети
-                FROM #TreeFilter
-                ORDER BY {orderBy}
-                DROP TABLE #TreeFilter
-                ";
+                return string.Format(SQLQueries.SELECT_ДеревоОткрытыеУзлы,
+                    dbSource.PkField,
+                    dbSource.NameField,
+                    dbSource.ViewName,
+                    string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : "[Изменил] [int],",
+                    string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : "[Изменено] [datetime],",
+                    string.IsNullOrEmpty(dbSource.ModifyUserField)
+                        ? string.Empty
+                        : "Parent." + dbSource.ModifyUserField + " [Изменил],",
+                    string.IsNullOrEmpty(dbSource.ModifyDateField)
+                        ? string.Empty
+                        : "Parent." + dbSource.ModifyDateField + " [Изменено],",
+                    string.IsNullOrEmpty(dbSource.ModifyUserField)
+                        ? string.Empty
+                        : "Child." + dbSource.ModifyUserField + " [Изменил],",
+                    string.IsNullOrEmpty(dbSource.ModifyDateField)
+                        ? string.Empty
+                        : "Child." + dbSource.ModifyDateField + " [Изменено],",
+                    string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : "#TreeFilter.[Изменил],",
+                    string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : "#TreeFilter.[Изменено],",
+                    orderBy,
+                    openList
+                );
             }
 
             searchText = searchParam == "1" ? searchText + "%" : "%" + searchText + "%";
 
-            return $@"
-                DECLARE @МаксимальноеКоличествоНайденных int = 100
-                SET NOCOUNT ON
-               
-                IF OBJECT_ID('tempdb..#TreeFilter') IS NOT NULL DROP TABLE #TreeFilter
-                CREATE TABLE #TreeFilter(
-                        TempID int IDENTITY(1,1),
-                        [{dbSource.PkField}] [int],
-                        {dbSource.NameField} [varchar](300),       
-                        [Parent] [int],
-                        [L] [int],
-                        [R] [int],
-                        {(string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : "[Изменил] [int],")} 
-                        {(string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : "[Изменено] [datetime],")} 
-                        BitMask tinyint          
-                )
-
-                INSERT #TreeFilter
-                SELECT  [{dbSource.PkField}],
-                        {dbSource.NameField},      
-                        [Parent],
-                        [L],
-                        [R],
-                        {(string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : dbSource.ModifyUserField + " [Изменил],")} 
-                        {(string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : dbSource.ModifyDateField + " [Изменено],")} 
-                        1 BitMask
-                FROM    {dbSource.ViewName} 
-                WHERE   {dbSource.NameField} LIKE '{searchText}'
-                ORDER BY L
- 
-                SET @КоличествоНайденных = @@ROWCOUNT
-                DELETE #TreeFilter WHERE TempID > @МаксимальноеКоличествоНайденных
- 
-                UPDATE  Parent
-                SET     BitMask = BitMask ^ 2
-                FROM    #TreeFilter Parent
-                WHERE   EXISTS(SELECT * FROM #TreeFilter Child WHERE Parent.L < Child.L AND Parent.R > Child.R)
- 
-                INSERT  #TreeFilter
-                SELECT  [{dbSource.PkField}],
-                        {dbSource.NameField},      
-                        [Parent],
-                        [L],
-                        [R],
-                        {(string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : dbSource.ModifyUserField + " [Изменил],")} 
-                        {(string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : dbSource.ModifyDateField + " [Изменено],")} 
-                        2 BitMask
-                FROM    {dbSource.ViewName} Parent 
-                WHERE   EXISTS( SELECT * FROM #TreeFilter Child 
-                                WHERE Parent.L <= Child.L AND Parent.R>=Child.R)                                        
-                        AND NOT EXISTS(SELECT * FROM #TreeFilter X WHERE Parent.{dbSource.PkField} = X.{dbSource.PkField})
- 
-                UPDATE  #TreeFilter
-                SET     BitMask = BitMask ^ 4
-                WHERE   Parent IS NULL
- 
-                INSERT #TreeFilter 
-                SELECT  [{dbSource.PkField}],
-                        {dbSource.NameField},      
-                        [Parent],
-                        [L],
-                        [R],
-                        {(string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : dbSource.ModifyUserField + " [Изменил],")} 
-                        {(string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : dbSource.ModifyDateField + " [Изменено],")} 
-                        4 BitMask
-                FROM    {dbSource.ViewName} 
-                WHERE   Parent IS NULL                                  
-                        AND NOT EXISTS(SELECT * FROM #TreeFilter X WHERE {dbSource.ViewName}.{dbSource.PkField} = X.{dbSource.PkField})
-        
-                SELECT [{dbSource.PkField}] id,
-                        {dbSource.NameField} text,      
-                        [Parent] ParentId,
-                        [L],
-                        [R],
-                        {(string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : "[Изменил],")} 
-                        {(string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : "[Изменено],")} 
-                        BitMask,
-                        R-L ЕстьДети
-                FROM #TreeFilter
-                ORDER BY {orderBy}
-                DROP TABLE #TreeFilter
-                ";
+            return string.Format(SQLQueries.SELECT_ДеревоНайденныеУзлы,
+                dbSource.PkField,
+                dbSource.NameField,
+                dbSource.ViewName,
+                orderBy,
+                searchText,
+                string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : "[Изменил] [int],",
+                string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : "[Изменено] [datetime],",
+                string.IsNullOrEmpty(dbSource.ModifyUserField)
+                    ? string.Empty
+                    : dbSource.ModifyUserField + " [Изменил],",
+                string.IsNullOrEmpty(dbSource.ModifyDateField)
+                    ? string.Empty
+                    : dbSource.ModifyDateField + " [Изменено],",
+                string.IsNullOrEmpty(dbSource.ModifyUserField) ? string.Empty : "[Изменил],",
+                string.IsNullOrEmpty(dbSource.ModifyDateField) ? string.Empty : "[Изменено],",
+                ShowTopNodesInSearchResult ? 1 : 0,
+                string.IsNullOrEmpty(RootIds) ? "-1" : RootIds
+            );
         }
 
         /// <summary>
@@ -616,15 +729,15 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         /// <returns></returns>
         private string GetFilteredText(string text, string filter, string bitMask)
         {
-            if (filter.IsNullEmptyOrZero()) return text;
+            if (string.IsNullOrEmpty(filter)) return text;
             // не выделяем текст, если не найдено (для случая "начинается с")
             if (bitMask == "2" || bitMask == "4" || bitMask == "6") return text;
             if (!text.ToLower().Contains(SearchText.ToLower())) return text;
             var curPos = text.ToLower().IndexOf(SearchText.ToLower());
             while (curPos != -1)
             {
-                text = text.Insert(curPos, "<span style='background-color:#FFFF00'>");
-                curPos = curPos + 40 + SearchText.Length - 1;
+                text = text.Insert(curPos, "<span class='found' tabindex='-1' style='background-color:#FFFF00'>");
+                curPos = curPos + 68 + SearchText.Length - 1;
                 text = text.Insert(curPos, "</span>");
                 curPos = text.ToLower().IndexOf(SearchText.ToLower(), curPos);
             }
@@ -685,7 +798,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             public string id { get; set; }
             public string text { get; set; }
             public NodeState state { get; set; }
-            public List<Node> children { get; set; }
+            public List<Node> children { get; }
             public string type { get; set; }
             public NodeAttr li_attr { get; set; }
         }
@@ -705,6 +818,5 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             public string parentId { get; set; }
             public string text { get; set; }
         }
-
     }
 }

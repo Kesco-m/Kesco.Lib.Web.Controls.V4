@@ -33,7 +33,6 @@
     var DisabledButton = "DisabledButton";
 
     function WaitAndGo(name, val) {
-        Wait.render(true);
         cmdasync("cmd", "Listener", "ctrlId", name, "cmdName", val);
         setDisableButton();
     }

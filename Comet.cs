@@ -6,6 +6,7 @@ using System.Text;
 using System.Web;
 using System.Web.Management;
 using Kesco.Lib.BaseExtention.Enums.Controls;
+using Kesco.Lib.Entities;
 using Kesco.Lib.Web.Comet;
 using Kesco.Lib.Web.Controls.V4.Common;
 
@@ -261,7 +262,17 @@ namespace Kesco.Lib.Web.Controls.V4
                 }
 
                 w.Write("<div style=\"float:right\">");
-                    V4Page.RenderNtf(w, new List<string> { DateTime.UtcNow.ToString("HH:mm") }, NtfStatus.Information, "", "v4CometMsgTime", false);
+                    V4Page.RenderNtf(w,
+                        new List<Notification>
+                        {
+                            new Notification
+                            {
+                                Message = DateTime.UtcNow.ToString("HH:mm"),
+                                Status = NtfStatus.Information,
+                                DashSpace = false
+                            }
+                        });
+
                 w.Write("</div>");
                 w.Write("<br>");
                 w.Write(HttpUtility.HtmlEncode(message.Replace(@"\n", "<br/>")));

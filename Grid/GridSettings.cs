@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Linq;
 using Page = Kesco.Lib.Web.Controls.V4.Common.Page;
@@ -12,12 +13,29 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
     public class GridSettings : V4Control
     {
         private readonly int maxUniqueValues = 200;
+        private List<string> _sortingColumns;
 
         public int GridCmdListnerIndex { get; private set; }
         public string GridId { get; private set; }
         public bool IsPrintVersion { get; set; }
         public bool IsGroupEnable { get; set; }
         public int GroupingExpandIndex { get; set; }
+
+        /// <summary>
+        /// Признак разрешена ли сортировка
+        /// </summary>
+        public bool IsSortingEnable
+        {
+            get { return _sortingColumns.Count > 0; }
+        }
+
+        /// <summary>
+        /// Список названий колонок, по которым возможна сортировка
+        /// </summary>
+        public ReadOnlyCollection<string> SortingColumns
+        {
+            get { return _sortingColumns.AsReadOnly(); }
+        }
 
         /// <summary>
         /// Признак разрешена ли фильтрация
@@ -28,6 +46,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         public List<GridColumn> TableColumns;
         public List<GridColumn> GroupingColumns;
         public List<GridColumn> ColumnsDisplayOrder;
+
 
         public new Page V4Page
         {
@@ -51,6 +70,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             V4Page = page;
 
             FillTableColumns();
+            _sortingColumns = TableColumns.Select(x => x.FieldName).ToList();
         }
         
         /// <summary>
@@ -512,6 +532,16 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             var clmn = TableColumns.FirstOrDefault(x => x.FieldName == fieldName);
             if (clmn != null)
                 clmn.IsLocalTime = true;
+        }
+
+        /// <summary>
+        /// Установить список названий колонок, по которым возможна сортировка
+        /// </summary>
+        /// <param name="fields">Список названий колонок</param>
+        public void SetSortingColumns(params string[] fields)
+        {
+            _sortingColumns.Clear();
+            _sortingColumns.AddRange(fields);
         }
 
         #endregion

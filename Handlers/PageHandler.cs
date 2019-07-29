@@ -64,7 +64,6 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
 
                     if (context.Handler != null)
                     {
-
                         context.Handler.ProcessRequest(context);
                     }
                 }
@@ -85,7 +84,9 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
                         p.V4Request = context.Request;
                         p.V4Response = context.Response;
                         p.ProcessRequest();
+
                         p.Flush();
+
                     }
                 }
             }
@@ -118,6 +119,7 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
                     RenderErrorPage(context, sb);
                 }
             }
+
         }
 
         /// <summary>
@@ -199,7 +201,7 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             sb0.Append("</title>");
             sb0.Append(string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery-1.12.4.min.js' type='text/javascript'></script>", Settings.Config.versionV4js));
             sb0.Append(string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery-ui.js' type='text/javascript'></script>", Settings.Config.versionV4js));
-            sb0.Append(string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Confirm.js' type='text/javascript'></script>", Settings.Config.versionV4js));
+            sb0.Append(string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Wait.js' type='text/javascript'></script>", Settings.Config.versionV4js));
             sb0.Append("<link href='/Styles/Kesco.V4/CSS/Kesco.V4.css' rel='stylesheet' type='text/css'/>");
             sb0.Append("</head>");
             sb0.Append("<body>");

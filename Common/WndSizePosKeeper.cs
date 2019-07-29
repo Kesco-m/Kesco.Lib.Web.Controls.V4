@@ -80,24 +80,26 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public void OnLoad()
         {
             //Восстановление размеров окна
-            var WindowParameterNamesCollection = new StringCollection {_paramX, _paramY, _paramWidth, _paramHeight};
+            //var WindowParameterNamesCollection = new StringCollection {_paramX, _paramY, _paramWidth, _paramHeight};
 
-            //Объект доступа к параметрам из БД сохраненнных настроек
-            var parametersManager = new AppParamsManager(_p.ClId, WindowParameterNamesCollection);
+            ////Объект доступа к параметрам из БД сохраненнных настроек
+            //var parametersManager = new AppParamsManager(_p.ClId, WindowParameterNamesCollection);
 
-            var isRequired = false;
-            var strX = parametersManager.GetParameterValue(_p.Request.QueryString, _paramX, out isRequired, "-1");
-            var strY = parametersManager.GetParameterValue(_p.Request.QueryString, _paramY, out isRequired, "-1");
-            var strWidth =
-                parametersManager.GetParameterValue(_p.Request.QueryString, _paramWidth, out isRequired, "1024");
-            var strHeight =
-                parametersManager.GetParameterValue(_p.Request.QueryString, _paramHeight, out isRequired, "768");
+            //var isRequired = false;
+            //var strX = parametersManager.GetParameterValue(_p.Request.QueryString, _paramX, out isRequired, "0");
+            //var strY = parametersManager.GetParameterValue(_p.Request.QueryString, _paramY, out isRequired, "0");
+            //var strWidth =
+            //    parametersManager.GetParameterValue(_p.Request.QueryString, _paramWidth, out isRequired, "0");
+            //var strHeight =
+            //    parametersManager.GetParameterValue(_p.Request.QueryString, _paramHeight, out isRequired, "0");
 
-            if (strWidth.ToInt() > 0 && strHeight.ToInt() > 0)
-            {
-                _p.JS.Write("$(document).ready(function () {{v4_setWindowSizePos({0}, {1}, {2}, {3});}});", strX, strY, strWidth, strHeight);
-            }
+            //if (strWidth.ToInt() > 0 && strHeight.ToInt() > 0 && strX.ToInt() > 0 && strY.ToInt() > 0)
+            //{
+            //    _p.JS.Write("$(document).ready(function () {{v4_setWindowSizePos({0}, {1}, {2}, {3});}});", strX, strY, strWidth, strHeight);
+            //}
             //размеры восстановлены
+
+            _p.JS.Write("$(document).ready(function () {{v4_setBeforeUnload();}});");
         }
 
         /// <summary>

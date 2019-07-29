@@ -33,7 +33,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 else url += "&";
 
                 //todo: Заменить на mvc=4 после публикации ТТН и скриптов V4
-                url += string.Format("return={0}&mvc=1&clid={1}&control={2}&callbackKey={3}&callbackUrl={4}",
+                url += string.Format("return={0}&mvc=4&clid={1}&control={2}&callbackKey={3}&callbackUrl={4}",
                     isMultiReturn ? 2 : 1,
                     clid,
                     HttpUtility.UrlEncode(ctrlId),
@@ -43,7 +43,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 url += (urlAdv.Length > 0 ? "&" : "") + urlAdv;
             }
 
-            page.JS.Write("v4_isStopBlur = false;");
+            page.JS.Write("v4_isStopBlur = false; v4_stopAsyncEvent = false;");
             page.JS.Write("$.v4_windowManager.selectEntity('{0}', '{1}', '{2}', {3}, {4}, {5}, '{6}');",
                 HttpUtility.JavaScriptStringEncode(url),
                 HttpUtility.JavaScriptStringEncode(ctrlId),

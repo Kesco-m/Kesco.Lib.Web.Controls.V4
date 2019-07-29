@@ -107,7 +107,10 @@
     <Compile Include="Control.cs" />
     <Compile Include="Comet.cs" />
     <Compile Include="DBControls\Changed.cs" />
+    <Compile Include="DropDownList.cs" />
     <Compile Include="FilterGroupBox.cs" />
+    <Compile Include="Globals\GlobalBase.cs" />
+    <Compile Include="Handlers\CurrentEmployeeHandler.cs" />
     <Compile Include="LikeDislike.cs" />
     <Compile Include="SelectMethodGetEntityValue.cs" />
     <Compile Include="Grid\Grid.cs" />
@@ -121,7 +124,6 @@
     <Compile Include="Handlers\CometServerHandler.cs" />
     <Compile Include="Handlers\DialogResultHandler.cs" />
     <Compile Include="Div.cs" />
-    <Compile Include="Globals\GlobalBase.cs" />
     <Compile Include="Common\IClientCommandProcessor.cs" />
     <Compile Include="Handlers\HtmlContentHandler.cs" />
     <Compile Include="Link.cs" />
@@ -142,9 +144,7 @@
     <Compile Include="Renderer\NumberRenderer.cs" />
     <Compile Include="Renderer\Renderer.cs" />
     <Compile Include="DatePicker.cs" />
-    <Compile Include="Common\Page.cs">
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
+    <Compile Include="Common\Page.cs" />
     <Compile Include="RenderContent.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Select.cs" />
@@ -182,7 +182,7 @@
       <Name>Kesco.Lib.DALC</Name>
     </ProjectReference>
     <ProjectReference Include="..\Kesco.Lib.Entities\Kesco.Lib.Entities.csproj">
-      <Project>{DEAA04C2-AFB2-4AD0-B161-A5BF6C26A9DB}</Project>
+      <Project>{deaa04c2-afb2-4ad0-b161-a5bf6c26a9db}</Project>
       <Name>Kesco.Lib.Entities</Name>
     </ProjectReference>
     <ProjectReference Include="..\Kesco.Lib.Localization\Kesco.Lib.Localization.csproj">

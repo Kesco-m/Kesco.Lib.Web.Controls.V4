@@ -8,6 +8,11 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
     public class TreeViewDbSourceSettings
     {
         /// <summary>
+        ///     Параметры SqlQuery
+        /// </summary>
+        public Dictionary<string, object> AddSqlParams;
+
+        /// <summary>
         ///     Строка подключения
         /// </summary>
         public string ConnectionString { get; set; }
@@ -58,11 +63,6 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         public string ModifyDateField { get; set; }
 
         public string AddSqlQuery { get; set; }
-
-        /// <summary>
-        ///     Параметры SqlQuery
-        /// </summary>
-        public Dictionary<string, object> AddSqlParams;
 
         /// <summary>
         ///     Название корневого узла

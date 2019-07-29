@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Web;
 using System.Web.UI;
+using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.Enums;
 using Kesco.Lib.BaseExtention.Enums.Controls;
 using Kesco.Lib.DALC;
@@ -39,6 +40,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         private string _emptyDataString = "";
         private int _marginBottom = 100;
         private int? _maxPrintRenderRows;
+        private bool _showModifyInfoTooltip = false;
+        private string _modifyDateColumn;
+        private string _modifyUserColumn;
 
         protected int GridCmdListnerIndex;
 
@@ -109,9 +113,14 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         public bool ShowPageBar { get; set; }
 
         /// <summary>
-        /// Свойство, указывающее сколько записей выводится на странице
+        ///     Свойство, указывающее сколько записей выводится на странице
         /// </summary>
         public int RowsPerPage { get; set; }
+
+        /// <summary>
+        ///     Всегда отображать заголовок грида
+        /// </summary>
+        public bool AlwaysShowHeader { get; set; }
 
         /// <summary>
         ///     Акцессор V4Page
@@ -178,7 +187,10 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                     break;
                 //Сортировка
                 case "SetOrderByColumnValues":
-                    SetOrderByColumnValues(param["ColumnId"], param["Direction"]);
+                    var direction = param["Direction"] != null && param["Direction"] == "0"
+                        ? GridColumnOrderByDirectionEnum.Asc
+                        : GridColumnOrderByDirectionEnum.Desc;
+                    SetOrderByColumnValues(param["ColumnId"], direction);
                     RefreshGridData();
                     break;
                 case "ClearOrderByColumnValues":
@@ -266,11 +278,6 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-
-            _addTitle = Resx.GetString("lblGridAdd");
-            _editTitle = Resx.GetString("lblGridEdit");
-            _copyTitle = Resx.GetString("lblGridCopy");
-            _deleteTitle = Resx.GetString("lblGridDelete");
         }
 
         /// <summary>
@@ -315,7 +322,11 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             _dbSourceSettings = null;
             ClearDataFilter(false);
             _dtLocal = dt;
-            Settings = new GridSettings(_dtLocal, ID, GridCmdListnerIndex, V4Page) {IsGroupEnable = ShowGroupPanel, IsFilterEnable = ShowFilterOptions};
+            Settings = new GridSettings(_dtLocal, ID, GridCmdListnerIndex, V4Page)
+            {
+                IsGroupEnable = ShowGroupPanel,
+                IsFilterEnable = ShowFilterOptions
+            };
         }
 
         /// <summary>
@@ -437,18 +448,23 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             V4Page.RestoreCursor();
         }
 
+        private void RenderEmptyDataString(TextWriter w)
+        {
+            var className = EnumAccessors.GetCssClassByNtfStatus(_emptyDataNtfStatus, true);
+
+            w.Write("<div{1}>{0}</div>", EmptyDataString,
+                string.IsNullOrEmpty(className) ? "" : " class='" + className + "'");
+        }
+
         /// <summary>
         ///     Формирование грида по фильтрам
         /// </summary>
         /// <param name="w"></param>
         public void RenderGridData(TextWriter w)
         {
-            if (_dtLocal == null || _dtLocal.Rows.Count == 0)
+            if (!AlwaysShowHeader && (_dtLocal == null || _dtLocal.Rows.Count == 0))
             {
-                var className = EnumAccessors.GetCssClassByNtfStatus(_emptyDataNtfStatus);
-
-                w.Write("<div{1}>{0}</div>", EmptyDataString,
-                    string.IsNullOrEmpty(className) ? "" : " class='" + className + "'");
+                RenderEmptyDataString(w);
                 _currentPagingBarCtrl.SetDisabled(true, false);
                 JS.Write("$('#divPageBar_{0}').hide();", ID);
                 return;
@@ -527,7 +543,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                     "$('#btnRefresh_{0}').button({{icons: {{primary: 'ui-icon-refresh'}},text: false}}).prop('title', '{1}');",
                     ID, Resx.GetString("cmdRefreshTitle"));
                 JS.Write(
-                    "$('#btnRefresh_{0}').unbind('click'); $('#btnRefresh_{0}').bind('click', function(){{Wait.render(true); $('#btnRefresh_{0}').hide(); cmdasync('cmd', 'Listener', 'ctrlId', {1}, 'cmdName', 'RefreshGridData'); }});",
+                    "$('#btnRefresh_{0}').unbind('click'); $('#btnRefresh_{0}').bind('click', function(){{$('#btnRefresh_{0}').hide(); cmdasync('cmd', 'Listener', 'ctrlId', {1}, 'cmdName', 'RefreshGridData'); }});",
                     ID, GridCmdListnerIndex);
             }
             else
@@ -665,7 +681,6 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 w.Write("</tfoot>");
             }
 
-
             w.Write("<tbody>");
 
             var listGroupClmns = new List<GridColumn>();
@@ -678,7 +693,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             var requiredGrouping = ShowGroupPanel && Settings.GroupingColumns != null;
 
             for (var i = 0; i < results.Rows.Count; i++)
-                if (i >= pageIndex && rowNumber < RowsPerPage || Settings.IsPrintVersion && i < MaxPrintRenderRows)
+                if ((i >= pageIndex && rowNumber < RowsPerPage) || Settings.IsPrintVersion && i < MaxPrintRenderRows)
                 {
                     if (!renderEmptyTr)
                     {
@@ -811,6 +826,19 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 {
                     break;
                 }
+
+            if (AlwaysShowHeader && (_dtLocal == null || _dtLocal.Rows.Count == 0))
+            {
+                if (!renderEmptyTr)
+                {
+                    RenderEmptyTrForFixedHeader(w, advEmptyClmn);
+                    renderEmptyTr = true;
+                }
+
+                w.Write("<tr><td colspan='100%'>");
+                RenderEmptyDataString(w);
+                w.Write("</td></tr>");
+            }
 
             w.Write("</tbody>");
 
@@ -1192,7 +1220,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// </summary>
         /// <param name="columnId"></param>
         /// <param name="direction"></param>
-        private void SetOrderByColumnValues(string columnId, string direction)
+        private void SetOrderByColumnValues(string columnId, GridColumnOrderByDirectionEnum direction)
         {
             var clmn = Settings.TableColumns.FirstOrDefault(x => x.Id == columnId);
             if (clmn == null)
@@ -1203,9 +1231,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             }
 
             clmn.OrderByNumber = 1;
-            clmn.OrderByDirection = direction != null && direction == "0"
-                ? GridColumnOrderByDirectionEnum.Asc
-                : GridColumnOrderByDirectionEnum.Desc;
+            clmn.OrderByDirection = direction;
 
             SetOrderSortedColumn(2, columnId);
         }
@@ -1239,6 +1265,17 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
 
             clmn.OrderByNumber = null;
             SetOrderSortedColumn(1, columnId);
+        }
+
+        /// <summary>
+        ///     Сортировка
+        /// </summary>
+        /// <param name="fieldName">Название поля</param>
+        /// <param name="direction">Направление сортировки</param>
+        public void SetOrderBy(string fieldName, GridColumnOrderByDirectionEnum direction)
+        {
+            string columnId = Settings?.TableColumns?.FirstOrDefault(x => x.FieldName == fieldName)?.Id;
+            SetOrderByColumnValues(columnId, direction);
         }
 
         public decimal GetSumDecimalByColumnValue(string fieldName)
@@ -1377,7 +1414,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         }
 
         /// <summary>
-        ///     Настройка кнопки редатирования записи в таблице
+        ///     Настройка кнопки редактирования записи в таблице
         /// </summary>
         /// <param name="clientFuncName">Клиентская функция, которая будет вызываться при нажатии на иконку редактирования</param>
         /// <param name="pkFieldsName">Параметры клиентской функции</param>
@@ -1388,6 +1425,19 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             _editClientFuncName = clientFuncName;
             _editPkFieldsName = pkFieldsName;
             _editTitle = title;
+        }
+
+        /// <summary>
+        ///     Включить подсказку на иконке Редактировать запись
+        ///     с информацией о том, кем и когда была изменена запись
+        /// </summary>
+        /// <param name="modifyUserColumn">Название поля с пользователем, изменившим запись</param>
+        /// <param name="modifyDateColumn">Название поля с датой последнего изменения</param>
+        public void SetModifyInfoTooltip(string modifyUserColumn, string modifyDateColumn)
+        {
+            _showModifyInfoTooltip = true;
+            _modifyUserColumn = modifyUserColumn;
+            _modifyDateColumn = modifyDateColumn;
         }
 
         /// <summary>
@@ -1514,6 +1564,8 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         private void RenderServiceColumnEdit(TextWriter w, DataRow dr, int tabIndex)
         {
             var clientParams = "";
+            string elementId = "imgEdit_" + (_editPkFieldsName.Count > 0 ? dr[_editPkFieldsName[0]] : "0");
+
             _editPkFieldsName.ForEach(delegate(string fieldName)
             {
                 clientParams += (clientParams.Length > 0 ? "," : "") + string.Format("'{0}'",
@@ -1521,11 +1573,27 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             });
 
             w.Write("<div class=\"v4DivTableCell\">");
+
             w.Write(
-                "<img src=\"/styles/edit.gif\" border=\"0\" style=\"cursor:pointer;\" title=\"{0}\" onclick=\"{1}\" tabindex=\"{2}\">",
+                "<img src=\"/styles/edit.gif\" border=\"0\" style=\"cursor:pointer;\" title=\"{0}\" onclick=\"{1}\" tabindex=\"{2}\" class=\"imgEdit\" id=\"{3}\">",
                 HttpUtility.HtmlEncode(_editTitle),
                 string.Format("{0}({1});", _editClientFuncName, clientParams),
-                tabIndex * 10 + 100 + 4);
+                tabIndex * 10 + 100 + 4,
+                elementId);
+
+            if (_showModifyInfoTooltip)
+            {
+                // текст подсказки с информацией о том, кем и когда была изменена запись
+                string title = string.Format("\"{0}\\r\\n{1}:\\r\\n{2}\\r\\n\"",
+                    _editTitle,
+                    Resx.GetString("lblLastModify"),
+                    dr[_modifyUserColumn]);
+
+                title += string.Format("+ v4_toLocalTime(\"{0}\",\"dd.mm.yyyy hh:mi:ss\")",
+                    ((DateTime) dr[_modifyDateColumn]).ToString("yyyy-MM-dd HH:mm:ss"));
+
+                w.Write("<script>$(\"#{0}\").prop(\"title\",{1});</script>", elementId, title);
+            }
 
             w.Write("</div>");
         }
@@ -1554,6 +1622,10 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
 
         public Grid()
         {
+            _addTitle = Resx.GetString("lblGridAdd");
+            _editTitle = Resx.GetString("lblGridEdit");
+            _copyTitle = Resx.GetString("lblGridCopy");
+            _deleteTitle = Resx.GetString("lblGridDelete");
             GridHeight = 0;
             GridAutoSize = true;
             RenderConditionServiceColumnReturn = new Dictionary<string, List<object>>();
@@ -1562,6 +1634,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             ShowFilterOptions = true;
             ShowPageBar = true;
             RowsPerPage = 50;
+            AlwaysShowHeader = false;
         }
 
         /// <summary>
@@ -1599,7 +1672,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         #endregion
 
         /// <summary>
-        /// Проверка значения ячейки таблицы на удовлетворение условию
+        ///     Проверка значения ячейки таблицы на удовлетворение условию
         /// </summary>
         /// <param name="dr">Текущая запись</param>
         /// <param name="columnId">Идентификтатор колонки</param>

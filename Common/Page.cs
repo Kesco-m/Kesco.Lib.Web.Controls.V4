@@ -88,6 +88,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public bool IsSilverLight = true;
 
         /// <summary>
+        ///     Коллекция кнопок меню
+        /// </summary>
+        protected List<Button> MenuButtons;
+
+        /// <summary>
         /// Вспомогательный объект для сохранения и восстановления размеров и положения окна
         /// </summary>
         protected WndSizePosKeeper SizePosKeeper;
@@ -96,6 +101,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// Параметры строки запроса, полученные при первом запросе GET
         /// </summary>
         protected NameValueCollection CurrentQS;
+
         /// <summary>
         ///     Делегат рендеринга части страницы
         /// </summary>
@@ -160,8 +166,16 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             LastUpdate = DateTime.Now;
             EnableViewState = false;
             CurrentUser = new Employee(true);
-
+            MenuButtons = new List<Button>();
             IsComet = true;
+        }
+
+        /// <summary>
+        /// Метод переадресации текущей страницы по условию
+        /// </summary>
+        protected virtual bool RedirectPageByCondition()
+        {
+            return false;
         }
 
         /// <summary>
@@ -204,12 +218,15 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         public bool IsEditable { get; set; }
 
+        //public delegate void ChangedEventHandler();
+        //public event ChangedEventHandler Changed;
+
         /// <summary>
         ///     ID страницы (GUID)
         /// </summary>
         public string IDPage { get; set; }
 
- 
+
         /// <summary>
         ///     ID post request (GUID)
         /// </summary>
@@ -310,6 +327,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                         }
                     }
                 }
+
                 El["r"] = value ? "1" : "0";
             }
             get { return El["r"] == "1"; }
@@ -375,8 +393,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         public abstract string HelpUrl { get; set; }
 
-        public virtual int LikeId { get; set; }
-        public virtual string InterfaceVersion { get; set; }
+        /// <summary>
+        /// Идентификатор оценки интерфейса
+        /// </summary>
+        public virtual string LikeId { get; set; }
 
         /// <summary>
         ///     Освобождение ресурсов занятых страницей. Блокирует объект Application на время операции
@@ -417,6 +437,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             {
                 return true;
             }
+
             return false;
         }
 
@@ -427,9 +448,13 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             //Ошибка, SetScriptsAfterContent() ещё не вызывался
             //FocusControl = "";
+
+            JS.Write("Wait.render(false);");
+
             var docXml = BuildXml();
 
             V4Response.ClearContent();
+
             if (docXml.InnerXml.Length > 0)
             {
                 V4Response.ContentType = "text/xml";
@@ -444,6 +469,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             JS.Dispose();
 
             JS = new StringWriter();
+
         }
 
         /// <summary>
@@ -460,9 +486,9 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         }
 
         /// <summary>
-        ///     обработка закрытия страницы
+        ///     Функция закрытия окна
         /// </summary>
-        public void Close()
+        public void V4DropWindow()
         {
             PageEventManager.SendEvent(this, "Close", null);
             JS.Write("v4_dropWindow();");
@@ -478,6 +504,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                     "{0}" +
                     "</div>\");", HttpUtility.JavaScriptStringEncode(htmlMessage));
             JS.Write(message);
+        }
+
+        public virtual void EditingStatusChanged()
+        {
+
         }
 
         /// <summary>
@@ -556,7 +587,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             Response.Cache.SetNoStore();
             ReturnId = string.IsNullOrEmpty(Request.QueryString["return"]) ? "" : Request.QueryString["return"];
             PostRequest = Request.HttpMethod.Equals("POST");
-            
+
             if (!string.IsNullOrEmpty(Request.QueryString["clid"]))
             {
                 int clid;
@@ -575,7 +606,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                         RegexOptions.IgnoreCase);
 
                     ItemName = match.Success ? match.Value : AppRelativeVirtualPath;
-                    if (!string.IsNullOrEmpty(ItemName)) ItemName = ItemName.Replace(".","_");
+                    if (!string.IsNullOrEmpty(ItemName)) ItemName = ItemName.Replace(".", "_");
                 }
 
                 if (!string.IsNullOrEmpty(Request.QueryString["title"]))
@@ -585,7 +616,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
 
                 CurrentQS = Request.QueryString;
             }
-            
+
             CometAsyncState state = new CometAsyncState(null, null, null);
             state.ClientGuid = IDPage;
             state.Id = ItemId;
@@ -593,10 +624,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             state.Page = this;
             CometServer.RegisterClient(state);
 
-            CometServer.WriteLog("+++++++++++++++++++++++++++++++++++++++++++++++++++++");
-            CometServer.WriteLog("RegisterClient -> " + IDPage);
-
             base.OnInit(e);
+
+            InitMenuButton();
+
         }
 
         private void RegisterScript()
@@ -604,53 +635,110 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             RegisterCss("/Styles/Kesco.V4/CSS/jquery.qtip.min.css");
             RegisterCss("/Styles/Kesco.V4/CSS/jquery-ui.css");
             RegisterCss("/Styles/Kesco.V4/CSS/Kesco.V4.css");
-            
-            RegisterScript("jquery", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery-1.12.4.min.js' type='text/javascript'></script>", Config.versionV4js));
-            RegisterScript("jqueryui", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery-ui.js' type='text/javascript'></script>", Config.versionV4js));
-            RegisterScript("jquerycookie", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery.cookie.js' type='text/javascript'></script>", Config.versionV4js));
-            RegisterScript("jqueryqtipmin", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery.qtip.min.js' type='text/javascript'></script>", Config.versionV4js));
-            RegisterScript("jqueryvalidate", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery.validate.min.js' type='text/javascript'></script>", Config.versionV4js));
-            RegisterScript("jquerymask", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery.ui.mask.js' type='text/javascript'></script>", Config.versionV4js));
 
-            RegisterScript("v4", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.V4.js' type='text/javascript'></script>", Config.versionV4js));
+            RegisterScript("jquery",
+                string.Format(
+                    "<script src='/Styles/Kesco.V4/JS{0}/jquery-1.12.4.min.js' type='text/javascript'></script>",
+                    Config.versionV4js));
+            RegisterScript("jqueryui",
+                string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery-ui.js' type='text/javascript'></script>",
+                    Config.versionV4js));
+            RegisterScript("jquerycookie",
+                string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery.cookie.js' type='text/javascript'></script>",
+                    Config.versionV4js));
+            RegisterScript("jqueryqtipmin",
+                string.Format(
+                    "<script src='/Styles/Kesco.V4/JS{0}/jquery.qtip.min.js' type='text/javascript'></script>",
+                    Config.versionV4js));
+            RegisterScript("jqueryvalidate",
+                string.Format(
+                    "<script src='/Styles/Kesco.V4/JS{0}/jquery.validate.min.js' type='text/javascript'></script>",
+                    Config.versionV4js));
+            RegisterScript("jquerymask",
+                string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery.ui.mask.js' type='text/javascript'></script>",
+                    Config.versionV4js));
+
+            RegisterScript("wait",
+                string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Wait.js' type='text/javascript'></script>",
+                    Config.versionV4js));
+            RegisterScript("v4",
+                string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.V4.js' type='text/javascript'></script>",
+                    Config.versionV4js));
 
             if (!IsKescoRun && IsSilverLight)
             {
                 RegisterScript("Kesco.Silver4js",
-                    string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Silver4js.js' type='text/javascript'></script>", Config.versionV4js));
+                    string.Format(
+                        "<script src='/Styles/Kesco.V4/JS{0}/Kesco.Silver4js.js' type='text/javascript'></script>",
+                        Config.versionV4js));
                 RegisterScript("Silverlight",
-                    string.Format("<script src='/Styles/Kesco.V4/JS{0}/Silverlight.js' type='text/javascript'></script>", Config.versionV4js));
+                    string.Format(
+                        "<script src='/Styles/Kesco.V4/JS{0}/Silverlight.js' type='text/javascript'></script>",
+                        Config.versionV4js));
             }
 
-            RegisterScript("Comet", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Comet.js' type='text/javascript'></script>", Config.versionV4js));
-            RegisterScript("ContactRedirector", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.ContactRedirector.js' type='text/javascript'></script>", Config.versionV4js));
+            RegisterScript("Comet",
+                string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Comet.js' type='text/javascript'></script>",
+                    Config.versionV4js));
+            RegisterScript("ContactRedirector",
+                string.Format(
+                    "<script src='/Styles/Kesco.V4/JS{0}/Kesco.ContactRedirector.js' type='text/javascript'></script>",
+                    Config.versionV4js));
 
-            RegisterScript("kescoqtip", string.Format("<script src='/Styles/Kesco.V4/JS{0}/kesco.qtip.js' type='text/javascript'></script>", Config.versionV4js));
-            if (V4Controls.Values.Any(c => c.GetType().Name.Contains("DatePicker")) || V4Controls.Values.Any(c => c.GetType().Name.Contains("PeriodTimePicker")))
-                RegisterScript("Datepicker", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Datepicker.js' type='text/javascript'></script>", Config.versionV4js));
+            RegisterScript("kescoqtip",
+                string.Format("<script src='/Styles/Kesco.V4/JS{0}/kesco.qtip.js' type='text/javascript'></script>",
+                    Config.versionV4js));
+            if (V4Controls.Values.Any(c => c.GetType().Name.Contains("DatePicker")) ||
+                V4Controls.Values.Any(c => c.GetType().Name.Contains("PeriodTimePicker")))
+                RegisterScript("Datepicker",
+                    string.Format(
+                        "<script src='/Styles/Kesco.V4/JS{0}/Kesco.Datepicker.js' type='text/javascript'></script>",
+                        Config.versionV4js));
 
             if (V4Controls.Values.Any(c => c.GetType().Name.Contains("Grid")))
             {
-                RegisterScript("GridfloatThead", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery.floatThead.min.js' type='text/javascript'></script>", Config.versionV4js));
-                RegisterScript("Grid", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Grid.js' type='text/javascript'></script>", Config.versionV4js));
+                RegisterScript("GridfloatThead",
+                    string.Format(
+                        "<script src='/Styles/Kesco.V4/JS{0}/jquery.floatThead.min.js' type='text/javascript'></script>",
+                        Config.versionV4js));
+                RegisterScript("Grid",
+                    string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Grid.js' type='text/javascript'></script>",
+                        Config.versionV4js));
             }
 
             if (V4Controls.Values.Any(c => c.GetType().Name.Contains("Menu")))
-                RegisterScript("Menu", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Menu.js' type='text/javascript'></script>", Config.versionV4js));
+                RegisterScript("Menu",
+                    string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Menu.js' type='text/javascript'></script>",
+                        Config.versionV4js));
 
             if (V4Controls.Values.Any(c => c.GetType().Name.Contains("TreeView")))
             {
                 RegisterCss("/Styles/Kesco.V4/CSS/jquery-jstree.css");
-                RegisterScript("TreeView", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.TreeView.js' type='text/javascript'></script>", Config.versionV4js));
-                RegisterScript("jstree", string.Format("<script src='/Styles/Kesco.V4/JS{0}/jstree.js' type='text/javascript'></script>", Config.versionV4js));
+                RegisterScript("TreeView",
+                    string.Format(
+                        "<script src='/Styles/Kesco.V4/JS{0}/Kesco.TreeView.js' type='text/javascript'></script>",
+                        Config.versionV4js));
+                RegisterScript("jstree",
+                    string.Format("<script src='/Styles/Kesco.V4/JS{0}/jstree.js' type='text/javascript'></script>",
+                        Config.versionV4js));
             }
 
-            RegisterScript("Confirm", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Confirm.js' type='text/javascript'></script>", Config.versionV4js));
-            RegisterScript("Dialog", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Dialog.js' type='text/javascript'></script>", Config.versionV4js));
-            RegisterScript("LocalTime", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.LocalTime.js' type='text/javascript'></script>", Config.versionV4js));
+            RegisterScript("Confirm",
+                string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Confirm.js' type='text/javascript'></script>",
+                    Config.versionV4js));
+            RegisterScript("Dialog",
+                string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Dialog.js' type='text/javascript'></script>",
+                    Config.versionV4js));
+            RegisterScript("LocalTime",
+                string.Format(
+                    "<script src='/Styles/Kesco.V4/JS{0}/Kesco.LocalTime.js' type='text/javascript'></script>",
+                    Config.versionV4js));
 
             if (this is DocPage)
-                RegisterScript("DocPage", string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.DocPage.js' type='text/javascript'></script>", Config.versionV4js));            
+                RegisterScript("DocPage",
+                    string.Format(
+                        "<script src='/Styles/Kesco.V4/JS{0}/Kesco.DocPage.js' type='text/javascript'></script>",
+                        Config.versionV4js));
         }
 
         /// <summary>
@@ -741,7 +829,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                     sb.Append(Environment.NewLine);
                 }
 
-               
+
                 sb.Append("function v4_tooltipCaller() {");
                 sb.Append(Environment.NewLine);
                 sb.Append("var dataId=$(this)[0].getAttribute('data-id');");
@@ -768,10 +856,40 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 sb.Append(Environment.NewLine);
                 sb.AppendFormat("v4_helpURL = '{0}';", HttpUtility.JavaScriptStringEncode(HelpUrl));
                 sb.Append(Environment.NewLine);
+
+                //Скрипты для кортролов select
+                sb.AppendFormat(@"
+                $(document).ready(function () {{
+
+                $('.button_disabled').prop('disabled', true).addClass('ui-state-disabled');
+
+                $('.v4si').bind({{
+                    blur: function(event) {{
+                        v4s_onBlur(event);
+                    }},
+                    keydown: function(event) {{
+                        return v4s_keyDown(event);
+                    }},
+                    keyup: function(event) {{
+                        return v4s_keyUp(event);
+                    }}
+
+                }});
+
+                $('.v4sd').bind({{
+                    selectstart: function(event) {{ return false }},
+                    mousedown: function(event) {{ return false }}
+                }});
+
+                }});
+                ");
+                sb.Append(Environment.NewLine);
+
                 sb.Append("</script>" + Environment.NewLine);
 
                 //Эти скрипты добавляются в конец заголовка
                 Header.Controls.Add(new LiteralControl(sb.ToString()));
+
             }
         }
 
@@ -861,9 +979,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                         listener.ProcessClientCommand(param);
                         break;
                     case "Refresh":
-                        var id = param["Ctrl"];
-                        if (!String.IsNullOrEmpty(id) && V4Controls.Keys.Contains(id))
-                            RefreshHtmlBlock(id, V4Controls[id].RenderControl);
+                        //var id = param["Ctrl"];
+                        //if (!String.IsNullOrEmpty(id) && V4Controls.Keys.Contains(id))
+                        //    RefreshHtmlBlock(id, V4Controls[id].RenderControl);
+                        V4Navigate(Request.Url.PathAndQuery);
                         break;
                     case "PageClose":
                         V4Dispose();
@@ -921,6 +1040,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </remarks>
         public void V4Navigate(string url)
         {
+            V4Dispose();
             JS.Write(WebExtention.DynamicLink(url,false));
         }
 
@@ -943,71 +1063,43 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             return V4Controls.Values.All(ctrl => !ctrl.NtfValid);
         }
-
+        
         /// <summary>
-        ///     Рендеринг надписей
+        ///  Рендеринг надписей валидации
         /// </summary>
         /// <param name="w">Исходный поток для записи HTML - кода</param>
         /// <param name="ntf">Список надписей</param>
-        public void RenderNtf(TextWriter w, List<string> ntf)
+        public void RenderNtf(TextWriter w, List<Notification> ntf)
         {
-            RenderNtf(w, ntf, NtfStatus.Error);
-        }
+            ntf.ForEach(n =>
+                {
+                    var className = EnumAccessors.GetCssClassByNtfStatus(n.Status, n.SizeIsNtf);
+                    if (!string.IsNullOrEmpty(n.Description) && n.Status != NtfStatus.Empty) className += " v4ContextHelp";
+                    var dashSpace = n.DashSpace ? "- " : "";
 
-        /// <summary>
-        ///     Рендеринг надписей
-        /// </summary>
-        public void RenderNtf(TextWriter w, List<string> ntf, NtfStatus status, bool sizeIsNtf = true, bool dashSpace = true)
-        {
-            RenderNtf(w, ntf, status, "", "", dashSpace, sizeIsNtf);
-        }
-
-        /// <summary>
-        ///     Рендеринг надписей
-        /// </summary>
-        /// <param name="w">Исходный поток для записи HTML - кода</param>
-        /// <param name="ntf">Список надписей</param>
-        /// <param name="status">Статус надписей</param>
-        /// <param name="divId">Идентификатор div</param>
-        /// <param name="dashSpace">Рисовать ли тире</param>
-        public void RenderNtf(TextWriter w, List<string> ntf, NtfStatus status, string divId, string className, bool dashSpace, bool sizeIsNtf = true)
-        {
-            var n = ntf.Count;
-            var color = EnumAccessors.GetColorByNtfStatus(status);
-            var _dashSpace = dashSpace ? " - " : "";
-            if (n > 0)
-            {
-                w.Write("<div {2} {3} style=\"color:{0} !important; {4}{5}\">{1}", 
-                    color, 
-                    _dashSpace, 
-                    string.IsNullOrEmpty(divId) ? "" : "id=\"" + divId + "\"",
-                    string.IsNullOrEmpty(className) ? "" : "class=\"" + className + "\"",
-                    sizeIsNtf?"font-size:7.5pt !important;":"",
-                    !dashSpace?"margin-left:10px;":""
-
+                    w.Write("<div {0} {1} {2}>",
+                        string.IsNullOrEmpty(n.ContainerId) ? "" : $"id=\"{n.ContainerId}\"",
+                        string.IsNullOrEmpty(className) ? "" : $"class=\"{className}\"",
+                        string.IsNullOrEmpty(n.Description) || n.Status == NtfStatus.Empty ? "" : $"title=\"{HttpUtility.HtmlEncode(n.Description)}\""
                     );
-            }
-            for (var i = 0; i < n; i++)
-            {
-                var n4check = ntf[i];
-                if (n4check == null) continue;
-                if (n4check.IndexOf("<ns>", StringComparison.Ordinal) != -1)
-                {
-                    n4check = n4check.Remove(0, 4);
-                    n4check = " " + _dashSpace + n4check.Replace("<ns>", "<br>" + _dashSpace);
-                    w.Write(n4check);
-                }
-                else
-                {
-                    if (i > 0)
+                    
+                    if (n.Message.IndexOf("<ns>", StringComparison.Ordinal) != -1)
                     {
-                        w.Write("<BR>");
-                        w.Write(_dashSpace);
+                        var n4check = n.Message.Remove(0, 4);
+                        n4check = dashSpace + n4check.Replace("<ns>", dashSpace);
+                        w.Write(n4check);
+                        return;
                     }
-                    w.Write(ntf[i]);
+                    else
+                    {
+                        w.Write(dashSpace);
+                    }
+
+                    w.Write(n.Message);
+                    w.Write("</div>");
                 }
-            }
-            if (n > 0) w.Write("</div>");
+            );
+
         }
 
         /// <summary>
@@ -1016,26 +1108,26 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="w">Поток вывода</param>
         /// <param name="ntfs">список надписей</param>
         /// <param name="separator">разделитель</param>
-        /// /// <param name="separator">установить размер ntf</param>
-        public void RenderNtfInline(TextWriter w, Dictionary<string, NtfStatus> ntfs, string separator, bool sizeIsNtf = true, bool newLine = true)
+        /// <param name="renderWithNewLine">начинать вывод с новой строки</param>
+        public void RenderNtfInline(TextWriter w, List<Notification> ntfs, string separator, bool renderWithNewLine)
         {
             if (ntfs == null) return;
             var inx = 1;
-            foreach (var ntf in ntfs)
+            ntfs.ForEach(n =>
             {
-                
-                var color = EnumAccessors.GetColorByNtfStatus(ntf.Value);
-
+                var className = EnumAccessors.GetCssClassByNtfStatus(n.Status, n.SizeIsNtf);
+                if (!string.IsNullOrEmpty(n.Description) && n.Status != NtfStatus.Empty) className += " v4ContextHelp";
                 w.Write(
-                    "<span style=\"color:{0} !important; {1}\">{2}{3}{4}</span>",
-                    color,
-                    sizeIsNtf ? "font-size:7.5pt !important;" : "",
-                    inx == 1 && newLine ? "<br/>" : "",
-                    ntf.Key,
-                    inx < ntfs.Count ? separator + " " : "");
-
+                    "{0}<span {1} {2}>{3}</span>{4}",
+                    renderWithNewLine && inx == 1 ? "<br/>" : "",
+                    string.IsNullOrEmpty(className) ? "" : $"class=\"{className}\"",
+                    string.IsNullOrEmpty(n.Description) || n.Status == NtfStatus.Empty ? "" : $"title=\"{HttpUtility.HtmlEncode(n.Description)}\"",
+                    n.Message,
+                    inx < ntfs.Count  ? separator + " " : ""
+                );
                 inx++;
-            }
+            });
+
         }
 
         /// <summary>
@@ -1249,13 +1341,16 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="ctrlIdFocus">Идентификатор контрола, на который надо перевести фокус после закрытия окна</param>
         /// <param name="width">Ширина окна</param>
         /// <param name="height">Высота окна</param>
-        public void ShowMessage(string message, string title, MessageStatus status, string ctrlIdFocus, int? width,
-            int? height)
+        public void ShowMessage(string message, string title, MessageStatus status, string ctrlIdFocus, int? width, int? height, string scriptOk="")
         {
-            JS.Write("v4_showMessage(\"{0}\",\"{1}\",{2},\"{3}\",{4},{5});",
+            JS.Write("v4_showMessage(\"{0}\",\"{1}\",{2},\"{3}\",{4},{5},\"{6}\");",
                 HttpUtility.JavaScriptStringEncode(message.Replace(Environment.NewLine, "<br>")),
-                HttpUtility.JavaScriptStringEncode(title), (int) status, ctrlIdFocus,
-                width == null ? "null" : width.ToString(), height == null ? "null" : height.ToString());
+                HttpUtility.JavaScriptStringEncode(title), 
+                (int) status, 
+                ctrlIdFocus,
+                width == null ? "null" : width.ToString(), 
+                height == null ? "null" : height.ToString(),
+                HttpUtility.JavaScriptStringEncode(scriptOk));
         }
 
         /// <summary>
@@ -1458,6 +1553,24 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         ///     Добавить скрипт: Показать элемент
         /// </summary>
         /// <param name="idControl">ID элемента управления</param>
+        public void DisplayCtrl(string idControl)
+        {
+            JS.Write("$('#{0}').show();", idControl);
+        }
+
+        /// <summary>
+        ///     Добавить скрипт: Скрыть элемент
+        /// </summary>
+        /// <param name="idControl">ID элемента управления</param>
+        public void HideCtrl(string idControl)
+        {
+            JS.Write("$('#{0}').hide();", idControl);
+        }
+
+        /// <summary>
+        ///     Добавить скрипт: Показать элемент
+        /// </summary>
+        /// <param name="idControl">ID элемента управления</param>
         public void Display(string idControl)
         {
             JS.Write("di('{0}');", idControl);
@@ -1595,7 +1708,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="docId">КодДокумента</param>
         public void RenderLinkDocument(TextWriter w, int docId, bool openImage = false, NtfStatus ntf = NtfStatus.Empty)
         {
-            var ntfClass = EnumAccessors.GetCssClassByNtfStatus(ntf);
+            var ntfClass = EnumAccessors.GetCssClassByNtfStatus(ntf, false);
 
             w.Write("<a {0} href=\"javascript:void(0);\" onclick=\"cmdasync('cmd', 'ShowInDocView', 'DocId', {1}, 'openImage', {2});\">",
                 ntfClass != "" ? string.Format("class='{0}'", ntfClass) : "",
@@ -1874,6 +1987,19 @@ namespace Kesco.Lib.Web.Controls.V4.Common
 
         #endregion
 
+        /// <summary>
+        /// Трансляция событий формы на других пользователей
+        /// </summary>
+        /// <param name="Params">Коллекция параметров</param>
+        public virtual void TranslatePageEvent(NameValueCollection Params)
+        {
+
+        }
+        
+        /// <summary>
+        /// Трансляция событий элементов управления на других пользователей
+        /// </summary>
+        /// <param name="Params">Коллекция параметров</param>
         public void TranslateCtrlEvent(NameValueCollection Params)
         {
             CometMessage m = new CometMessage
@@ -1896,10 +2022,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 string ctrl_id = Params["ctrl"];
                 //((Page)client.Page).V4Controls[Params["ctrl"]].ProcessCommand(Params);
                 if (!((Page) client.Page).V4Controls.ContainsKey(ctrl_id)) return false;
-
                 string old = ((Page)client.Page).V4Controls[ctrl_id].Value;
+                string orig = ((Page)client.Page).V4Controls[ctrl_id].OriginalValue;
+
                 ((Page)client.Page).V4Controls[ctrl_id].Value = V4Controls[ctrl_id].Value;
-                ((Page)client.Page).V4Controls[ctrl_id].OnChanged(new ProperyChangedEventArgs(old, V4Controls[ctrl_id].Value));
+                ((Page)client.Page).V4Controls[ctrl_id].OnChanged(new ProperyChangedEventArgs(old, V4Controls[ctrl_id].Value, orig));
                 return true;
             };
 
@@ -1920,6 +2047,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 objList = new List<V4PageObj>();
                 return objList;
             }
+        }
+
+        public void ClearObjects()
+        {
+            ObjList.Clear();
         }
 
         public Entity GetObjectById(Type t, string id)
@@ -1972,6 +2104,177 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             if (objList != null) objList.Clear();
             objList = null;
             GC.Collect();
+        }
+
+
+        private void InitMenuButton()
+        {
+            MenuButtons.Clear();
+            var btnEdit = new Button
+            {
+                ID = "btnEdit",
+                V4Page = this,
+                Text = Resx.GetString("cmdEdit"),
+                Title = Resx.GetString("cmdEditDescription"),
+                IconJQueryUI = ButtonIconsEnum.Edit,
+                Width = 115,
+                OnClick = "cmdasync('cmd', 'Edit');"
+            };
+            AddMenuButton(btnEdit);
+
+            var btnSave = new Button
+            {
+                ID = "btnSave",
+                V4Page = this,
+                Text = Resx.GetString("cmdOK"),
+                Title = Resx.GetString("titleSaveAndClose"),
+                IconJQueryUI = ButtonIconsEnum.Ok,
+                Width = 105,
+                OnClick = "cmdasync('cmd', 'Save');"
+            };
+            AddMenuButton(btnSave);
+
+            var btnApply = new Button
+            {
+                ID = "btnApply",
+                V4Page = this,
+                Text = Resx.GetString("cmdSave"),
+                Title = Resx.GetString("titleSave"),
+                IconJQueryUI = ButtonIconsEnum.Save,
+                Width = 105,
+                OnClick = "cmdasync('cmd', 'Apply');"
+            };
+            AddMenuButton(btnApply);
+
+            var btnRefresh = new Button
+            {
+                ID = "btnRefresh",
+                V4Page = this,
+                Text = Resx.GetString("cmdRefresh"),
+                Title = Resx.GetString("cmdRefreshDescription"),
+                IconJQueryUI = ButtonIconsEnum.Refresh,
+                Width = 105,
+                OnClick = "cmdasync('cmd', 'Refresh');"
+            };
+            AddMenuButton(btnRefresh);
+
+            var btnReCheck = new Button
+            {
+                ID = "btnReCheck",
+                V4Page = this,
+                Text = Resx.GetString("cmdReCheck"),
+                Title = Resx.GetString("cmdReCheckDescription"),
+                IconJQueryUI = ButtonIconsEnum.Check,
+                OnClick = "cmdasync('cmd', 'ReCheck');"
+            };
+            AddMenuButton(btnReCheck);
+        }
+
+        /// <summary>
+        ///     Добавление кнопок в меню
+        /// </summary>
+        /// <remarks>
+        ///     В качестве параметра может получать:
+        ///     одиночный объект,
+        ///     объекты через запятую,
+        ///     массив объектов Button
+        /// </remarks>
+        /// <param name="buttons">объект контрола button</param>
+        public void AddMenuButton(params Button[] buttons)
+        {
+            MenuButtons.AddRange(buttons);
+        }
+
+        /// <summary>
+        ///     Удаление кнопок в меню
+        /// </summary>
+        /// <param name="button">объект контрола button</param>
+        public void RemoveMenuButton(Button button)
+        {
+            MenuButtons.Remove(button);
+        }
+
+        /// <summary>
+        ///     Очистить коллекцию кнопок
+        /// </summary>
+        public void ClearMenuButtons()
+        {
+            MenuButtons.Clear();
+        }
+
+        protected virtual void RenderAddControl(StringWriter w)
+        {
+
+        }
+
+        /// <summary>
+        ///     Сформировать кнопки меню
+        /// </summary>
+        public virtual void RenderButtons(StringWriter w)
+        {
+            w.Write("<div id=\"pageHeader\" class=\"ui-widget-header ui-corner-all\" style=\"z-index:9999 {0}\">", MenuButtons.Count == 0 ? ";height:23px" : "");
+
+            foreach (var b in MenuButtons)
+            {
+                V4Controls.Add(b);
+                b.RenderControl(w);
+                b.PropertyChanged.Clear();
+            }
+
+            RenderAddControl(w);
+
+            if (!string.IsNullOrEmpty(LogoImage))
+            {
+                w.Write("<img src=\"{0}\" style=\"float: left; margin-left: 2px; border: 0; height: 23px;\">", LogoImage);
+            }
+
+            if (!string.IsNullOrEmpty(HelpUrl))
+            {
+                var btnHelp = new Button
+                {
+                    ID = "btnHelp",
+                    V4Page = this,
+                    Text = "",
+                    Title = Resx.GetString("lblHelp"),
+                    Width = 27,
+                    Height = 22,
+                    IconJQueryUI = ButtonIconsEnum.Help,
+                    OnClick = string.Format("v4_openHelp('{0}');", IDPage),
+                    Style = "float: right; margin-right: 11px;"
+                };
+
+                V4Controls.Add(btnHelp);
+                btnHelp.RenderControl(w);
+                btnHelp.PropertyChanged.Clear();
+            }
+
+            if (!LikeId.IsNullEmptyOrZero())
+            {
+                var btnLike = new LikeDislike
+                {
+                    ID = "btnLike",
+                    V4Page = this,
+                    LikeId = LikeId,
+                    Style = "float: right; margin-right: 11px; margin-top: 3px; cursor: pointer;"
+                };
+
+                V4Controls.Add(btnLike);
+                btnLike.RenderControl(w);
+            }
+
+            w.WriteLine(@"</div>");
+        }
+
+        /// <summary>
+        ///     Обновить кнопки меню
+        /// </summary>
+        public void RefreshMenuButtons()
+        {
+            using (var w = new StringWriter())
+            {
+                RenderButtons(w);
+                JS.Write("gi('pageHeader').innerHTML={0};", HttpUtility.JavaScriptStringEncode(w.ToString(), true));
+            }
         }
 
     }

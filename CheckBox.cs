@@ -62,8 +62,8 @@ namespace Kesco.Lib.Web.Controls.V4
         protected override void RenderControlBody(TextWriter w)
         {
             w.Write(
-                "<input type='checkbox' id='{0}_0' {1} style='padding-bottom: 3px;' onclick=\"cmd('ctrl','{0}','v',(this.checked?'1':'0'));\"",
-                HtmlID, Checked ? "checked" : "");
+                "<input type='checkbox' id='{0}_0' {1} ov='{2}' style='padding-bottom: 3px;' onclick=\"cmd('ctrl','{0}','v',(this.checked?'1':'0'),'ov', '{2}');\"",
+                HtmlID, Checked ? "checked" : "", OriginalValue);
             if (IsReadOnly || IsDisabled)
                 w.Write(" disabled ");
             if (!string.IsNullOrEmpty(NextControl))

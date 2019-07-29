@@ -49,6 +49,17 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
                 return;
             }
 
+            //Реализуем принудительное закрытие comet-соединения.
+            if (control == "window" && command == "refreshForce")
+            {
+                var p = context.Application[callbackKey] as Page;
+                if (p != null)
+                {
+                }
+                return;
+            }
+
+
             //Реализуем отправки сообщения о клиентской ошибке
             if (control == "window" && command == "error")
             {

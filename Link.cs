@@ -41,14 +41,14 @@ namespace Kesco.Lib.Web.Controls.V4
 
         public override void RenderControl(TextWriter w)
         {
-            w.Write("<a href=\"javascript:void(0);\" id=\"{0}\" style='cursor:pointer;{1}' onclick=\"{2}\" {3}",
+            w.Write("<a href=\"javascript:void(0);\" id=\"{0}\" style='{4}cursor:pointer;{1}' onclick=\"{2}\" {3}",
                 HtmlID,
                 Visible ? "" : "display:none;",
                 OnClick,
                 IsCaller && Value.Length > 0
                     ? " class='v4_callerControl' data-id='" + HttpUtility.UrlEncode(Value) + "' caller-type='" +
                       (int) CallerType + "'"
-                    : "");
+                    : "", Style);
 
             if (!string.IsNullOrEmpty(Title))
             {

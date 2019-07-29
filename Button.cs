@@ -1,11 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Web;
-using System.Web.Management;
 using System.Web.UI.WebControls;
+using Kesco.Lib.BaseExtention;
 
 namespace Kesco.Lib.Web.Controls.V4
 {
@@ -15,7 +13,8 @@ namespace Kesco.Lib.Web.Controls.V4
     public class Button : V4Control
     {
         private string _text;
-        private bool _separatorBefore = false;
+
+        public List<SelectedRunItem> SelectedRunMenu;
 
         /// <summary>
         ///     Конструктор
@@ -27,21 +26,12 @@ namespace Kesco.Lib.Web.Controls.V4
         }
 
         /// <summary>
-        ///     Тут можно указать атрибут Style
-        /// </summary>
-        public string Style { get; set; }
-
-        /// <summary>
         ///     Тут пишем клиентский скрипт, который выполнится на событии onclick
         /// </summary>
         public string OnClick { get; set; }
 
         // Рисовать ли перед кнопкой разделитель
-        public bool SeparatorBefore
-        {
-            get { return _separatorBefore; }
-            set { _separatorBefore = value; } 
-        }
+        public bool SeparatorBefore { get; set; } = false;
 
         /// <summary>
         ///     Тут пишем текст, который отобразится на кнопке
@@ -60,15 +50,19 @@ namespace Kesco.Lib.Web.Controls.V4
         }
 
         /// <summary>
-        /// Добавляем иконку из JQUI
+        ///     Добавляем иконку из JQUI
         /// </summary>
         public string IconJQueryUI { get; set; }
+
         /// <summary>
-        /// Добавляем иконку из Styles
+        ///     Добавляем вторую иконку из JQUI
+        /// </summary>
+        public string IconJQueryUISecondary { get; set; }
+
+        /// <summary>
+        ///     Добавляем иконку из Styles
         /// </summary>
         public string IconKesco { get; set; }
-
-        public List<SelectedRunItem> SelectedRunMenu;
 
         /// <summary>
         ///     Отрисовка контрола
@@ -76,19 +70,20 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="w">Поток</param>
         public override void RenderControl(TextWriter w)
         {
-            if (_separatorBefore)
-                w.Write(@"<span style=""height:65px; border-left: #c5c5c5 solid 2px; margin-left: 2px; margin-right: 3px;""></span>");
+            if (SeparatorBefore)
+                w.Write(
+                    @"<span style=""height:65px; border-left: #c5c5c5 solid 2px; margin-left: 2px; margin-right: 3px;""></span>");
 
 
             if (SelectedRunMenu != null && SelectedRunMenu.Count > 0)
             {
                 var addedItem = new List<int>();
                 w.Write("<nobr>");
-                w.Write(@"<select name=""{0}"" id=""{0}"">","run"+HtmlID);
-                SelectedRunMenu.OrderBy(x=>x.Order).ToList().ForEach(delegate(SelectedRunItem ri)
+                w.Write(@"<select name=""{0}"" id=""{0}"">", "run" + HtmlID);
+                SelectedRunMenu.OrderBy(x => x.Order).ToList().ForEach(delegate(SelectedRunItem ri)
                 {
                     var p = SelectedRunMenu.FirstOrDefault(x => x.GroupValue == ri.Value);
-                    
+
                     if (p == null)
                     {
                         if (!addedItem.Contains(ri.Value))
@@ -102,18 +97,20 @@ namespace Kesco.Lib.Web.Controls.V4
                     {
                         addedItem.Add(ri.Value);
                         w.Write(@"<optgroup label=""{0}"" >", ri.Name);
-                        SelectedRunMenu.Where(x=>x.GroupValue==ri.Value).ToList().OrderBy(x=>x.Order).ToList().ForEach(
-                            delegate(SelectedRunItem rig)
-                            {
-                                if (!addedItem.Contains(rig.Value))
+                        SelectedRunMenu.Where(x => x.GroupValue == ri.Value).ToList().OrderBy(x => x.Order).ToList()
+                            .ForEach(
+                                delegate(SelectedRunItem rig)
                                 {
-                                    addedItem.Add(rig.Value);
-                                    w.Write(@"<option {0} {1} value=""{2}"" style=""margin-left:10px"">{3}</option>",
-                                        rig.IsDisabled ? "disabled" : "",
-                                        rig.IsSelected ? "selected" : "", rig.Value, rig.Name);
-                                }
-                            });
-                             
+                                    if (!addedItem.Contains(rig.Value))
+                                    {
+                                        addedItem.Add(rig.Value);
+                                        w.Write(
+                                            @"<option {0} {1} value=""{2}"" style=""margin-left:10px"">{3}</option>",
+                                            rig.IsDisabled ? "disabled" : "",
+                                            rig.IsSelected ? "selected" : "", rig.Value, rig.Name);
+                                    }
+                                });
+
                         w.Write("</optgroup>");
                     }
                 });
@@ -124,11 +121,10 @@ namespace Kesco.Lib.Web.Controls.V4
 
             w.Write("<button");
             w.Write(" id='{0}'", HtmlID);
-           
+
             if (!string.IsNullOrEmpty(Value))
                 w.Write(" value=\"{0}\"", HttpUtility.HtmlEncode(Value));
 
-            
 
             w.Write(" onclick=\"{0}\"", OnClick);
             w.Write(" style = \"");
@@ -138,7 +134,6 @@ namespace Kesco.Lib.Web.Controls.V4
                 w.Write("width:{0};", Width);
 
 
-
             if (Height != Unit.Empty)
                 w.Write("height:{0};", Height);
 
@@ -146,29 +141,39 @@ namespace Kesco.Lib.Web.Controls.V4
 
             w.Write("\"");
 
+            var cssClass = CSSClass;
+            if (IsDisabled)
+            {
+                //w.Write(" disabled ");
+                cssClass = CSSClass.IsNullEmptyOrZero() ? "button_disabled" : (CSSClass + ", button_disabled");
+            }
+
+            if (!string.IsNullOrEmpty(cssClass)) w.Write(" class='{0}'", cssClass);
 
             if (!string.IsNullOrEmpty(Title))
                 w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
 
             if (TabIndex.HasValue)
                 w.Write(" TabIndex={0} ", TabIndex);
-            
+
             w.Write(">");
             w.Write(Text);
             w.Write("</button>");
-            
+
             if (!string.IsNullOrEmpty(IconJQueryUI))
-                w.Write("<script>$('#{0}').button({{icons: {{primary: {1}}}{2}}});</script>", HtmlID, IconJQueryUI, (SelectedRunMenu != null && SelectedRunMenu.Count > 0)?", text: false":"");
+                w.Write("<script>$('#{0}').button({{icons: {{primary: {1}{2}}}{3}}});</script>", HtmlID, IconJQueryUI, !string.IsNullOrEmpty(IconJQueryUISecondary)?$", secondary: {IconJQueryUISecondary}":"",
+                    SelectedRunMenu != null && SelectedRunMenu.Count > 0 ? ", text: false" : "");
+            else if (!string.IsNullOrEmpty(IconKesco))
+                w.Write("<script>$('#{0}').prepend(\"<img src='{1}'/>\").button();</script>", HtmlID, IconKesco);
             else
-                if (!string.IsNullOrEmpty(IconKesco))
-                    w.Write("<script>$('#{0}').prepend(\"<img src='{1}'/>\").button();</script>", HtmlID, IconKesco);
-                else
-                    w.Write("<script>$('#{0}').button();</script>", HtmlID);
+                w.Write("<script>$('#{0}').button();</script>", HtmlID);
 
             if (SelectedRunMenu != null && SelectedRunMenu.Count > 0)
             {
                 w.Write("</nobr>");
-                w.Write("<script>$('#run{0}').selectmenu({{width : 'auto'}}); $('.ui-selectmenu-menu').css('z-index', 10000); </script>", HtmlID);
+                w.Write(
+                    "<script>$('#run{0}').selectmenu({{width : 'auto'}}); $('.ui-selectmenu-menu').css('z-index', 10000); </script>",
+                    HtmlID);
             }
         }
 
@@ -177,20 +182,21 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public override void Flush()
         {
+            if (PropertyChanged.Count == 0) return;
+
             if (PropertyChanged.Contains("Visible"))
-            {
                 JS.Write("if(gi('{0}'))gi('{0}').style.display='{1}';", HtmlID, Visible ? "" : "none");
-            }
             else if (PropertyChanged.Contains("IsReadOnly"))
+                JS.Write("if(gi('{0}'))gi('{0}').disabled='{1}';", HtmlID, IsReadOnly || IsDisabled ? "1" : "");
+            else if (PropertyChanged.Contains("IsDisabled"))
             {
-                JS.Write("if(gi('{0}'))gi('{0}').disabled='{1}';", HtmlID, IsReadOnly ? "1" : "");
+                if (!IsDisabled)
+                {
+                    JS.Write("$('#{0}').prop('disabled', false).removeClass('ui-state-disabled').addClass('ui-state-default');", HtmlID);
+                }
             }
 
-            if (PropertyChanged.Contains("Text"))
-            {
-                JS.Write("if(gi('{0}'))gi('{0}').innerText='{1}';", HtmlID, Text);
-            }
-            
+            if (PropertyChanged.Contains("Text")) JS.Write("if(gi('{0}'))gi('{0}').innerText='{1}';", HtmlID, Text);
         }
     }
 }

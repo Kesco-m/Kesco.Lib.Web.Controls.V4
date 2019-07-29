@@ -18,7 +18,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
     /// </summary>
     public class GridColumn
     {
-        private readonly string _applyImage = "<img src=\"/styles/ok.gif\" border=0/>";
+        private readonly string _applyImage = "<span class=\"ui-icon ui-icon-check\" border=0 style=\"display:inline-block\"></span>";
         private readonly string _cssClassInterval = "filterType" + (int) GridColumnUserFilterEnum.Между;
 
         public Dictionary<object, object> FilterStandartType;
@@ -55,6 +55,15 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         ///     Признак того, что в данной колонке должны выводиться локальные дата и время
         /// </summary>
         public bool IsLocalTime { get; set; }
+
+
+        /// <summary>
+        ///     Признак того, что возможна сортировка по данной колонке
+        /// </summary>
+        public bool IsSortedColumn
+        {
+            get { return Settings.SortingColumns.Contains(FieldName); }
+        }
 
         public bool IsBit { get; set; }
 
@@ -517,22 +526,35 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
 
             if (isHtml)
             {
-                w.Write("<div >");
+                w.Write("<div class=\"v4DivTable\">");
+                w.Write("<div class=\"v4DivTableRow\">");
+                w.Write("<div class=\"v4DivTableCell v4PaddingCell\">");
                 w.Write(_applyImage);
+                w.Write("</div>");
+                w.Write("<div class=\"v4DivTableCell\" style=\"text-align:left;\">");
             }
 
             w.Write(Settings.V4Page.Resx.GetString("lblSetFilter") + ": ");
-            if (isHtml) w.Write("</div>");
+            if (isHtml)
+            {
+                w.Write("</div>");
+                w.Write("</div>");
+                
+            }
 
             if (isHtml)
             {
-                w.Write("<div class=\"v4GridFilterText\">");
+                w.Write("<div class=\"v4DivTableRow\">");
+                w.Write("<div class=\"v4DivTableCell v4PaddingCell\">");
                 w.Write(
-                    "<img src=\"/styles/EditGray.gif\" style=\"cursor:pointer\" title=\"{0}\" onclick=\"v4_OpenUserFilterFormCmd({1}, '{2}', {3}, 1);\" />&nbsp;",
+                    "<span class=\"ui-icon ui-icon-pencil\"  style=\"display:inline-block; cursor:pointer\" onclick=\"v4_OpenUserFilterFormCmd({1}, '{2}', {3}, 1);\"></span>",
+//                    "<img src=\"/styles/EditGray.gif\" style=\"cursor:pointer\" title=\"{0}\" onclick=\"v4_OpenUserFilterFormCmd({1}, '{2}', {3}, 1);\" />&nbsp;",
                     Settings.V4Page.Resx.GetString("lblEditFilter"),
                     Settings.GridCmdListnerIndex,
                     Id,
                     (int) FilterUser.FilterType);
+                w.Write("</div>");
+                w.Write("<div class=\"v4DivTableCell\" style=\"text-align:left;\">");
             }
 
             w.Write("{0} [{1}] ", Settings.V4Page.Resx.GetString("lblFieldValue"), Alias);
@@ -585,7 +607,12 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 }
             }
 
-            if (isHtml) w.Write("</div>");
+            if (isHtml)
+            {
+                w.Write("</div>");
+                w.Write("</div>");
+                w.Write("</div>");
+            }
         }
 
         #endregion
@@ -785,7 +812,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
 
                 filterClick = string.Join(" ", "style=\"cursor:pointer\"", " ",
                     string.Format(
-                        "onclick=\"Wait.render(true); cmdasync('cmd', 'Listener', 'ctrlId', {0}, 'cmdName', 'RenderColumnSettings','ColumnId','{1}');\"",
+                        "onclick=\"cmdasync('cmd', 'Listener', 'ctrlId', {0}, 'cmdName', 'RenderColumnSettings','ColumnId','{1}');\"",
                         Settings.GridCmdListnerIndex, FieldName));
             }
 
@@ -794,38 +821,44 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
     <div class=""v4DivBlock"" column-id=""{6}"">
 	    <div class=""v4DivBlock"">
 		    {5}
+            <div class=""v4DivInline v4PaddingCell"">{2}</div>
             <div class=""v4DivInline v4PaddingCell"">{0}</div>
-		    <div class=""v4DivInline v4PaddingCell""><nobr>{2}{3}{4}</nobr></div>    
+		    <div class=""v4DivInline v4PaddingCell""><nobr>{3}{4}</nobr></div>    
             {7} 
             {8}      
 	    </div>
     </div>
 </th>
 ",
-                "<span style=\"cursor:pointer\""
-                + " onmouseover=\"this.style.textDecoration='underline';\""
-                + " onmouseout=\"this.style.textDecoration='none';\""
-                + string.Format(" onclick=\"v4_setOrderByColumnValues({0}, '{1}',{2});\"",
-                    Settings.GridCmdListnerIndex,
-                    Id,
-                    OrderByNumber == null ? 0 : OrderByDirection == GridColumnOrderByDirectionEnum.Asc ? 1 : 0)
-                + ">" + Alias + "</span>",
+                IsSortedColumn ?
+                    "<span style =\"cursor:pointer\""
+                    + " onmouseover=\"this.style.textDecoration='underline';\""
+                    + " onmouseout=\"this.style.textDecoration='none';\""
+                    + string.Format(" onclick=\"v4_setOrderByColumnValues({0}, '{1}',{2});\"",
+                        Settings.GridCmdListnerIndex,
+                        Id,
+                        OrderByNumber == null ? 0 : OrderByDirection == GridColumnOrderByDirectionEnum.Asc ? 1 : 0)
+                    + ">" + Alias + "</span>"
+                    : "<span>" + Alias + "</span>",
                 !string.IsNullOrEmpty(HeaderTitle) ? string.Format("title=\"{0}\"", HeaderTitle) : "",
-                string.Format(
-                    "<img src=\"/styles/DownGrayed.gif\" id=\"imgSettings{1}_{3}\" style=\"cursor:pointer\" onclick=\" Wait.render(true); cmdasync('cmd', 'Listener', 'ctrlId', '{3}', 'cmdName', 'RenderColumnSettings','ColumnId','{0}');\" border=0 title=\"{2}\"/>",
-                    FieldName, DisplayOrder, Settings.V4Page.Resx.GetString("msgOpenSettingFilter"),
-                    Settings.GridCmdListnerIndex),
+                Settings.IsFilterEnable ?
+                    string.Format(
+                        //                        "<img src=\"/styles/DownGrayed.gif\" id=\"imgSettings{1}_{3}\" style=\"cursor:pointer\" onclick=\" cmdasync('cmd', 'Listener', 'ctrlId', '{3}', 'cmdName', 'RenderColumnSettings','ColumnId','{0}');\" border=0 title=\"{2}\"/>",
+                        "<span class=\"ui-icon ui-icon-wrench\" style=\"display: inline-block;cursor:pointer\" id=\"imgSettings{1}_{3}\" onclick=\"cmdasync('cmd', 'Listener', 'ctrlId', '{3}', 'cmdName', 'RenderColumnSettings','ColumnId','{0}');\" border=0 title=\"{2}\"></span>",
+                        FieldName, DisplayOrder, Settings.V4Page.Resx.GetString("msgOpenSettingFilter"),
+                        Settings.GridCmdListnerIndex) 
+                    : "",
                 FilterUniqueValues != null && FilterUniqueValues.Count > 0 || FilterUser != null
                     ? string.Format("<img src=\"/styles/FilterApply.gif\" border=\"0\" title=\"{0}\" {1}/>",
                         titleFilter,
                         filterClick)
                     : "",
-                OrderByNumber != null
+                IsSortedColumn && OrderByNumber != null
                     ? "<img src=\"/styles/" +
                       (OrderByDirection == GridColumnOrderByDirectionEnum.Asc ? "sort-asc.png" : "sort-desc.png")
                       +
                       string.Format(
-                          "\" border=\"0\" title=\"{0} {1}. {2}\" style=\"cursor:pointer\" onclick=\"v4_setOrderByColumnValues({3}, '{4}',{5});\"/>",
+                          "\" border=\"0\" title=\"{0} {1}. {2}\" style=\"cursor:pointer; display:inline-block\" onclick=\"v4_setOrderByColumnValues({3}, '{4}',{5});\"></span>",
                           Settings.V4Page.Resx.GetString("lblSortedBy"),
                           OrderByDirection == GridColumnOrderByDirectionEnum.Asc
                               ? Settings.V4Page.Resx.GetString("lblAscendingSort")
@@ -867,10 +900,14 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         public void RenderColumnSettings(Page page)
         {
             var w = new StringWriter();
-            RenderSortBlock(w);
-            page.JS.Write("$('#divColumnSettingsForm_Sort_{0}').html('{1}');",
-                Settings.GridId,
-                HttpUtility.JavaScriptStringEncode(w.ToString()));
+
+            if (IsSortedColumn)
+            {
+                RenderSortBlock(w);
+                page.JS.Write("$('#divColumnSettingsForm_Sort_{0}').html('{1}');",
+                    Settings.GridId,
+                    HttpUtility.JavaScriptStringEncode(w.ToString()));
+            }
 
             if (Settings.IsFilterEnable)
             {
@@ -962,7 +999,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 w.Write("<div class=\"v4DivTableRow\">");
 
                 w.Write(
-                    "<div class=\"v4DivTableCell v4PaddingCell\"><img  style=\"cursor:pointer;\" src=\"/styles/delete.gif\" onclick=\"v4_clearOrderByColumnValues({0}, '{1}');\"/></div><div class=\"v4DivTableCell\" style=\"text-align:left;\"><a href=\"javascript:void(0);\" onclick=\"v4_clearOrderByColumnValues({0}, '{1}');\"><nobr>{2}</nobr></a></div>",
+                    "<div class=\"v4DivTableCell v4PaddingCell\"><span style=\"cursor:pointer; display:inline-block;\" class=\"ui-icon ui-icon-closethick\" onclick=\"v4_clearOrderByColumnValues({0}, '{1}');\"></span></div><div class=\"v4DivTableCell\" style=\"text-align:left;\"><a href=\"javascript:void(0);\" onclick=\"v4_clearOrderByColumnValues({0}, '{1}');\"><nobr>{2}</nobr></a></div>",
                     Settings.GridCmdListnerIndex, Id, Settings.V4Page.Resx.GetString("msgGrigNoSort"));
                 w.Write("</div>");
 
@@ -978,15 +1015,14 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             w.Write("<div class=\"v4DivTable {0}\">", OrderByNumber != null ? "v4PaddingTop" : "");
             w.Write("<div class=\"v4DivTableRow\">");
             w.Write(
-                "<div class=\"v4DivTableCell v4PaddingCell\">{0}<img style=\"cursor:pointer;\" src=\"/styles/sort-asc.png\" onclick=\"v4_setOrderByColumnValues({1}, '{2}', 0);\" /></div><div class=\"v4DivTableCell v4PaddingCell\" style=\"margin-left:15px\"><a href=\"javascript:void(0);\" onclick=\"v4_setOrderByColumnValues({1}, '{2}', 0);\"><nobr>{3}</nobr></a></div>",
+                "<div class=\"v4DivTableCell v4PaddingCell\">{0}<span style=\"cursor:pointer;display:inline-block;\" src=\"/styles/sort-asc.png\" onclick=\"v4_setOrderByColumnValues({1}, '{2}', 0);\" ></span></div><div class=\"v4DivTableCell v4PaddingCell\" style=\"margin-left:15px\"><a href=\"javascript:void(0);\" onclick=\"v4_setOrderByColumnValues({1}, '{2}', 0);\"><nobr>{3}</nobr></a></div>",
                 classSortAsc, Settings.GridCmdListnerIndex, Id, asc);
             w.Write("</div>");
             w.Write("<div class=\"v4DivTableRow\" style=\"margin-top:50px;\">");
             w.Write(
-                "<div class=\"v4DivTableCell v4PaddingCell\">{0}<img style=\"cursor:pointer;\" src=\"/styles/sort-desc.png\" onclick=\"v4_setOrderByColumnValues({1}, '{2}', 1);\" /></div><div class=\"v4DivTableCell v4PaddingCell\" style=\"margin-left:15px\"><a href=\"javascript:void(0);\" onclick=\"v4_setOrderByColumnValues({1}, '{2}', 1);\"><nobr>{3}</nobr></a></div>",
+                "<div class=\"v4DivTableCell v4PaddingCell\">{0}<span style=\"cursor:pointer;display:inline-block;\" src=\"/styles/sort-desc.png\" onclick =\"v4_setOrderByColumnValues({1}, '{2}', 1);\" ></span></div><div class=\"v4DivTableCell v4PaddingCell\" style=\"margin-left:15px\"><a href=\"javascript:void(0);\" onclick=\"v4_setOrderByColumnValues({1}, '{2}', 1);\"><nobr>{3}</nobr></a></div>",
                 classSortDesc, Settings.GridCmdListnerIndex, Id, desc);
             w.Write("</div>");
-
 
             w.Write("</div>");
         }
@@ -1002,10 +1038,14 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             w.Write("<div class=\"v4DivTableRow\">");
 
             w.Write(
-                "<div class=\"v4DivTableCell v4PaddingCell\"><img  style=\"cursor:pointer;\" src=\"/styles/delete.gif\" onclick=\"v4_clearFilterColumnValues({0}, '{1}');\"/></div><div class=\"v4DivTableCell\" style=\"text-align:left;\"><a href=\"javascript:void(0);\" onclick=\"v4_clearFilterColumnValues({0},'{1}');\"><nobr>{2}</nobr></a></div>",
+                "<div class=\"v4DivTableCell v4PaddingCell\">");
+
+            //w.Write("<img  style=\"cursor:pointer;\" src=\"/styles/delete.gif\" onclick=\"v4_clearFilterColumnValues({0}, '{1}');\"/>");
+            w.Write("<span class=\"ui-icon ui-icon-closethick\" style=\"display: inline-block;cursor:pointer\" onclick=\"v4_clearFilterColumnValues({0}, '{1}');\"></span>", Settings.GridCmdListnerIndex, Id);
+
+            w.Write("</div><div class=\"v4DivTableCell\" style=\"text-align:left;\"><a href=\"javascript:void(0);\" onclick=\"v4_clearFilterColumnValues({0},'{1}');\"><nobr>{2}</nobr></a></div>",
                 Settings.GridCmdListnerIndex, Id, Settings.V4Page.Resx.GetString("msgGrigNoFilter"));
             w.Write("</div>");
-
             w.Write("</div>");
             w.Write("</div>");
         }

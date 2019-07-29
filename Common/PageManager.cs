@@ -1,7 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Net.Mime;
-using System.Timers;
+﻿using System.Timers;
 using System.Web;
 using Kesco.Lib.Web.Comet;
 
@@ -13,28 +10,39 @@ namespace Kesco.Lib.Web.Controls.V4.Common
     /// </summary>
     public class PageManager
     {
+        private static Timer _timer;
+
         /// <summary>
         ///     Объект Application
         /// </summary>
         public static HttpApplicationState Application;
 
         /// <summary>
-        ///     Метод вызывается при старте приложения, в нем устанавливается таймер проверки страниц на неактуальность - 1 минута
-        ///     То есть, GC запускается каждую минуту
+        ///     Метод вызывается при старте приложения, в нем устанавливается таймер проверки страниц на неактуальность - 2 минуты
+        ///     То есть, GC запускается каждую 2 минуты
         /// </summary>
         /// <param name="application">Объект Application приложения</param>
         public static void Start(HttpApplicationState application)
         {
+            CometServer.WriteLog("Start PageManager Start");
+
+            Application?.Clear(); 
+            _timer?.Dispose();
+
             Application = application;
-            var t = new Timer(120000);
-            t.Elapsed += TimerElapsed;
-            t.Enabled = true;
+
+            _timer = new Timer(120000);
+            _timer.Elapsed += TimerElapsed;
+            _timer.Enabled = true;
+
+            CometServer.WriteLog("End PageManager Start");
         }
 
         public static void TimerElapsed(object sender, ElapsedEventArgs e)
         {
-            CometServer.WriteLog("Start TimerElapsed");
+            CometServer.WriteLog("############# Start TimerElapsed ################");
             DeleteOldPagesFromApplication(sender, e);
+            CometServer.WriteLog("############# End TimerElapsed ################");
         }
 
         /// <summary>
@@ -44,7 +52,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="e">аргумент таймера</param>
         public static void DeleteOldPagesFromApplication(object sender, ElapsedEventArgs e)
         {
-            
             CometServer.WriteLog("Start DeleteOldPagesFromApplication");
 
             CometServer.ClearExpiredConnections();
@@ -61,6 +68,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                     CometServer.WriteLog("Application.Remove DeleteOldPages -> " + key);
                     continue;
                 }
+
                 if (p == null) continue;
 
                 if (!CometServer.Connections.Exists(s => s.ClientGuid == key))
@@ -72,7 +80,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             }
 
             Application.UnLock();
-          
+
+            CometServer.WriteLog("End DeleteOldPagesFromApplication");
         }
     }
 }
