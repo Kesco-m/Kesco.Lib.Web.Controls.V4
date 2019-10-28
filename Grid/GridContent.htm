@@ -1,7 +1,7 @@
 ﻿<div id="divGroupingPanel_[CID]" class="v4GroupingPanel_[CID] v4DropPanel_[CID]" style="display: none; min-height: 30px; vert-align: middle;">
     <div id="spanGroupingPanelEmpty_[CID]" style="padding-top: 5px;">[GROUPINGPANELEMPTYTEXT]</div>
 </div>
-<div id="[CID]" style="overflow: auto" class="divCheck"></div>
+<div id="[CID]" style="overflow: auto" class="v4Grid"></div>
 <div class="v4DivTable" style="margin-left: 10px; margin-top: 10px;">
     <div class="v4DivTableRow" id="divPageBar_[CID]" style="display: none;">
         <div class="v4DivTableCell">
@@ -9,20 +9,20 @@
         </div>
         <div id="divResultCount_[CID]" class="v4DivTableCell v4GridFilterText" style="white-space: nowrap;"></div>
         <div class="v4DivTableCell" id="divRefreshButton_[CID]">
-            <button id="btnRefresh_[CID]" style="margin-left: 20px; height: 20px; width: 20px;"></button>
+            <button id="btnRefresh_[CID]" style="height: 20px; margin-left: 20px; width: 20px;"></button>
         </div>
     </div>
 </div>
 
 <!-- Диалог настройки колонки-->
 <div id="divColumnSettingsForm_[CID]" style="display: none;">
-     <div id="divColumnSettingsForm_Sort_[CID]"></div>
+    <div id="divColumnSettingsForm_Sort_[CID]"></div>
     <hr class="v4HrPopup"/>
-     <div id="divColumnSettingsForm_ClearUserFilter_[CID]"  style="margin-bottom: 5px;"></div>
-     <div id="divColumnSettingsForm_UserFilter_[CID]"  style="margin-bottom: 10px;"></div>
-     
-     <div id="divColumnSettingsForm_AllValues_[CID]"></div>
-     <div id="divColumnSettingsForm_Values_[CID]" style="height:170px; overflow:auto;"></div>
+    <div id="divColumnSettingsForm_ClearUserFilter_[CID]" style="margin-bottom: 5px;"></div>
+    <div id="divColumnSettingsForm_UserFilter_[CID]" style="margin-bottom: 10px;"></div>
+
+    <div id="divColumnSettingsForm_AllValues_[CID]"></div>
+    <div id="divColumnSettingsForm_Values_[CID]" style="height: 170px; overflow: auto;"></div>
 </div>
 
 <div id="divColumnSettingsUserFilterForm_[CID]" style="display: none;">
@@ -33,7 +33,7 @@
 </div>
 
 <script>
-    $(document).ready(function () {
+    $(document).ready(function() {
         if ([GRID_AUTOSIZE] == false) return;
         var objFrom_ListData = gi("[CID]");
         var h = [GRID_HEIGHT];
@@ -48,7 +48,7 @@
 
             if (objFrom_ListData) $("#[CID]").height(h);
 
-            $(window).resize(function () {
+            $(window).resize(function() {
                 if (objFrom_ListData) {
                     var hr = $(window).height() - [MARGIN_BOTTOM];
                     if ([GROUPING]) hr = hr - 50;
@@ -56,6 +56,6 @@
                 }
             });
         }
-        
+
     });
 </script>

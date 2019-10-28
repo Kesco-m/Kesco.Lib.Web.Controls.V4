@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Specialized;
 
 namespace Kesco.Lib.Web.Controls.V4
 {
@@ -32,10 +31,10 @@ namespace Kesco.Lib.Web.Controls.V4
             {
                 case TextBoxEnum.AccountUnknown:
                 {
-                    if (!String.IsNullOrEmpty(Description))
+                    if (!string.IsNullOrEmpty(Description))
                         return Description + ": " + Resx.GetString("cAccountUnknown");
                 }
-                break;
+                    break;
             }
 
             return base.GetFilterClauseText();
@@ -43,7 +42,7 @@ namespace Kesco.Lib.Web.Controls.V4
 
         protected override bool IsEditable()
         {
-            return base.IsEditable() && (ValueTextBoxEnum != ((int)TextBoxEnum.AccountUnknown).ToString());
+            return base.IsEditable() && ValueTextBoxEnum != ((int) TextBoxEnum.AccountUnknown).ToString();
         }
 
         public override void OnChanged(ProperyChangedEventArgs e)

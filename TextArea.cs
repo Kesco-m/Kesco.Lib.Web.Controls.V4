@@ -46,38 +46,24 @@ namespace Kesco.Lib.Web.Controls.V4
                     Height.IsEmpty ? "" : string.Concat("height:", Height.ToString(), ";"),
                     MaxLength > 0 ? string.Concat("maxlength='", MaxLength, "'") : string.Empty);
 
-                if (IsRequired)
-                {
-                    w.Write(" onkeyup='v4_replaceStyleRequired(this)'");
-                }
+                if (IsRequired) w.Write(" onkeyup='v4_replaceStyleRequired(this)'");
                 w.Write(" onkeydown='v4t_keyDown(event);'");
-                if (IsDisabled)
-                {
-                    w.Write(" disabled='true'");
-                }
+                if (IsDisabled) w.Write(" disabled='true'");
 
-                w.Write(" t='{0}' help='{1}' ov='{2}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help), HttpUtility.HtmlEncode(OriginalValue));
+                w.Write(" t='{0}' help='{1}' ov='{2}' nv='{3}'", HttpUtility.HtmlEncode(Value),
+                    HttpUtility.HtmlEncode(Help), HttpUtility.HtmlEncode(OriginalValue),
+                    IsShowEditingStatus ? "1" : "");
 
                 if (!string.IsNullOrEmpty(NextControl))
                     w.Write(" nc='{0}'", GetHtmlIdNextControl());
                 if (TabIndex.HasValue)
                     w.Write(" TabIndex={0} ", TabIndex);
-                w.Write(" onchange=\"v4_ctrlChanged('{0}',true);\"",HtmlID);
+                w.Write(" onchange=\"v4_ctrlChanged('{0}',true);\"", HtmlID);
 
-                if (IsRequired && Value.Length == 0)
-                {
-                    w.Write(" class='v4s_required'");
-                }
-                if (Title.Length > 0)
-                {
-                    w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
-                }
-                if (Rows > 0)
-                {
-                    w.Write(" rows='{0}'", HttpUtility.HtmlEncode(Rows));
-                }
+                if (IsRequired && Value.Length == 0) w.Write(" class='v4s_required'");
+                if (Title.Length > 0) w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
+                if (Rows > 0) w.Write(" rows='{0}'", HttpUtility.HtmlEncode(Rows));
                 w.Write(" >{0}</textarea>", HttpUtility.HtmlEncode(Value));
-                
             }
         }
 
@@ -97,20 +83,16 @@ namespace Kesco.Lib.Web.Controls.V4
                 else
                 {
                     JS.Write("gi('{0}_0').value='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
-                    if (IsRequired)
-                    {
-                        JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
-                    }
+                    JS.Write("gi('{0}_0').setAttribute('t','{1}');", HtmlID,
+                        Value.Length == 0 ? "" : HttpUtility.JavaScriptStringEncode(Value));
+                    if (IsRequired) JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
                 }
             }
             else
             {
                 JS.Write("if(gi('{0}_0'))gi('{0}_0').value='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
                 JS.Write("if(gi('{0}_0'))gi('{0}_0').setAttribute('isRequired','{1}');", HtmlID, IsRequired ? 1 : 0);
-                if (IsRequired)
-                {
-                    JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
-                }
+                if (IsRequired) JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
             }
 
             if (PropertyChanged.Contains("IsRequired"))

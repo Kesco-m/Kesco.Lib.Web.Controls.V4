@@ -24,6 +24,7 @@ namespace Kesco.Lib.Web.Controls.V4.Renderer
         //:sYPos Sets the top position of the dialog window relative to the upper-left corner of the desktop. 
 
         public int dialogWidth = 400;
+
         public bool edgeSunken = false;
         // | raised } Specifies the edge style of the dialog window. The default is raised. ;
 

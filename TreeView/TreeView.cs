@@ -42,6 +42,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         private Button _currentBtnCancel;
         private Button _currentBtnFind;
         private Button _currentBtnHelp;
+        private LikeDislike _currentBtnLike;
         private Button _currentBtnSave;
         private Button _currentBtnSearch;
         private Button _currentBtnSortAlphabet;
@@ -82,6 +83,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             IsDraggable = true;
             ShowTopNodesInSearchResult = false;
             HelpButtonVisible = false;
+            LikeButtonVisible = false;
             IsEditableInDialog = true;
             AddFormTitle = Resx.GetString("lblAddition");
             EditFormTitle = Resx.GetString("lblEdit");
@@ -218,6 +220,11 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         public string ReturnType { get; set; }
 
         /// <summary>
+        ///     Условие возврата
+        /// </summary>
+        public string ReturnCondition { get; set; }
+
+        /// <summary>
         ///     Свойство указывающее, что у пользователя есть права на select
         /// </summary>
         private bool HasSelect { get; set; }
@@ -261,6 +268,11 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         ///     Показывать кнопку вызова справки
         /// </summary>
         public bool HelpButtonVisible { get; set; }
+
+        /// <summary>
+        ///     Показывать кнопку оценки интерфейса
+        /// </summary>
+        public bool LikeButtonVisible { get; set; }
 
         /// <summary>
         ///     Обработка клиентских команд
@@ -613,6 +625,15 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             };
             //V4Page.V4Controls.Add(_currentBtnHelp);
 
+            _currentBtnLike = new LikeDislike
+            {
+                ID = "btnLike_" + ID,
+                V4Page = V4Page,
+                LikeId = V4Page.LikeId,
+                Style = "float: right; margin-right: 11px; margin-top: 3px; cursor: pointer;"
+            };
+            V4Page.V4Controls.Add(_currentBtnLike);
+
             var returnData = V4Page.Request.QueryString["return"];
             var returnId = 0;
             if (int.TryParse(returnData, out returnId))
@@ -805,7 +826,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
 
             sourceContent = sourceContent.Replace(_constIdTag, ID);
 
-            string rootIds = string.Empty;
+            var rootIds = string.Empty;
 
             if (!string.IsNullOrWhiteSpace(V4Page.Request.QueryString["rootids"]))
                 rootIds = V4Page.Request.QueryString["rootids"];
@@ -815,7 +836,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                 rootIds = V4Page.Request.QueryString["parent"];
             else
                 rootIds = string.Join(",", RootIds);
-            
+
             sourceContent = sourceContent.Replace(_constRootIds, rootIds);
 
             sourceContent = sourceContent.Replace(_constSelectedIds,
@@ -838,6 +859,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             sourceContent = sourceContent.Replace(_constJsonData, JsonData);
             sourceContent = sourceContent.Replace(_constReturnData, V4Page.Request.QueryString["return"]);
             sourceContent = sourceContent.Replace(_constReturnType, ReturnType);
+            sourceContent = sourceContent.Replace(_constReturnCondition, ReturnCondition);
             sourceContent = sourceContent.Replace(_constListenerIndex, TreeViewCmdListnerIndex.ToString());
 
             sourceContent = sourceContent.Replace("[MSG1]", Resx.GetString("Inv_msgChangeOrderTreeView"));
@@ -889,14 +911,14 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             }
 
             cm += string.Format(
-                                @"}}; 
+                @"}}; 
                                 if (window.dialogWidth && window.dialogHeight && !{0}) {{
                                     delete items.item1;
                                     delete items.item2;
                                     delete items.item3;
                                 }}
-                                return items;}}", 
-                                IsEditableInDialog.ToString().ToLower());
+                                return items;}}",
+                IsEditableInDialog.ToString().ToLower());
 
             sourceContent = sourceContent.Replace(_constfuncContextMenu, cm);
 
@@ -1063,6 +1085,17 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             else
                 sourceContent = sourceContent.Replace(_constCtrlHelpButton, "");
 
+            //
+            if (LikeButtonVisible)
+                using (TextWriter currentLikeButtonTextWriter = new StringWriter())
+                {
+                    var currentWriter = new HtmlTextWriter(currentLikeButtonTextWriter);
+                    _currentBtnLike.RenderControl(currentWriter);
+                    sourceContent = sourceContent.Replace(_constCtrlLikeButton, currentLikeButtonTextWriter.ToString());
+                }
+            else
+                sourceContent = sourceContent.Replace(_constCtrlLikeButton, "");
+
             sourceContent =
                 sourceContent.Replace(_constCtrlSearchShowTop, ShowTopNodesInSearchResult.ToString().ToLower());
 
@@ -1081,6 +1114,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         private const string _constJsonData = "[JSON_DATA]";
         private const string _constReturnData = "[RETURN_DATA]";
         private const string _constReturnType = "[RETURN_TYPE]";
+        private const string _constReturnCondition = "[RETURN_CONDITION]";
         private const string _constListenerIndex = "[TreeViewCmdListnerIndex]";
         private const string _constIsSaveState = "[IsSaveState]";
         private const string _constIsDND = "[PL_DND]";
@@ -1117,6 +1151,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         private const string _constFilterHeaderName = "[C_FILTERNAME]";
         private const string _constCtrlFindButton = "[C_FINDBUTTON]";
         private const string _constCtrlHelpButton = "[C_HELPBUTTON]";
+        private const string _constCtrlLikeButton = "[C_LIKEBUTTON]";
         private const string _constMenuButtons = "[C_MENUBUTTONS]";
         private const string _constPageId = "[PAGEID]";
 

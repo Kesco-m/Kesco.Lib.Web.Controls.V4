@@ -42,6 +42,7 @@ namespace Kesco.Lib.Web.Controls.V4
         public int PaddingLeftRadio { get; set; }
         public int HeightRow { get; set; }
         public int MarginLeftLabel { get; set; }
+
         /// <summary>
         ///     Проверка выделен ли элемент в коллекции radio
         /// </summary>
@@ -79,7 +80,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 var oldVal = Value;
                 Value = collection["rb"];
                 OnChanged(new ProperyChangedEventArgs(oldVal, Value));
-                JS.Write("isChanged=true;");
+                JS.Write("v4_isChanged=true;");
             }
             else
             {
@@ -112,9 +113,11 @@ namespace Kesco.Lib.Web.Controls.V4
                         " onkeydown='v4cb_keyDown(event)' /><label for=\"{0}{1}_0\" style=\"margin-right: 15px;\">{2}</label>",
                         HtmlID, item.Code, HttpUtility.HtmlEncode(item.Name));
                 }
+
                 w.Write("</div>");
                 return;
             }
+
             w.Write("<table cellpadding=\"0\" cellspacing=\"0\">");
             foreach (var item in Items)
             {
@@ -128,10 +131,13 @@ namespace Kesco.Lib.Web.Controls.V4
                     w.Write(" nc='{0}'", GetHtmlIdNextControl());
                 if (TabIndex.HasValue)
                     w.Write(" TabIndex={0} ", TabIndex);
-                w.Write(" onkeydown='v4cb_keyDown(event)' /><label for=\"{0}{1}_0\" style=\"margin-left:{2}px;\">{3}</label>", HtmlID, item.Code, MarginLeftLabel,
+                w.Write(
+                    " onkeydown='v4cb_keyDown(event)' /><label for=\"{0}{1}_0\" style=\"margin-left:{2}px;\">{3}</label>",
+                    HtmlID, item.Code, MarginLeftLabel,
                     HttpUtility.HtmlEncode(item.Name));
                 w.Write("</td></tr>");
             }
+
             w.Write("</table></div>");
         }
     }

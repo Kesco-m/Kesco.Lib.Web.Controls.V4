@@ -51,10 +51,7 @@ namespace Kesco.Lib.Web.Controls.V4
             }
             set
             {
-                if (!_value.Equals(value))
-                {
-                    SetPropertyChanged("Value");
-                }
+                if (!_value.Equals(value)) SetPropertyChanged("Value");
                 value = value.Trim();
                 _value = value;
             }
@@ -67,7 +64,9 @@ namespace Kesco.Lib.Web.Controls.V4
         protected override void RenderControlBody(TextWriter w)
         {
             if (IsReadOnly)
+            {
                 w.Write(HttpUtility.HtmlEncode(Value));
+            }
             else
             {
                 w.Write(

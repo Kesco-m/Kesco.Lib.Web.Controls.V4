@@ -50,25 +50,17 @@ namespace Kesco.Lib.Web.Controls.V4
                       (int) CallerType + "'"
                     : "", Style);
 
-            if (!string.IsNullOrEmpty(Title))
-            {
-                w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
-            }
+            if (!string.IsNullOrEmpty(Title)) w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
 
-            if (TabIndex.HasValue)
-            {
-                w.Write(" TabIndex={0} ", TabIndex);
-            }
+            if (TabIndex.HasValue) w.Write(" TabIndex={0} ", TabIndex);
 
             w.Write(">{0}", Text);
 
             //В случае, если сушествует изображение
             if (!string.IsNullOrEmpty(ImgSrc))
-            {
                 w.Write("<img src='{0}' {1} {2}>", ImgSrc,
                     ImgWidth.IsEmpty ? "" : string.Concat("width='", ImgWidth, "'"),
                     ImgHeight.IsEmpty ? "" : string.Concat("height='", ImgHeight, "'"));
-            }
 
             w.Write("</a>");
         }
@@ -79,13 +71,9 @@ namespace Kesco.Lib.Web.Controls.V4
         public override void Flush()
         {
             if (PropertyChanged.Contains("Visible"))
-            {
                 JS.Write("gi('{0}').style.display='{1}';", HtmlID, Visible ? "" : "none");
-            }
             else if (PropertyChanged.Contains("IsReadOnly"))
-            {
                 JS.Write("gi('{0}').disabled='{1}';", HtmlID, IsReadOnly ? "1" : "");
-            }
         }
     }
 }

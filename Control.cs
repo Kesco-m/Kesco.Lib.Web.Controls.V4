@@ -15,7 +15,6 @@ using Kesco.Lib.BaseExtention.Enums.Controls;
 using Kesco.Lib.Entities;
 using Kesco.Lib.Entities.Documents;
 using Kesco.Lib.Localization;
-using Kesco.Lib.Web.Comet;
 using Kesco.Lib.Web.Controls.V4.Binding;
 using Kesco.Lib.Web.Controls.V4.Common;
 using Page = Kesco.Lib.Web.Controls.V4.Common.Page;
@@ -123,7 +122,7 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             List.Clear();
         }
-        
+
         /// <summary>
         ///     Метод добавления объекта нотификации
         /// </summary>
@@ -132,7 +131,6 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             List.Add(ntf);
         }
-
     }
 
     /// <summary>
@@ -219,6 +217,11 @@ namespace Kesco.Lib.Web.Controls.V4
         ///     Признак отрисовки контейнера контрола
         /// </summary>
         public bool RenderContainer { get; set; }
+
+        /// <summary>
+        ///     Признак что контрол не изменяет объект
+        /// </summary>
+        public bool IsNoModifying { get; set; }
 
         /// <summary>
         ///     Показывать изменение контрола в виде рамки
@@ -347,6 +350,11 @@ namespace Kesco.Lib.Web.Controls.V4
         public string BindingField { set; get; } = "";
 
         /// <summary>
+        ///     Связанное поле контрола
+        /// </summary>
+        public string BinderValue { set; get; }
+
+        /// <summary>
         ///     Признак имплементации события Changed
         /// </summary>
         public bool AttachedChangedEventHandler => Changed != null;
@@ -376,6 +384,12 @@ namespace Kesco.Lib.Web.Controls.V4
                 _isReadOnly = value;
             }
         }
+
+        /// <summary>
+        ///     Признак того, что контрол всегда находится в режиме "Только чтение"
+        /// </summary>
+        public bool IsReadOnlyAlways { get; set; }
+
 
         /// <summary>
         ///     Принудительно перерисовать значение контрола
@@ -512,6 +526,9 @@ namespace Kesco.Lib.Web.Controls.V4
         protected override void OnInit(EventArgs e)
         {
             base.OnInit(e);
+
+            if (V4Page is EntityPage) IsShowEditingStatus = true;
+
             V4OnInit();
         }
 
@@ -556,16 +573,26 @@ namespace Kesco.Lib.Web.Controls.V4
             if (V4Page is EntityPage)
             {
                 if (e.NewValue != e.OriginalValue && IsShowEditingStatus)
-                    JS.Write("$('#{0}_0').css('outline','1px solid goldenrod');", HtmlID);
+                {
+                    JS.Write("$('#{0}_0').addClass('v4_modified');", HtmlID);
+                    JS.Write("$(function() { v4_SetSaveButtonDisabled(false); });");
+                }
+                else
+                {
+                    JS.Write("$('#{0}_0').removeClass('v4_modified');", HtmlID);
+                    JS.Write("$(function() {{ v4_SetSaveButtonDisabled(!v4t_CheckChange('{0}_0')); }});", HtmlID);
+                }
+
 
                 var entity = ((EntityPage) V4Page).Entity;
-                if (entity != null && !entity.IsModified && e.NewValue != e.OldValue)
+                if (!IsNoModifying && entity != null && !entity.IsModified && e.NewValue != e.OriginalValue)
                 {
                     var page = (EntityPage) V4Page;
                     page.Entity.IsModified = true;
-                    var conn = CometServer.Connections.Find(u =>
-                        u.Id.ToString() == page.EntityId && u.Name == page.EntityName && u.ClientGuid == page.IDPage);
-                    if (conn != null) conn.IsModified = true;
+
+                    //var client = SignalServer.Connections.FirstOrDefault(u =>
+                    //    u.Id.ToString() == page.EntityId && u.Name == page.EntityName && u.ClientGuid == page.IDPage);
+                    //if (client != null) client.IsModified = true;
                 }
             }
         }
@@ -689,8 +716,8 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             if (PropertyChanged.Contains("Visible"))
             {
-                JS.Write("gi('{0}').style.display='{1}';", HtmlID, Visible ? DisplayStyle : "none");
-                JS.Write("if (gi('{0}_cptn'!=='undefined')) {{gi('{0}_cptn').style.display='{1}'}};", HtmlID,
+                JS.Write("if(gi('{0}')) gi('{0}').style.display='{1}';", HtmlID, Visible ? DisplayStyle : "none");
+                JS.Write("if (gi('{0}_cptn')) gi('{0}_cptn').style.display='{1}';", HtmlID,
                     Visible ? DisplayCaptionStyle : "none");
             }
 
@@ -781,8 +808,8 @@ namespace Kesco.Lib.Web.Controls.V4
                 Value = collection["v"];
                 var originalValue = collection["ov"];
                 OnChanged(new ProperyChangedEventArgs(oldVal, Value, originalValue));
-                if (!V4Page.JS.ToString().Contains("isChanged=true;"))
-                    JS.Write("isChanged=true;");
+                if (!V4Page.JS.ToString().Contains("v4_isChanged=true;"))
+                    JS.Write("v4_isChanged=true;");
             }
 
             if (collection["next"] == "1") JS.Write("v4_setFocus2NextCtrl('{0}');", GetFocusControl());
@@ -1033,31 +1060,38 @@ namespace Kesco.Lib.Web.Controls.V4
     public class ProperyChangedEventArgs : EventArgs
     {
         /// <summary>
-        ///     Новое значение
-        /// </summary>
-        public string NewValue;
-
-        /// <summary>
-        ///     Старое значение
-        /// </summary>
-        public string OldValue;
-
-        /// <summary>
-        ///     Оригинальное значение
-        /// </summary>
-        public string OriginalValue;
-
-        /// <summary>
         ///     Конструктор
         /// </summary>
         /// <param name="oldValue">Старое значение</param>
         /// <param name="newValue">Новое значение</param>
-        public ProperyChangedEventArgs(string oldValue, string newValue, string originalValue = null)
+        public ProperyChangedEventArgs(string oldValue, string newValue, string originalValue = null,
+            bool isTransfer = false)
         {
             OldValue = oldValue;
             NewValue = newValue;
             OriginalValue = originalValue ?? oldValue;
+            IsTransfer = isTransfer;
         }
+
+        /// <summary>
+        ///     Новое значение
+        /// </summary>
+        public string NewValue { get; set; }
+
+        /// <summary>
+        ///     Старое значение
+        /// </summary>
+        public string OldValue { get; set; }
+
+        /// <summary>
+        ///     Оригинальное значение
+        /// </summary>
+        public string OriginalValue { get; set; }
+
+        /// <summary>
+        ///     Переданное событие
+        /// </summary>
+        public bool IsTransfer { get; set; }
 
         /// <summary>
         ///     Признак принятия изменения значения зависимыми контролами (по умолчанию - true)

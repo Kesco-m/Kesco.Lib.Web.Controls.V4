@@ -127,7 +127,7 @@ namespace Kesco.Lib.Web.Controls.V4
 
 
             w.Write(" onclick=\"{0}\"", OnClick);
-            w.Write(" style = \"");
+            w.Write(" style = \"border-width: 1px !important;");
             if (!Visible)
                 w.Write("display:none;");
             if (Width != Unit.Empty)
@@ -143,10 +143,7 @@ namespace Kesco.Lib.Web.Controls.V4
 
             var cssClass = CSSClass;
             if (IsDisabled)
-            {
-                //w.Write(" disabled ");
-                cssClass = CSSClass.IsNullEmptyOrZero() ? "button_disabled" : (CSSClass + ", button_disabled");
-            }
+                cssClass = CSSClass.IsNullEmptyOrZero() ? "button_disabled" : CSSClass + ", button_disabled";
 
             if (!string.IsNullOrEmpty(cssClass)) w.Write(" class='{0}'", cssClass);
 
@@ -161,7 +158,8 @@ namespace Kesco.Lib.Web.Controls.V4
             w.Write("</button>");
 
             if (!string.IsNullOrEmpty(IconJQueryUI))
-                w.Write("<script>$('#{0}').button({{icons: {{primary: {1}{2}}}{3}}});</script>", HtmlID, IconJQueryUI, !string.IsNullOrEmpty(IconJQueryUISecondary)?$", secondary: {IconJQueryUISecondary}":"",
+                w.Write("<script>$('#{0}').button({{icons: {{primary: {1}{2}}}{3}}});</script>", HtmlID, IconJQueryUI,
+                    !string.IsNullOrEmpty(IconJQueryUISecondary) ? $", secondary: {IconJQueryUISecondary}" : "",
                     SelectedRunMenu != null && SelectedRunMenu.Count > 0 ? ", text: false" : "");
             else if (!string.IsNullOrEmpty(IconKesco))
                 w.Write("<script>$('#{0}').prepend(\"<img src='{1}'/>\").button();</script>", HtmlID, IconKesco);
@@ -189,12 +187,10 @@ namespace Kesco.Lib.Web.Controls.V4
             else if (PropertyChanged.Contains("IsReadOnly"))
                 JS.Write("if(gi('{0}'))gi('{0}').disabled='{1}';", HtmlID, IsReadOnly || IsDisabled ? "1" : "");
             else if (PropertyChanged.Contains("IsDisabled"))
-            {
                 if (!IsDisabled)
-                {
-                    JS.Write("$('#{0}').prop('disabled', false).removeClass('ui-state-disabled').addClass('ui-state-default');", HtmlID);
-                }
-            }
+                    JS.Write(
+                        "$('#{0}').prop('disabled', false).removeClass('ui-state-disabled').addClass('ui-state-default');",
+                        HtmlID);
 
             if (PropertyChanged.Contains("Text")) JS.Write("if(gi('{0}'))gi('{0}').innerText='{1}';", HtmlID, Text);
         }

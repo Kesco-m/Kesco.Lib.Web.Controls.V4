@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Configuration;
 using System.Web;
 using Kesco.Lib.Log;
 using Kesco.Lib.Web.Controls.V4.Common;
 using Kesco.Lib.Web.Settings;
-using Kesco.Lib.Web.Comet;
 
 namespace Kesco.Lib.Web.Controls.V4.Globals
 {
@@ -25,9 +23,8 @@ namespace Kesco.Lib.Web.Controls.V4.Globals
             {
                 var d = Config.domain;
                 if (string.IsNullOrEmpty(d))
-                {
-                    d = "kescom.com";
-                }
+                    throw new Exception("В конфигурационном файле не указан параметр Domain");
+
                 return d;
             }
         }
@@ -39,18 +36,12 @@ namespace Kesco.Lib.Web.Controls.V4.Globals
         /// <param name="e">Параметры</param>
         protected virtual void Application_Start(object sender, EventArgs e)
         {
-            CometServer.WriteLog("=====> Start Application_Start");
-            PageManager.Start(Application);
+            PageManager.Start();
 
             var log = new LogModule(Config.appName);
             log.Init(Config.smtpServer, Config.email_Support);
             log.OnDispose += log_OnDispose;
             Logger.Init(log);
-            
-            //Запуск обработчика Comet сервера
-            CometServer.Start();
-
-            CometServer.WriteLog("=====> End Application_Start");
         }
 
         /// <summary>
@@ -60,10 +51,7 @@ namespace Kesco.Lib.Web.Controls.V4.Globals
         /// <param name="e">Параметры</param>
         protected virtual void Application_End(object sender, EventArgs e)
         {
-            //Остановка обработчика Comet сервера
-            CometServer.Stop();
         }
-
 
 
         /// <summary>
@@ -75,17 +63,19 @@ namespace Kesco.Lib.Web.Controls.V4.Globals
         /// <param name="e">Параметры</param>
         protected virtual void Application_BeginRequest(object sender, EventArgs e)
         {
-            //HttpContext.Current.Response.AddHeader("Access-Control-Allow-Origin", Domain);
-            HttpContext.Current.Response.AddHeader("Access-Control-Allow-Credentials", "true");
+            HttpContext.Current?.Response?.AddHeader("Access-Control-Allow-Origin", "*");
+            HttpContext.Current?.Response?.AddHeader("Access-Control-Allow-Credentials", "true");
 
-            if (Request.Url.Host.IndexOf(Domain, StringComparison.Ordinal) == -1)
-            {
-                var uriBuilder = new UriBuilder(Request.Url);
-                var authority = HttpContext.Current.Request.Url.Authority;
-                if (authority == "localhost" || authority.IndexOf(":", StringComparison.InvariantCulture)>-1) authority = Server.MachineName;
-                uriBuilder.Host = authority + "." + Domain;
-                Response.Redirect(uriBuilder.Uri.ToString(), false);
-            }
+            if (Request.Url.Host.IndexOf(Domain, StringComparison.Ordinal) != -1) return;
+
+            var uriBuilder = new UriBuilder(Request.Url);
+            var authority = HttpContext.Current?.Request.Url.Authority;
+            if (string.IsNullOrEmpty(authority)) return;
+
+            if (authority == "localhost" || authority?.IndexOf(":", StringComparison.InvariantCulture) > -1)
+                authority = Server.MachineName;
+            uriBuilder.Host = authority + "." + Domain;
+            Response.Redirect(uriBuilder.Uri.ToString(), false);
         }
 
         /// <summary>

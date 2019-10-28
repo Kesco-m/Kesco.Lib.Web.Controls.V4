@@ -4,7 +4,6 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
-using System.Threading;
 using System.Web;
 using System.Web.UI;
 using Kesco.Lib.BaseExtention;
@@ -37,14 +36,16 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         private DateTime _minDate;
 
+        private string _originalValue = "";
+
         private DateTime? _valueDate;
+
+        public bool MonthYearFormat = false;
 
         /// <summary>
         ///     Значение выбранного условия (из перечисления)
         /// </summary>
         public string ValueDatePickerEnum = "0";
-
-        public bool MonthYearFormat = false;
 
         /// <summary>
         ///     Минимальная дата, возможная для выбора
@@ -53,7 +54,7 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             set
             {
-                if (!String.IsNullOrEmpty(value))
+                if (!string.IsNullOrEmpty(value))
                     DateTime.TryParseExact(value, _dateFormat, CultureInfo.GetCultureInfo("ru-RU"), DateTimeStyles.None,
                         out _minDate);
             }
@@ -66,7 +67,7 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             set
             {
-                if (!String.IsNullOrEmpty(value))
+                if (!string.IsNullOrEmpty(value))
                     DateTime.TryParseExact(value, _dateFormat, CultureInfo.GetCultureInfo("ru-RU"), DateTimeStyles.None,
                         out _maxDate);
             }
@@ -83,18 +84,15 @@ namespace Kesco.Lib.Web.Controls.V4
                 if (base.Value != value)
                 {
                     DateTime date;
-                    var succeed = DateTime.TryParse(value, CultureInfo.GetCultureInfo("ru-RU"), DateTimeStyles.None, out date);
+                    var succeed = DateTime.TryParse(value, CultureInfo.GetCultureInfo("ru-RU"), DateTimeStyles.None,
+                        out date);
 
-                    _valueDate = succeed ? date : (DateTime?)null;
+                    _valueDate = succeed ? date : (DateTime?) null;
 
                     if (MonthYearFormat)
-                    {
                         base.Value = succeed ? date.ToString("MMMM yyyy") : "";
-                    }
                     else
-                    {
                         base.Value = succeed ? ToDateFormat(date) : "";
-                    }
                 }
             }
         }
@@ -115,6 +113,20 @@ namespace Kesco.Lib.Web.Controls.V4
             }
         }
 
+        /// <summary>
+        ///     Оригинальное значение контрола
+        /// </summary>
+        public override string OriginalValue
+        {
+            get { return _originalValue; }
+            set
+            {
+                value = value.TrimNoNullError();
+                if (value.Length > 10) value = value.Substring(0, 10);
+                _originalValue = value;
+            }
+        }
+
         private string ToDateFormat(DateTime date)
         {
             if (date <= DateTime.MinValue)
@@ -130,14 +142,14 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="properyChangedEventArgs">Инициатор события</param>
         private void PeriodOnChanged(object sender, ProperyChangedEventArgs properyChangedEventArgs)
         {
-            OnChanged(new ProperyChangedEventArgs(Value, Value));
+            OnChanged(new ProperyChangedEventArgs(Value, Value, HttpUtility.HtmlEncode(OriginalValue)));
         }
 
         /// <summary>
         ///     Установка заголовка
         /// </summary>
         /// <param name="val">Значение заголовка</param>
-        private void SetControlClause(object val)
+        private void SetControlClause(object val, object origVal)
         {
             if (val != null)
             {
@@ -148,11 +160,12 @@ namespace Kesco.Lib.Web.Controls.V4
                     Value = "";
                     FocusToNextCtrl();
                 }
+
                 IsInterval = ValueDatePickerEnum ==
                              ((int) DatePickerEnum.Interval).ToString(CultureInfo.InvariantCulture);
                 IsCanUseFilter = CheckCanUse();
                 SetPropertyChanged("ListChanged");
-                OnChanged(new ProperyChangedEventArgs(Value, Value));
+                OnChanged(new ProperyChangedEventArgs(Value, Value, origVal?.ToString()));
             }
         }
 
@@ -185,6 +198,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 w.Write("<td name='tblClause{1}'>{0}</td>", HttpUtility.HtmlEncode(item.Name), HtmlID);
                 w.Write("</tr>");
             }
+
             w.Write("</table>");
         }
 
@@ -194,7 +208,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <returns></returns>
         public string GetFilterClauseText()
         {
-            if (String.IsNullOrEmpty(Description)) return "";
+            if (string.IsNullOrEmpty(Description)) return "";
             switch ((DatePickerEnum) Convert.ToInt32(ValueDatePickerEnum))
             {
                 case DatePickerEnum.Any:
@@ -213,12 +227,11 @@ namespace Kesco.Lib.Web.Controls.V4
                     var sfrom = ((PeriodTimePicker) V4Page.V4Controls[ID + "PeriodDp"]).ValueFrom;
                     var sto = ((PeriodTimePicker) V4Page.V4Controls[ID + "PeriodDp"]).ValueTo;
                     if (from != null && to != null)
-                    {
                         return Description + ": " + Resx.GetString("dInterval") + " " + Resx.GetString("lFrom") + " " +
                                sfrom + " " + Resx.GetString("lTo") + " " + sto;
-                    }
                     break;
             }
+
             return "";
         }
 
@@ -244,6 +257,7 @@ namespace Kesco.Lib.Web.Controls.V4
                     if (from != null && to != null) return true;
                     break;
             }
+
             return false;
         }
 
@@ -252,12 +266,15 @@ namespace Kesco.Lib.Web.Controls.V4
             w.Write("<span id='{0}'>", HtmlID);
             w.Write(
                 "<input type='text' value='{0}' id='{1}_0' class=\"{3}\" ctrltype=\"{4}\" style=\"width:80px;\" onchange=\"v4_ctrlChanged('{1}',true, true,{5});\" onkeydown='v4d_keyDown(event, this);' {2}",
-                MonthYearFormat ? MonthFormat(Value) : Value, HtmlID, Visible ? "" : "style=\"display:none;\"", MonthYearFormat ? "v4d_monthdatepicker" : "v4d_datepicker", MonthYearFormat ? "month" : "date", MonthYearFormat ? "true" : "false");
+                MonthYearFormat ? MonthFormat(Value) : Value, HtmlID, Visible ? "" : "style=\"display:none;\"",
+                MonthYearFormat ? "v4d_monthdatepicker" : "v4d_datepicker", MonthYearFormat ? "month" : "date",
+                MonthYearFormat ? "true" : "false");
 
-            w.Write(" t='{0}' help='{1}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help));
-            
+            w.Write(" t='{0}' help='{1}' ov='{2}' nv='{3}'", HttpUtility.HtmlEncode(Value),
+                HttpUtility.HtmlEncode(Help), HttpUtility.HtmlEncode(OriginalValue), IsShowEditingStatus ? "1" : "");
+
             w.Write(" isRequired={0}", IsRequired ? 1 : 0);
-            
+
             if (IsDisabled)
                 w.Write(" disabled ");
 
@@ -271,15 +288,14 @@ namespace Kesco.Lib.Web.Controls.V4
             w.Write("</span>");
 
             if (!V4Page.V4IsPostBack)
-                w.Write("<script>v4_Datepicker.init('{0}_0', '{1}', '{2}'); v4_replaceStyleRequired(gi('{0}_0'));</script>", HtmlID, V4Page.CurrentUser.Language, MonthYearFormat);
+                w.Write(
+                    "<script>v4_Datepicker.init('{0}_0', '{1}', '{2}'); v4_replaceStyleRequired(gi('{0}_0'));</script>",
+                    HtmlID, V4Page.CurrentUser.Language, MonthYearFormat);
         }
 
         private string MonthFormat(string val)
         {
-            if (!val.IsNullEmptyOrZero())
-            {
-                val = DateTime.Parse(val).ToString("MMMM yyyy");
-            }
+            if (!val.IsNullEmptyOrZero()) val = DateTime.Parse(val).ToString("MMMM yyyy");
             return val;
         }
 
@@ -298,9 +314,9 @@ namespace Kesco.Lib.Web.Controls.V4
             {
                 if (val == null)
                     Value = "";
-                else if (type == typeof (DateTime))
+                else if (type == typeof(DateTime))
                     Value = ((DateTime) val).ToString(_dateFormat);
-                else if (type == typeof (DateTime?))
+                else if (type == typeof(DateTime?))
                     Value = ((DateTime?) val).Value.ToString(_dateFormat);
             }
             else
@@ -316,6 +332,7 @@ namespace Kesco.Lib.Web.Controls.V4
 
                 val = newval;
             }
+
             return changed;
         }
 
@@ -340,6 +357,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 _list.Add(new Item(((int) DatePickerEnum.Null).ToString(CultureInfo.InvariantCulture),
                     Resx.GetString("dNull")));
             }
+
             IsUseCondition = true;
 
             //TODO: Ограничение по мин и макс дате для TextBox
@@ -353,17 +371,15 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             base.ProcessCommand(collection);
             if (collection["cmd"] != null)
-            {
                 switch (collection["cmd"])
                 {
                     case "popupHead":
                         ShowPopupWindowClause();
                         break;
                     case "setHead":
-                        SetControlClause(collection["val"]);
+                        SetControlClause(collection["val"], collection["ov"]);
                         break;
                 }
-            }
         }
 
         /// <summary>
@@ -377,14 +393,15 @@ namespace Kesco.Lib.Web.Controls.V4
                 w.Write(HttpUtility.HtmlEncode(Value));
                 return;
             }
+
             if (IsUseCondition)
             {
                 IsInterval = ValueDatePickerEnum ==
                              ((int) DatePickerEnum.Interval).ToString(CultureInfo.InvariantCulture);
-                var isNovalue = (ValueDatePickerEnum ==
-                                 ((int) DatePickerEnum.Null).ToString(CultureInfo.InvariantCulture) ||
-                                 ValueDatePickerEnum ==
-                                 ((int) DatePickerEnum.Any).ToString(CultureInfo.InvariantCulture));
+                var isNovalue = ValueDatePickerEnum ==
+                                ((int) DatePickerEnum.Null).ToString(CultureInfo.InvariantCulture) ||
+                                ValueDatePickerEnum ==
+                                ((int) DatePickerEnum.Any).ToString(CultureInfo.InvariantCulture);
                 var period = new PeriodTimePicker
                 {
                     HtmlID = ID + "PeriodDp",
@@ -433,7 +450,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         public override void Flush()
         {
             var setDisabled = PropertyChanged.Contains("IsDisabled");
-            
+
             base.Flush();
 
             if (PropertyChanged.Contains("Value"))
@@ -442,7 +459,8 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 if (ValueDate > _maxDate && _maxDate != DateTime.MinValue && ValueDate != DateTime.MinValue)
                     ValueDate = _maxDate;
 
-                JS.Write("if(gi('{0}_0')){{gi('{0}_0').value='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
+                JS.Write("if(gi('{0}_0')){{gi('{0}_0').value='{1}';", HtmlID,
+                    HttpUtility.JavaScriptStringEncode(Value));
                 JS.Write("gi('{0}_0').setAttribute('t','{1}');}}", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
             }
 
@@ -456,8 +474,8 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     JS.Write("hi('{0}_1');", ID);
                     JS.Write("di('{0}PeriodDp');", ID);
                 }
-                else if ((ValueDatePickerEnum == ((int) DatePickerEnum.Null).ToString(CultureInfo.InvariantCulture)) ||
-                         (ValueDatePickerEnum == ((int) DatePickerEnum.Any).ToString(CultureInfo.InvariantCulture)))
+                else if (ValueDatePickerEnum == ((int) DatePickerEnum.Null).ToString(CultureInfo.InvariantCulture) ||
+                         ValueDatePickerEnum == ((int) DatePickerEnum.Any).ToString(CultureInfo.InvariantCulture))
                 {
                     JS.Write("gi('{0}_0').disabled=1;", ID);
                     JS.Write("gi('{0}_1').disabled=1;", ID);
@@ -478,11 +496,10 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             if (IsReadOnly) return;
 
             JS.Write("v4_Datepicker.init('{0}_0', '{1}', '{2}');", ID, V4Page.CurrentUser.Language, MonthYearFormat);
-                
+
             if (IsDisabled) IsRequired = false;
-            JS.Write("gi('{0}_0').setAttribute('isRequired','{1}');", ID, IsRequired ? 1 : 0);
+            JS.Write("if (gi('{0}_0')) gi('{0}_0').setAttribute('isRequired','{1}');", ID, IsRequired ? 1 : 0);
             JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", ID);
         }
-
     }
 }

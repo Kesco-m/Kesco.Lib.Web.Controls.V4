@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.Enums.Controls;
-using Kesco.Lib.Web.Controls.V4.Common;
 
 namespace Kesco.Lib.Web.Controls.V4
 {
@@ -26,12 +24,9 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="w">Поток</param>
         public override void RenderControl(TextWriter w)
         {
-            w.Write(String.Format(@"<div id=""pageHeader"" class='v4divHeader' style=""z-index:9999; height:23px""><div> "));
-            
-            if (V4Page.ReturnId.IsNullEmptyOrZero())
-            {
-                w.Write(HtmlButtons(""));
-            }
+            w.Write(@"<div id=""pageHeader"" class='v4divHeader' style=""z-index:9999; height:23px""><div> ");
+
+            if (V4Page.ReturnId.IsNullEmptyOrZero()) w.Write(HtmlButtons(""));
 
             if (!string.IsNullOrEmpty(V4Page.HelpUrl))
             {
@@ -50,7 +45,22 @@ namespace Kesco.Lib.Web.Controls.V4
                 btnHelp.PropertyChanged.Clear();
             }
 
-            w.Write(String.Format(@"</div></div>"));
+            if (!V4Page.LikeId.IsNullEmptyOrZero())
+            {
+                var btnLike = new LikeDislike
+                {
+                    ID = "btnLike",
+                    V4Page = V4Page,
+                    LikeId = V4Page.LikeId,
+                    Style = "float: right; margin-right: 11px; margin-top: 3px; cursor: pointer;"
+                };
+
+
+                V4Page.V4Controls.Add(btnLike);
+                btnLike.RenderControl(w);
+            }
+
+            w.Write(@"</div></div>");
 
             var menuHtml = "<script>activateMenuScriptPart();</script>";
             menuHtml += "<style>.ui-icon-menu-person { background-position: -147px -96px; padding-left: 2px; }" +
@@ -61,7 +71,6 @@ namespace Kesco.Lib.Web.Controls.V4
                         ".ui-icon-menu-print { background-position: -160px -98px; padding-left: 2px;}" +
                         ".ui-icon-menu-trash { background-position: -176px -98px; padding-left: 2px;}</style>";
             w.Write(menuHtml);
-
         }
 
         private string HtmlButtons(string menuBody)
@@ -69,53 +78,53 @@ namespace Kesco.Lib.Web.Controls.V4
             foreach (var item in MenusItems.OrderBy(t => t.Order))
             {
                 menuBody +=
-                    String.Format(
+                    string.Format(
                         @"{1}<div class='v4firstMenuButtonDiv' id='div{0}_0' style='display: inline-block;'>",
                         item.ItemID,
                         item.BeforeButtonSeparator
-                            ? String.Format(
-                                @"<img src='/styles/TabsBGVertical.gif' alt='' class='v4MenuSeparator'></img>")
+                            ? @"<img src='/styles/TabsBGVertical.gif' alt='' class='v4MenuSeparator'></img>"
                             : "");
                 //menuBody += String.Format(@"<button class='v4menuButton {7}' id='btn{0}' {1} {2}>{6}{5}{3}{4}</button>",
-                menuBody += String.Format(@"<button class='{7}' id='btn{0}' {1} {2}>{6}{5}{3}{4}</button>",
+                menuBody += string.Format(@"<button class='{7}' id='btn{0}' {1} {2}>{6}{5}{3}{4}</button>",
                     item.ItemID + "_0",
-                    !String.IsNullOrEmpty(item.Style)
+                    !string.IsNullOrEmpty(item.Style)
                         ? "style='" + item.Style + "'"
                         : " style='width:" + item.ButtonWidth + "px;'",
                     ReturnActionHtml(item),
-                    String.Format(@"<label {1}>{0}</label>", item.NameRUS,
-                        !String.IsNullOrEmpty(item.Image) || !String.IsNullOrEmpty(item.ImageFromCollection)
+                    string.Format(@"<label {1}>{0}</label>", item.NameRUS,
+                        !string.IsNullOrEmpty(item.Image) || !string.IsNullOrEmpty(item.ImageFromCollection)
                             ? "class='v4menuButtonTextWithImg'"
                             : ""),
-                    item.ItemsList.Count != 0 ? "<img src='/styles/ScrollDownEnabled.gif' class='v4menuArrowDown'>" : "",
-                    !String.IsNullOrEmpty(item.Image)
-                        ? String.Format(@"<img class='v4menuButtonImage' src='/styles/{0}'>", item.Image)
+                    item.ItemsList.Count != 0
+                        ? "<img src='/styles/ScrollDownEnabled.gif' class='v4menuArrowDown'>"
                         : "",
-                    !String.IsNullOrEmpty(item.ImageFromCollection)
-                        ? String.Format(@"<span class='{0}' class='v4menuArrowDown'></span>", item.ImageFromCollection)
+                    !string.IsNullOrEmpty(item.Image)
+                        ? string.Format(@"<img class='v4menuButtonImage' src='/styles/{0}'>", item.Image)
+                        : "",
+                    !string.IsNullOrEmpty(item.ImageFromCollection)
+                        ? string.Format(@"<span class='{0}' class='v4menuArrowDown'></span>", item.ImageFromCollection)
                         : "",
                     //item.ItemsList.Count != 0 ? "v4menuButtonFirstLineOpener" : ""
                     ""
-                    );
+                );
 
                 var itemsMenuBody = "";
                 if (item.ItemsList.Count != 0)
                 {
                     itemsMenuBody +=
-                        String.Format(
-                            @"<table class='v4menuTable' style='position: absolute; display: none; z-index: 5001;'>");
+                        @"<table class='v4menuTable' style='position: absolute; display: none; z-index: 5001;'>";
                     foreach (var innerItems in item.ItemsList.OrderBy(t => t.Order))
-                    {
                         itemsMenuBody += HtmlButtonsBottom(innerItems);
-                    }
-                    itemsMenuBody += String.Format(@"</table>");
+                    itemsMenuBody += @"</table>";
                 }
+
                 menuBody += itemsMenuBody;
-                menuBody += String.Format(@"</div>{0}",
+                menuBody += string.Format(@"</div>{0}",
                     item.AfterButtonSeparator
-                        ? String.Format(@"<img src='/styles/TabsBGVertical.gif' class='v4MenuSeparator' alt=''></img>")
+                        ? @"<img src='/styles/TabsBGVertical.gif' class='v4MenuSeparator' alt=''></img>"
                         : "");
             }
+
             return menuBody;
         }
 
@@ -124,48 +133,47 @@ namespace Kesco.Lib.Web.Controls.V4
             var menuBody = "";
 
             menuBody +=
-                String.Format(
+                string.Format(
                     @"<tr class='v4menuTRopener'><td>{6}<button class='v4menuButton  {7}' id='btn{0}' {1} {2}>{5}{4} {3}</button>",
                     item.ItemID + "_0",
-                    !String.IsNullOrEmpty(item.Style)
+                    !string.IsNullOrEmpty(item.Style)
                         ? "style='" + item.Style + "'"
                         : " style='width:" + item.ButtonWidth + "px; text-align:left;'",
                     ReturnActionHtml(item),
-                    String.Format(@"<label {1} >{0}</label>", item.NameRUS,
-                        !String.IsNullOrEmpty(item.Image) || !String.IsNullOrEmpty(item.ImageFromCollection)
+                    string.Format(@"<label {1} >{0}</label>", item.NameRUS,
+                        !string.IsNullOrEmpty(item.Image) || !string.IsNullOrEmpty(item.ImageFromCollection)
                             ? "class='v4menuButtonTextWithImg'"
                             : ""),
-                    !String.IsNullOrEmpty(item.Image)
-                        ? String.Format(@"<img class='v4menuButtonImage' src='/styles/{0}'>", item.Image)
+                    !string.IsNullOrEmpty(item.Image)
+                        ? string.Format(@"<img class='v4menuButtonImage' src='/styles/{0}'>", item.Image)
                         : "",
-                    !String.IsNullOrEmpty(item.ImageFromCollection)
-                        ? String.Format(@"<span class='{0}' style='position:absolute'></span>", item.ImageFromCollection)
+                    !string.IsNullOrEmpty(item.ImageFromCollection)
+                        ? string.Format(@"<span class='{0}' style='position:absolute'></span>",
+                            item.ImageFromCollection)
                         : "",
                     item.BeforeButtonSeparator
-                        ? String.Format(
-                            @"<img src='/styles/TabsBGHorisontal.gif' alt='' class='v4MenuSeparatorHorisont'></img>")
+                        ? @"<img src='/styles/TabsBGHorisontal.gif' alt='' class='v4MenuSeparatorHorisont'></img>"
                         : "",
                     item.ItemsList.Count == 0 ? "v4menuButtonLineOpener" : "");
 
             if (item.ItemsList.Count != 0)
             {
-                menuBody += String.Format(@"<td id='dt{0}' style='display:none; position: absolute;'>",
+                menuBody += string.Format(@"<td id='dt{0}' style='display:none; position: absolute;'>",
                     item.ItemID + "_0");
-                menuBody += String.Format(@"<table class='v4menuTable'>");
+                menuBody += @"<table class='v4menuTable'>";
 
                 menuBody = item.ItemsList.Aggregate(menuBody,
                     (current, innerItem) => current + HtmlButtonsBottom(innerItem));
 
-                menuBody += String.Format(@"</table>");
-                menuBody += String.Format(@"{0}</td>",
+                menuBody += @"</table>";
+                menuBody += string.Format(@"{0}</td>",
                     item.AfterButtonSeparator
-                        ? String.Format(
-                            @"<img src='/styles/TabsBGHorisontal.gif' alt='' class='v4MenuSeparatorHorisont'></img>")
+                        ? @"<img src='/styles/TabsBGHorisontal.gif' alt='' class='v4MenuSeparatorHorisont'></img>"
                         : "");
             }
 
 
-            menuBody += String.Format(@"</td></tr>");
+            menuBody += @"</td></tr>";
             return menuBody;
         }
 
@@ -175,7 +183,7 @@ namespace Kesco.Lib.Web.Controls.V4
             {
                 case MenuButtonActionType.UrlAction:
                     return
-                        String.Format(
+                        string.Format(
                             "onclick='v4_windowOpen(\"{0}\", \"{1}\", \"menubar={2},location={3},resizable={4},scrollbars={5},status={6},height={7},width={8}\",\"{9}\"); return false;'",
                             Item.Action.Url,
                             Item.ItemID,
@@ -193,13 +201,14 @@ namespace Kesco.Lib.Web.Controls.V4
                         cmdParametrs = cmdParametrs + string.Format("\"{0}\", \"{1}\",", param.Key, param.Value);
 
                     if (cmdParametrs != "") cmdParametrs = cmdParametrs.Remove(cmdParametrs.Length - 1, 1);
-                    return String.Format("onclick='cmd(\"cmd\", \"{0}\"{1})'", Item.Action.CmdActionName,
-                        !String.IsNullOrEmpty(cmdParametrs) ? "," + cmdParametrs : "");
+                    return string.Format("onclick='cmd(\"cmd\", \"{0}\"{1})'", Item.Action.CmdActionName,
+                        !string.IsNullOrEmpty(cmdParametrs) ? "," + cmdParametrs : "");
                 case MenuButtonActionType.JSAction:
-                    return String.Format("onclick='{0}'", Item.Action.Url);
+                    return string.Format("onclick='{0}'", Item.Action.Url);
                 case MenuButtonActionType.None:
                     return "";
             }
+
             return null;
         }
 
@@ -236,7 +245,7 @@ namespace Kesco.Lib.Web.Controls.V4
             public int Width { get; set; }
             public string CmdActionName { get; set; }
             public string Target { get; set; }
-            public Dictionary<String, String> CmdParams { get; set; }
+            public Dictionary<string, string> CmdParams { get; set; }
         }
 
         public class MenuTree

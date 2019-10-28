@@ -1,5 +1,4 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -10,8 +9,6 @@ using System.Linq;
 using System.Web;
 using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.Enums.Controls;
-using Kesco.Lib.Web.Controls.V4.Common;
-using System.Reflection;
 using Kesco.Lib.Entities.Corporate;
 
 namespace Kesco.Lib.Web.Controls.V4
@@ -25,24 +22,10 @@ namespace Kesco.Lib.Web.Controls.V4
     /// <summary>
     ///     Класс выбора бизнес-сущностей
     /// </summary>
-    
     public abstract class Select : V4Control
     {
         /// <summary>
-        /// Класс описывающий событие выбора элемента 
-        /// </summary>
-        public class CheckEventArgs : EventArgs
-        {
-            public CheckEventArgs(bool checkedValue)
-            {
-                Checked = checkedValue;
-            }
-
-            public bool Checked { get; set; }
-        }
-
-        /// <summary>
-        /// В том случае, если используется перечень полей, указывается, какое поле брать в качестве названия
+        ///     В том случае, если используется перечень полей, указывается, какое поле брать в качестве названия
         /// </summary>
         public int IndexField;
 
@@ -74,6 +57,19 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public int CLID { get; set; }
 
+        /// <summary>
+        ///     Класс описывающий событие выбора элемента
+        /// </summary>
+        public class CheckEventArgs : EventArgs
+        {
+            public CheckEventArgs(bool checkedValue)
+            {
+                Checked = checkedValue;
+            }
+
+            public bool Checked { get; set; }
+        }
+
         #region Делегаты
 
         /// <summary>
@@ -92,7 +88,7 @@ namespace Kesco.Lib.Web.Controls.V4
         public event BeforeSearchEventHandler BeforeSearch;
 
         /// <summary>
-        /// Функция обратного вызова для события выбора элемента
+        ///     Функция обратного вызова для события выбора элемента
         /// </summary>
         public event EventHandler<CheckEventArgs> CheckChanged;
 
@@ -106,18 +102,22 @@ namespace Kesco.Lib.Web.Controls.V4
         private readonly List<Item> _clauseItems = new List<Item>();
 
         //Связанный с элементом список выбранных значений
-        private ListItems _list = null;
+        private ListItems _list;
 
         private const string _fieldset_style = "position: relative; padding-top: 5px;";
-        private const string _fieldset_div_style = "width: 20px; height:20px; position: absolute; top: 0px; right: 0px;";
+
+        private const string _fieldset_div_style =
+            "width: 20px; height:20px; position: absolute; top: 0px; right: 0px;";
 
         private string _fieldset_input_onclick(string id)
         {
-            return string.Format("cmd('ctrl', '{0}', 'checked', this.checked ? '1' : '0'); if(gi('{0}_2').checked) gi('{0}_1').focus(); else gi('{0}_2').focus();", id);
+            return string.Format(
+                "cmd('ctrl', '{0}', 'checked', this.checked ? '1' : '0'); if(gi('{0}_2').checked) gi('{0}_1').focus(); else gi('{0}_2').focus();",
+                id);
         }
 
         /// <summary>
-        /// Признак использования элемента CheckBox
+        ///     Признак использования элемента CheckBox
         /// </summary>
         public bool HasCheckbox
         {
@@ -139,7 +139,7 @@ namespace Kesco.Lib.Web.Controls.V4
         private bool _has_checkbox;
 
         /// <summary>
-        /// Свойство значения элемента CheckBox
+        ///     Свойство значения элемента CheckBox
         /// </summary>
         public bool Checked
         {
@@ -251,22 +251,22 @@ namespace Kesco.Lib.Web.Controls.V4
         private string Field { get; set; }
 
         /// <summary>
-        /// Добавлять ли к найденному запись, которой нет в БД
+        ///     Добавлять ли к найденному запись, которой нет в БД
         /// </summary>
         public bool IsCustomRecordInPopup { get; set; }
 
         /// <summary>
-        /// При выборе customId все остальные выбранные элементы будут очищены
+        ///     При выборе customId все остальные выбранные элементы будут очищены
         /// </summary>
         public bool IsSelectOnlyCustomRecord { get; set; }
 
         /// <summary>
-        /// Идентификатор дополнительной записи
+        ///     Идентификатор дополнительной записи
         /// </summary>
         public string CustomRecordId { get; set; }
 
         /// <summary>
-        /// Название дополнительной записи
+        ///     Название дополнительной записи
         /// </summary>
         public string CustomRecordText { get; set; }
 
@@ -289,6 +289,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 w.Write("<td name='tblClause{1}'>{0}</td>", HttpUtility.HtmlEncode(item.Name), HtmlID);
                 w.Write("</tr>");
             }
+
             w.Write("</table>");
         }
 
@@ -300,10 +301,10 @@ namespace Kesco.Lib.Web.Controls.V4
         private void RenderPopupWindow(TextWriter w, IEnumerable data)
         {
             JS.Write("v4s_popup.ids='{0}';", HtmlID);
-            w.Write("<table class='{0}v4s_p' cellpadding=\"0\" cellspacing=\"0\">", AnvancedHeaderPopupResult.Length>0?"gridSelect ":"");
-           
+            w.Write("<table class='{0}v4s_p' cellpadding=\"0\" cellspacing=\"0\">",
+                AnvancedHeaderPopupResult.Length > 0 ? "gridSelect " : "");
+
             if (IsCustomRecordInPopup)
-            {
                 if (SearchText == "" || CustomRecordText.Contains(SearchText))
                 {
                     w.Write("<tr cmd='select' idItem='{0}' textItem='{1}'>", CustomRecordId, CustomRecordText);
@@ -311,30 +312,22 @@ namespace Kesco.Lib.Web.Controls.V4
                     w.Write("<td>{0}</td>", CustomRecordText);
                     w.Write("</tr>");
                 }
-            }
 
             var n = 0;
             var displayFields = DisplayFields.Split(',');
-            if (AnvancedHeaderPopupResult.Length > 0)
-            {
-                w.Write(AnvancedHeaderPopupResult);
-            }
-           
+            if (AnvancedHeaderPopupResult.Length > 0) w.Write(AnvancedHeaderPopupResult);
+
             foreach (var obj in data)
             {
                 n++;
                 if (n > _maxItemsInPopup && !IsNotUseSelectTop) break;
-                var isDataRow = (obj is DataRow);
+                var isDataRow = obj is DataRow;
                 var t = obj.GetType();
                 string key;
                 if (isDataRow)
-                {
                     key = (obj as DataRow)[KeyField].ToString();
-                }
                 else
-                {
                     key = t.GetProperty(KeyField).GetValue(obj, null).ToString();
-                }
 
                 var result = "";
                 var wTr = false;
@@ -343,63 +336,48 @@ namespace Kesco.Lib.Web.Controls.V4
                     string val;
                     var currentField = field.Trim();
                     if (isDataRow)
-                    {
                         val = (obj as DataRow)[currentField].ToString();
-                    }
                     else
-                    {
                         val = GetFieldValue(obj, currentField);
-                    }
                     result = HttpUtility.HtmlEncode(val);
                     if (!wTr) w.Write("<tr cmd='select' idItem='{0}' textItem='{1}'>", key, result);
                     wTr = true;
 
-                    w.Write("<td noWrap>{0}</td>", result);
-
+                    w.Write("<td noWrap title='{0}'>{0}</td>", result);
                 }
+
                 w.Write("</tr>");
             }
+
             var colSpan = displayFields.Length > 1 ? " colspan='" + displayFields.Length + "'" : "";
             if (n > _maxItemsInPopup && !IsNotUseSelectTop)
-            {
                 w.Write("<tr class='v4s_noselect'><td{1} class='v4s_pc'>" + Resx.GetString("sFindMore") + "</td></tr>",
                     _maxItemsInPopup, colSpan);
-            }
             if (n == 0)
-            {
                 w.Write("<tr class='v4s_noselect'><td{0} class='v4s_pc'>" + Resx.GetString("sNotFound") + "</td></tr>",
                     colSpan);
-            }
-            
 
-            if (((n > _maxItemsInPopup && !IsNotUseSelectTop) || IsAlwaysAdvancedSearch) && 
+
+            if ((n > _maxItemsInPopup && !IsNotUseSelectTop || IsAlwaysAdvancedSearch) &&
                 URLAdvancedSearch.Length > 0)
-            {
                 w.Write(
                     "<tr cmd='search'><td{0} class='v4s_pc_over'><img src=\"/styles/Search.gif\" />&nbsp;{1}</td></tr>",
                     colSpan, Resx.GetString("sAdvancedSearch"));
-            }
-            else if ((n > _maxItemsInPopup && !IsNotUseSelectTop && URLAdvancedSearch.Length == 0) || n == 0)
-            {
+            else if (n > _maxItemsInPopup && !IsNotUseSelectTop && URLAdvancedSearch.Length == 0 || n == 0)
                 w.Write(
                     "<tr class='v4s_noselect'><td{0} class='v4s_pc'>" + Resx.GetString("sRefineSearch") + "</td></tr>",
                     colSpan);
-            }
 
             if (URIsCreateEntity != null && (n <= _maxItemsInPopup || IsAlwaysCreateEntity))
-            {
                 foreach (var uce in URIsCreateEntity)
-                {
                     w.Write(
                         "<tr cmd='create' idUrl='{0}'><td{1} class='v4s_pc_over'><img src=\"{2}\" />&nbsp;{3}</td></tr>",
                         uce.Id, colSpan, uce.ImgPath, uce.Label);
-                }
-            }
 
             w.Write("</table>");
         }
-        
-        
+
+
         /// <summary>
         ///     Отрисовка кнопки
         /// </summary>
@@ -409,16 +387,14 @@ namespace Kesco.Lib.Web.Controls.V4
             w.Write("<button id='{0}_1' {1}", HtmlID, disabled_attribute);
 
             if (Value.Length > 0 && URLShowEntity.Length > 0)
-                w.Write(" class='v4s_btnDetail' onclick=\"v4_windowOpen('{0}', '');\"", URLShowEntity + (URLShowEntity.IndexOf("?") > 0 ? "&" : "?") + "id=" + Value);
-            else if (Value.Length > 0 && FuncShowEntity.Length > 0) 
+                w.Write(" class='v4s_btnDetail' onclick=\"v4_windowOpen('{0}', '');\"",
+                    URLShowEntity + (URLShowEntity.IndexOf("?") > 0 ? "&" : "?") + "id=" + Value);
+            else if (Value.Length > 0 && FuncShowEntity.Length > 0)
                 w.Write(" class='v4s_btnDetail' onclick='{0}'", string.Format(FuncShowEntity, Value, HtmlID));
             else
                 w.Write(" class='v4s_btn' onclick=\"v4s_btnClick('{0}');\"", HtmlID);
 
-            if (TabIndex.HasValue)
-            {
-                w.Write(" TabIndex={0} ", TabIndex);
-            }
+            if (TabIndex.HasValue) w.Write(" TabIndex={0} ", TabIndex);
 
             if (URLShowEntity.Length > 0)
                 w.Write(" urlShowEntity='{0}' ", HttpUtility.JavaScriptStringEncode(URLShowEntity));
@@ -429,7 +405,10 @@ namespace Kesco.Lib.Web.Controls.V4
             if (Title.Length > 0)
                 w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
 
-            w.Write(" help='{0}' >{1}</button>", HttpUtility.HtmlEncode(Help), Value.Length == 0 || (Value.Length > 0 && URLShowEntity.Length == 0) || (this is DropDownList) ? "..." : "");
+            w.Write(" help='{0}' >{1}</button>", HttpUtility.HtmlEncode(Help),
+                Value.Length == 0 || Value.Length > 0 && URLShowEntity.Length == 0 || this is DropDownList
+                    ? "..."
+                    : "");
         }
 
         /// <summary>
@@ -438,34 +417,42 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="w">Поток вывода</param>
         protected virtual void RenderSelectBody(TextWriter w)
         {
-            bool isDropDownList = this is DropDownList;
+            var isDropDownList = this is DropDownList;
 
             if (!IsReadOnly || isDropDownList)
             {
-                string disabled_attribute = IsDisabled
-                    || HasCheckbox && !Checked
-                    || ValueSelectEnum == ((int)SelectEnum.NoValue).ToString(CultureInfo.InvariantCulture)
-                    || ValueSelectEnum == ((int)SelectEnum.Any).ToString(CultureInfo.InvariantCulture) ? "disabled='disabled'" : string.Empty;
+                var disabled_attribute = IsDisabled
+                                         || HasCheckbox && !Checked
+                                         || ValueSelectEnum ==
+                                         ((int) SelectEnum.NoValue).ToString(CultureInfo.InvariantCulture)
+                                         || ValueSelectEnum ==
+                                         ((int) SelectEnum.Any).ToString(CultureInfo.InvariantCulture)
+                    ? "disabled='disabled'"
+                    : string.Empty;
 
                 w.Write("<div class=\"v4DivTable v4s\">");
                 w.Write("<div class=\"v4DivTableRow\">");
 
                 w.Write("<div class=\"v4DivTableCellT\">");
-                    w.Write("<div class='v4DivInline' id=\"v3il_{0}\"></div>", HtmlID);
+                w.Write("<div class='v4DivInline' id=\"v3il_{0}\"></div>", HtmlID);
                 w.Write("</div>");
 
                 w.Write("<div class=\"v4DivTableCellT\">");
 
                 #region INPUT
-                w.Write("<input type='text' value='{1}' id='{0}_0' {2} {3} {4}", HtmlID, HttpUtility.HtmlEncode(ValueText),
-                   (IsCaller || IsItemCompany ? "data-id='" + HttpUtility.HtmlEncode(Value) + "'" : ""),
-                   (IsCaller && CallerType != CallerTypeEnum.Empty ? "caller-type='" + (int)CallerType + "'" : ""), disabled_attribute);
+
+                w.Write("<input title='{1}' type='text' value='{1}' id='{0}_0' {2} {3} {4}", HtmlID,
+                    HttpUtility.HtmlEncode(ValueText),
+                    IsCaller || IsItemCompany ? "data-id='" + HttpUtility.HtmlEncode(Value) + "'" : "",
+                    IsCaller && CallerType != CallerTypeEnum.Empty ? "caller-type='" + (int) CallerType + "'" : "",
+                    disabled_attribute);
 
                 w.Write(" style=\"width: {0}\"", Width.IsEmpty ? "100%" : Width.ToString(CultureInfo.InvariantCulture));
                 w.Write(" isRequired={0}", IsRequired ? 1 : 0);
                 w.Write(" t='{0}'", HttpUtility.HtmlEncode(ValueText));
                 w.Write(" v='{0}'", HttpUtility.HtmlEncode(Value));
                 w.Write(" ov='{0}'", HttpUtility.HtmlEncode(OriginalValue));
+                w.Write(" nv='{0}'", IsShowEditingStatus ? "1" : "");
                 w.Write(" stxt=''");
 
                 if (IsCustomRecordInPopup)
@@ -473,9 +460,9 @@ namespace Kesco.Lib.Web.Controls.V4
 
                 w.Write(" help='{0}'", HttpUtility.HtmlEncode(Help));
 
-                if (Title.Length > 0)
-                    w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
-                
+                //if (Title.Length > 0)
+                //    w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
+
 
                 if (!string.IsNullOrEmpty(NextControl))
                 {
@@ -489,32 +476,34 @@ namespace Kesco.Lib.Web.Controls.V4
 
                 if (IsRequired && Value.Length == 0)
                     cssSelectClass += " v4s_required";
-                else if (!String.IsNullOrEmpty(ClassFieldset))
+                else if (!string.IsNullOrEmpty(ClassFieldset))
                     cssSelectClass += " " + ClassFieldset;
                 else if (IsCaller)
                     cssSelectClass += " v4_callerControl";
-                else if (IsItemCompany && !String.IsNullOrEmpty(ValueText))
+                else if (IsItemCompany && !string.IsNullOrEmpty(ValueText))
                     cssSelectClass += " v4_itemCompanyControl";
-                
+
 
                 if (isDropDownList)
-                    cssSelectClass += " v4sd";
+                    if (!((DropDownList) this).IsNoLimitList)
+                        cssSelectClass += " v4sd";
 
                 w.Write(" class='{0}' ", cssSelectClass);
 
                 if (TabIndex.HasValue)
                     w.Write(" TabIndex={0} ", TabIndex);
-                
+
 
                 w.Write("/>");
+
                 #endregion
 
                 w.Write("</div>");
 
                 w.Write("<div class=\"v4DivTableCellT\" id='v3sb_{0}'>", HtmlID);
-                    RenderButton(w, disabled_attribute);
+                RenderButton(w, disabled_attribute);
                 w.Write("</div>");
-                
+
 
                 w.Write("</div>");
                 w.Write("</div>");
@@ -538,7 +527,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 //w.Write(" v='{0}'", HttpUtility.HtmlEncode(Value));
                 //w.Write(" ov='{0}'", HttpUtility.HtmlEncode(OriginalValue));
                 //w.Write(" stxt=''");
-                
+
                 //if (IsCustomRecordInPopup)
                 //    w.Write(" crp='{0}'", HttpUtility.HtmlEncode(CustomRecordId));
 
@@ -556,13 +545,13 @@ namespace Kesco.Lib.Web.Controls.V4
                 //    else
                 //        w.Write(" nc='{0}'", GetHtmlIdNextControl());
                 //}
-                
+
                 //var cssSelectClass = "v4si";
 
                 //if (IsRequired && Value.Length == 0)
                 //{
                 //    cssSelectClass += " v4s_required";
-                    
+
                 //}
                 //else if (!String.IsNullOrEmpty(ClassFieldset))
                 //{
@@ -599,13 +588,11 @@ namespace Kesco.Lib.Web.Controls.V4
 
                 //w.Write("</tr>");
                 //w.Write("</table>");
-        
             }
             else
             {
                 w.Write("<nobr><div class='v4DivInline' id=\"v3il_{0}\"></div>", HtmlID);
                 if (URLShowEntity.Length > 0)
-                {
                     w.Write("<a href=\"javascript:void(0);\" onclick=\"javascript:cmd('ctrl', '{1}', 'cmd', 'btn')\" "
                             +
                             (IsCaller && !IsItemCompany
@@ -614,17 +601,12 @@ namespace Kesco.Lib.Web.Controls.V4
                                 : "") + " "
                             + (!IsCaller && IsItemCompany ? "class='v4_itemCompanyControl'" : "") + ">{0}</a>",
                         HttpUtility.HtmlEncode(ValueText), HtmlID);
-                }
                 else if (FuncShowEntity.Length > 0 && !string.IsNullOrEmpty(Value))
-                {
                     w.Write(
                         "<a href=\"javascript:void(0);\" onclick=\"javascript:cmd('ctrl', '{1}', 'cmd', 'OpenDocument', 'id', {2});\">{0}</a>",
                         HttpUtility.HtmlEncode(ValueText), HtmlID, Value);
-                }
                 else
-                {
                     w.Write(HttpUtility.HtmlEncode(ValueText));
-                }
                 w.Write("</nobr>");
             }
         }
@@ -680,10 +662,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public virtual void RefreshDataBlock()
         {
-            if (IsMultiSelect)
-            {
-                V4Page.RefreshHtmlBlock(string.Concat(HtmlID, "Data"), RenderSelectedItems);
-            }
+            if (IsMultiSelect) V4Page.RefreshHtmlBlock(string.Concat(HtmlID, "Data"), RenderSelectedItems);
         }
 
         #endregion
@@ -719,6 +698,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 _clauseItems.Add(new Item(((int) SelectEnum.NotContain).ToString(CultureInfo.InvariantCulture),
                     IsMultiSelect ? Resx.GetString("Lnotin") : Resx.GetString("LnotinOnce")));
             }
+
             if (!IsNotUseEmpty)
             {
                 _clauseItems.Add(new Item(((int) SelectEnum.Any).ToString(CultureInfo.InvariantCulture),
@@ -734,15 +714,13 @@ namespace Kesco.Lib.Web.Controls.V4
         public override void Flush()
         {
             if (null != _list)
-            {
                 if (PropertyChanged.Contains("IsReadOnly") || PropertyChanged.Contains("IsDisabled"))
                 {
                     //Дрогой возможности изменить эти параметры нет;
                     _list.IsDisabled = IsDisabled || HasCheckbox && !Checked;
                     _list.IsReadOnly = IsReadOnly;
                 }
-            }
-            
+
             base.Flush();
 
 
@@ -752,18 +730,25 @@ namespace Kesco.Lib.Web.Controls.V4
             if (PropertyChanged.Contains("Checked") || PropertyChanged.Contains("HasCheckbox"))
             {
                 V4Page.RefreshHtmlBlock(HtmlID, RenderControl);
-                V4Page.JS.Write("$('#{0}_0').unbind('blur').bind('blur', function(event){{v4s_onBlur(event);}});", HtmlID);
-                V4Page.JS.Write("$('#{0}_0').unbind('keydown').bind('keydown', function(event){{v4s_keyDown(event);}});", HtmlID);
-                V4Page.JS.Write("$('#{0}_0').unbind('keyup').bind('keyup', function(event){{v4s_keyUp(event);}});", HtmlID);
+                V4Page.JS.Write("$('#{0}_0').unbind('blur').bind('blur', function(event){{v4s_onBlur(event);}});",
+                    HtmlID);
+                V4Page.JS.Write(
+                    "$('#{0}_0').unbind('keydown').bind('keydown', function(event){{v4s_keyDown(event);}});", HtmlID);
+                V4Page.JS.Write("$('#{0}_0').unbind('keyup').bind('keyup', function(event){{v4s_keyUp(event);}});",
+                    HtmlID);
                 return;
             }
 
-            if (PropertyChanged.Contains("ValueText") || PropertyChanged.Contains("Value") || (RefreshRequired && !IsReadOnly))
+            if (PropertyChanged.Contains("ValueText") || PropertyChanged.Contains("Value") ||
+                RefreshRequired && !IsReadOnly)
             {
-                V4Page.JS.Write("if(gi('{0}_0')) {{gi('{0}_0').value='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(ValueText));
-                V4Page.JS.Write("gi('{0}_0').setAttribute('t','{1}');", HtmlID,
+                V4Page.JS.Write("if(gi('{0}_0')) {{gi('{0}_0').value='{1}';", HtmlID,
+                    HttpUtility.JavaScriptStringEncode(ValueText));
+                V4Page.JS.Write("if(gi('{0}_0')) gi('{0}_0').setAttribute('t','{1}');", HtmlID,
                     Value.Length == 0 ? "" : HttpUtility.JavaScriptStringEncode(ValueText));
-                V4Page.JS.Write("gi('{0}_0').setAttribute('v','{1}');}}", HtmlID, Value);
+                V4Page.JS.Write("if(gi('{0}_0')) gi('{0}_0').setAttribute('v','{1}');}}", HtmlID, Value);
+                V4Page.JS.Write("if(gi('{0}_0')) gi('{0}_0').setAttribute('title','{1}');", HtmlID,
+                    Value.Length == 0 ? "" : HttpUtility.JavaScriptStringEncode(ValueText));
 
                 if (IsCaller || IsItemCompany)
                 {
@@ -774,18 +759,13 @@ namespace Kesco.Lib.Web.Controls.V4
                         V4Page.JS.Write("if ($('#{0}_0').qtip('api')) $('#{0}_0').qtip('api').destroy();", HtmlID);
                 }
 
-                if (IsRequired)
-                {
-                    V4Page.JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
-                }
+                if (IsRequired) V4Page.JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
 
-                if ((URLShowEntity.Length > 0 || FuncShowEntity.Length > 0))
-                {
+                if (URLShowEntity.Length > 0 || FuncShowEntity.Length > 0)
                     V4Page.JS.Write("v4s_btnStyle('{0}');", HtmlID);
-                }
             }
 
-            if (PropertyChanged.Contains("IsRequired") || (RefreshRequired && !IsReadOnly))
+            if (PropertyChanged.Contains("IsRequired") || RefreshRequired && !IsReadOnly)
             {
                 JS.Write("gi('{0}_0').setAttribute('isRequired','{1}');", HtmlID, IsRequired ? 1 : 0);
                 JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
@@ -793,26 +773,22 @@ namespace Kesco.Lib.Web.Controls.V4
 
             if (PropertyChanged.Contains("ListChanged"))
             {
-                Item item = _clauseItems.Find(x => x.Code == ValueSelectEnum);
+                var item = _clauseItems.Find(x => x.Code == ValueSelectEnum);
                 if (null != item)
-                    JS.Write("gi('" + ID + "HeadControl').innerHTML = '{0}';",item.Name);
+                    JS.Write("gi('" + ID + "HeadControl').innerHTML = '{0}';", item.Name);
 
                 if (HasCheckbox && !Checked
                     || ValueSelectEnum == ((int) SelectEnum.NoValue).ToString(CultureInfo.InvariantCulture)
                     || ValueSelectEnum == ((int) SelectEnum.Any).ToString(CultureInfo.InvariantCulture))
-                {
                     JS.Write("v4_setDisableSelect('{0}', true);", HtmlID);
-                }
                 else
-                {
                     JS.Write("v4_setDisableSelect('{0}', false);", HtmlID);
-                }
             }
 
             V4Page.JS.Write("$('#{0}_0').unbind('blur').bind('blur', function(event){{v4s_onBlur(event);}});", HtmlID);
-            V4Page.JS.Write("$('#{0}_0').unbind('keydown').bind('keydown', function(event){{v4s_keyDown(event);}});", HtmlID);
+            V4Page.JS.Write("$('#{0}_0').unbind('keydown').bind('keydown', function(event){{v4s_keyDown(event);}});",
+                HtmlID);
             V4Page.JS.Write("$('#{0}_0').unbind('keyup').bind('keyup', function(event){{v4s_keyUp(event);}});", HtmlID);
-
         }
 
         /// <summary>
@@ -825,11 +801,8 @@ namespace Kesco.Lib.Web.Controls.V4
 
             if (collection["checked"] != null)
             {
-                bool is_checked = collection["checked"] == "1";
-                if (_checked != is_checked)
-                {
-                    Checked = is_checked;
-                }
+                var is_checked = collection["checked"] == "1";
+                if (_checked != is_checked) Checked = is_checked;
 
                 return;
             }
@@ -846,17 +819,18 @@ namespace Kesco.Lib.Web.Controls.V4
                 switch (collection["cmd"])
                 {
                     case "popup":
-                        string st_param = collection["st"];
+                        var st_param = collection["st"];
                         SearchText = st_param == null ? string.Empty : st_param.Trim();
 
-                        string tn_param = collection["tn"];
-                        string clientValueText = tn_param==null ? string.Empty : tn_param.Trim();
+                        var tn_param = collection["tn"];
+                        var clientValueText = tn_param == null ? string.Empty : tn_param.Trim();
 
                         if (clientValueText != SearchText && SearchText.Length > 0)
                         {
                             Value = "";
                             ValueText = SearchText;
                         }
+
                         ShowPopupWindow();
                         break;
 
@@ -868,6 +842,7 @@ namespace Kesco.Lib.Web.Controls.V4
                             ValueText = SearchText;
                             ShowPopupWindow();
                         }
+
                         break;
                     case "Refresh":
                         SetControlValue(Value, ValueText);
@@ -876,7 +851,7 @@ namespace Kesco.Lib.Web.Controls.V4
                         ShowPopupWindowClause();
                         break;
                     case "setHead":
-                        SetControlClause(collection["val"]);
+                        SetControlClause(collection["val"], collection["ov"]);
                         break;
                     case "RemoveSelectedItem":
                         if (ConfirmRemove && collection["ask"] == null || collection["ask"] == "1")
@@ -910,7 +885,6 @@ namespace Kesco.Lib.Web.Controls.V4
                         SetPropertyChanged("ValueText");
                 }
             }
-
         }
 
         /// <summary>
@@ -925,17 +899,19 @@ namespace Kesco.Lib.Web.Controls.V4
                 return;
             }
 
-            string disabled_attribute = IsDisabled || IsReadOnly ? "disabled='disabled'" : string.Empty;
+            var disabled_attribute = IsDisabled || IsReadOnly ? "disabled='disabled'" : string.Empty;
 
             if (HasCheckbox)
             {
                 w.Write("<fieldset style='{0}' {1}>", _fieldset_style, disabled_attribute);
-                string checked_attribute = Checked ? "checked='checked'" : string.Empty;
+                var checked_attribute = Checked ? "checked='checked'" : string.Empty;
 
-                string div_style = _fieldset_div_style;
+                var div_style = _fieldset_div_style;
                 if (!IsUseCondition) div_style += "margin-top:-5px;";
 
-                w.Write("<div style='{3}' ><input id='{0}_2' type='checkbox' tabindex='0' {1} {2} onclick=\"{4}\"/></div>", HtmlID, checked_attribute, disabled_attribute, div_style, _fieldset_input_onclick(HtmlID));
+                w.Write(
+                    "<div style='{3}' ><input id='{0}_2' type='checkbox' tabindex='0' {1} {2} onclick=\"{4}\"/></div>",
+                    HtmlID, checked_attribute, disabled_attribute, div_style, _fieldset_input_onclick(HtmlID));
             }
             else
             {
@@ -945,12 +921,12 @@ namespace Kesco.Lib.Web.Controls.V4
 
             if (IsUseCondition)
             {
-                bool fEnabled = (!HasCheckbox || Checked) && !IsDisabled && !IsReadOnly;
-                string strClass = fEnabled ? "v4_selectClause" : "v4_selectClauseDisabled";
+                var fEnabled = (!HasCheckbox || Checked) && !IsDisabled && !IsReadOnly;
+                var strClass = fEnabled ? "v4_selectClause" : "v4_selectClauseDisabled";
 
-                Item modeItem = _clauseItems.Find(x => x.Code == ValueSelectEnum);
+                var modeItem = _clauseItems.Find(x => x.Code == ValueSelectEnum);
                 if (null == modeItem || null == modeItem.Name)
-                    modeItem = _clauseItems.Find(x => x.Code == ((int)SelectEnum.Contain).ToString());
+                    modeItem = _clauseItems.Find(x => x.Code == ((int) SelectEnum.Contain).ToString());
 
                 w.Write(@"<legend><div id=""{1}"" class=""{5}"" 
 onclick=""if (!v4s_isPopupOpen) cmd('ctrl', '{2}', 'cmd', 'popupHead');"" 
@@ -959,7 +935,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     modeItem.Name,
                     ID + "HeadControl",
                     HtmlID,
-                    fEnabled ? (TabIndex.HasValue ? " tabindex='" + TabIndex.Value + "'" : "tabindex='0'") : string.Empty,
+                    fEnabled ? TabIndex.HasValue ? " tabindex='" + TabIndex.Value + "'" : "tabindex='0'" : string.Empty,
                     HttpUtility.HtmlEncode(Help),
                     strClass);
                 w.Write("</legend>");
@@ -1027,10 +1003,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         /// </summary>
         public void OnTextChanged(ValueChangedEventArgs e)
         {
-            if (TextChanged != null)
-            {
-                TextChanged(this, e);
-            }
+            if (TextChanged != null) TextChanged(this, e);
         }
 
         /// <summary>
@@ -1060,11 +1033,11 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                         SelectedItems.Add(new Entities.Item
                         {
                             Id = CustomRecordId,
-                            Value = new Lib.Entities.Item {Id = CustomRecordId, Value = CustomRecordText}
+                            Value = new Entities.Item {Id = CustomRecordId, Value = CustomRecordText}
                         });
 
                         V4Page.RefreshHtmlBlock(string.Concat(HtmlID, "Data"), RenderSelectedItems);
-                        base.OnChanged(e);
+                        base.OnChanged(new ProperyChangedEventArgs(e.OldValue, e.NewValue, e.OriginalValue));
                     }
                 }
                 else
@@ -1076,7 +1049,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     if (IsCustomRecordInPopup && IsSelectOnlyCustomRecord)
                     {
                         var p = SelectedItems.FirstOrDefault(x => x.Id == CustomRecordId);
-                        if (!object.Equals(p, default(Entities.Item)))
+                        if (!Equals(p, default(Entities.Item)))
                             SelectedItems.Remove(p);
                     }
 
@@ -1084,26 +1057,29 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     {
                         SelectedItems.Add(new Entities.Item {Id = id, Value = item});
                         V4Page.RefreshHtmlBlock(string.Concat(HtmlID, "Data"), RenderSelectedItems);
-                        base.OnChanged(e);
+                        base.OnChanged(new ProperyChangedEventArgs(e.OldValue, e.NewValue, e.OriginalValue));
                     }
                 }
+
                 Focus();
             }
             else
-                base.OnChanged(e);
+            {
+                base.OnChanged(new ProperyChangedEventArgs(e.OldValue, e.NewValue, e.OriginalValue));
+            }
         }
 
         /// <summary>
         ///     Принудительная инициализация события OnChange
         /// </summary>
-        /// <param name="prop">Навзание изменяемого свойства</param>
+        /// <param name="prop">Название изменяемого свойства</param>
         private void ChangeProperty(string prop)
         {
             SetPropertyChanged(prop);
             if (prop == "Value") OnValueChanged(new ValueChangedEventArgs(_value, _oldValue));
-            OnChanged(new ProperyChangedEventArgs(_oldValue, _value));
-            if (!V4Page.JS.ToString().Contains("isChanged=true;"))
-                JS.Write("isChanged=true;");
+            OnChanged(new ProperyChangedEventArgs(_oldValue, _value, OriginalValue));
+            if (!V4Page.JS.ToString().Contains("v4_isChanged=true;"))
+                JS.Write("v4_isChanged=true;");
         }
 
         #endregion
@@ -1155,7 +1131,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         /// </summary>
         public bool IsAlwaysAdvancedSearch { get; set; }
 
-       
+
         /// <summary>
         ///     Признак, что при указанной ссылке на создание сущности
         ///     ссылки будут рисоваться всегда
@@ -1169,8 +1145,8 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         {
             get
             {
-                var temp = _selectedItems.Aggregate("", (current, item) => current + (item.Id + ","));
-                if (!String.IsNullOrEmpty(temp)) temp = temp.Remove(temp.Length - 1, 1);
+                var temp = _selectedItems.Aggregate("", (current, item) => current + item.Id + ",");
+                if (!string.IsNullOrEmpty(temp)) temp = temp.Remove(temp.Length - 1, 1);
                 return temp;
             }
         }
@@ -1191,12 +1167,8 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         {
             _selectedItemsCopy.Clear();
             if (saveCopy)
-            {
                 foreach (var si in _selectedItems)
-                {
                     _selectedItemsCopy.Add(si);
-                }
-            }
             _selectedItems.Clear();
             V4Page.RefreshHtmlBlock(string.Concat(HtmlID, "Data"), RenderSelectedItems);
             ChangeProperty("Value");
@@ -1205,10 +1177,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         private void RestoreSelectedItems()
         {
             _selectedItems.Clear();
-            foreach (var si in _selectedItemsCopy)
-            {
-                _selectedItems.Add(si);
-            }
+            foreach (var si in _selectedItemsCopy) _selectedItems.Add(si);
             _selectedItemsCopy.Clear();
             V4Page.RefreshHtmlBlock(string.Concat(HtmlID, "Data"), RenderSelectedItems);
         }
@@ -1255,9 +1224,9 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         ///     Значение полей, которые отображаются в выпадающем окне
         /// </summary>
         public string ValueField { get; set; }
-        
+
         /// <summary>
-        /// Список, указывающий на то, что чтобы получить значение поля у объекта используется функция
+        ///     Список, указывающий на то, что чтобы получить значение поля у объекта используется функция
         /// </summary>
         public List<SelectMethodGetEntityValue> MethodsGetEntityValue;
 
@@ -1278,10 +1247,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         {
             get
             {
-                if (string.IsNullOrEmpty(Value))
-                {
-                    return null;
-                }
+                if (string.IsNullOrEmpty(Value)) return null;
                 return int.Parse(Value);
             }
             set { Value = value == null ? "" : value.Value.ToString(CultureInfo.InvariantCulture); }
@@ -1340,7 +1306,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         ///     Установка выбранного условия фильтрации
         /// </summary>
         /// <param name="val">Выбранное условие</param>
-        private void SetControlClause(object val)
+        private void SetControlClause(object val, object origVal)
         {
             if (val != null)
             {
@@ -1363,9 +1329,10 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 {
                     if (SelectedItems.Count == 0)
                         RestoreSelectedItems();
-                    OnChanged(new ProperyChangedEventArgs(ValueSelectEnum, _value));
+                    OnChanged(new ProperyChangedEventArgs(ValueSelectEnum, _value, origVal?.ToString()));
                     Focus();
                 }
+
                 IsCanUseFilter = CanUseFilter();
                 SetPropertyChanged("ListChanged");
             }
@@ -1382,10 +1349,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         protected virtual void SetControlValue(string val, string valueText = "")
         {
             SetPropertyChanged("ValueText");
-            if (val.Length > 0 && val.Equals(Guid.Empty.ToString()))
-            {
-                val = "";
-            }
+            if (val.Length > 0 && val.Equals(Guid.Empty.ToString())) val = "";
             _oldValue = _value;
             _value = val.Trim();
             ValueText = "";
@@ -1393,21 +1357,18 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             if (string.IsNullOrEmpty(Value))
             {
                 if (DependingControlsOfCurrentElement.Length > 0)
-                {
                     foreach (var x in DependingControlsOfCurrentElement.Split(','))
                     {
                         var ctrl = V4Page.V4Controls.Values.FirstOrDefault(z => z.ID == x);
-                        if (ctrl != null)
-                        {
-                            ctrl.Value = "";
-                        }
+                        if (ctrl != null) ctrl.Value = "";
                     }
-                }
             }
             else
             {
                 if (IsCustomRecordInPopup && Value.Equals(CustomRecordId))
+                {
                     ValueText = CustomRecordText;
+                }
                 else
                 {
                     ValueObject = SelectedItemById(Value, valueText);
@@ -1417,6 +1378,13 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     }
                     else
                     {
+                        if (this is DropDownList)
+                            if (((DropDownList) this).IsNoLimitList)
+                            {
+                                ValueText = val;
+                                return;
+                            }
+
                         ValueText = "#" + val;
                     }
                 }
@@ -1434,7 +1402,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             string key = "", val = "";
             if (o != null)
             {
-                var isDataRow = (o is DataRow);
+                var isDataRow = o is DataRow;
                 string par;
                 if (isDataRow)
                 {
@@ -1447,9 +1415,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                         var parent = V4Page.V4Controls.Values.FirstOrDefault(z => z.ID == x.Key);
                         if (parent != null && key.Length > 0 && (parent.Value.Length == 0 || !parent.Value.Equals(par)))
                             //можно обновить родительский элемент, а можно просто не устанавливать значение в текущий если родитель другой.
-                        {
                             parent.Value = par;
-                        }
                     }
                 }
                 else
@@ -1462,16 +1428,12 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                         if (arr.Any())
                         {
                             if (t.GetProperty(arr[IndexField]).GetValue(o, null) != null)
-                            {
                                 val = t.GetProperty(arr[IndexField]).GetValue(o, null).ToString();
-                            }
                         }
                         else
                         {
                             if (t.GetProperty(ValueField).GetValue(o, null) != null)
-                            {
                                 val = t.GetProperty(ValueField).GetValue(o, null).ToString();
-                            }
                         }
                     }
                     else
@@ -1485,35 +1447,31 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                         var parent = V4Page.V4Controls.Values.FirstOrDefault(z => z.ID == x.Key);
                         if (parent != null && key.Length > 0 && (parent.Value.Length == 0 || !parent.Value.Equals(par)))
                             //можно обновить родительский элемент, а можно просто не устанавливать значение в текущий если родитель другой.
-                        {
                             parent.Value = par;
-                        }
                     }
                 }
 
                 if (IsCustomRecordInPopup && key.Equals(CustomRecordId))
+                {
                     val = CustomRecordText;
+                }
                 else
                 {
-                    if (String.IsNullOrEmpty(val))
+                    if (string.IsNullOrEmpty(val))
                         val = "#" + key;
                 }
+
                 ValueText = val;
             }
 
             _value = key;
 
             if (!string.IsNullOrEmpty(DependingControlsOfCurrentElement))
-            {
                 foreach (var ch in DependingControlsOfCurrentElement.Split(','))
                 {
                     var chCtrl = V4Page.V4Controls.Values.FirstOrDefault(x => x.ID == ch) as Select;
-                    if (chCtrl != null)
-                    {
-                        chCtrl.TryFindSingleValue();
-                    }
+                    if (chCtrl != null) chCtrl.TryFindSingleValue();
                 }
-            }
         }
 
         private string GetFieldValue(object obj, string currentField)
@@ -1521,10 +1479,10 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             var val = "";
             var t = obj.GetType();
             if (MethodsGetEntityValue == null || MethodsGetEntityValue.Count == 0 ||
-                                       MethodsGetEntityValue.FirstOrDefault(
-                                           x =>
-                                               String.Equals(x.ValueField, currentField,
-                                                   StringComparison.InvariantCultureIgnoreCase)) == null)
+                MethodsGetEntityValue.FirstOrDefault(
+                    x =>
+                        string.Equals(x.ValueField, currentField,
+                            StringComparison.InvariantCultureIgnoreCase)) == null)
             {
                 val = t.GetProperty(currentField).GetValue(obj, null).ToString();
             }
@@ -1533,7 +1491,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 var mSettings =
                     MethodsGetEntityValue.FirstOrDefault(
                         x =>
-                            String.Equals(x.ValueField, currentField,
+                            string.Equals(x.ValueField, currentField,
                                 StringComparison.InvariantCultureIgnoreCase));
                 if (mSettings == null)
                     throw new Exception(string.Format("Некорретно настроен элемент управления #{0}!", ID));
@@ -1547,14 +1505,16 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 var paramObjects = mSettings.MethodParams;
                 var urs =
                     paramObjects.FirstOrDefault(
-                        x => x.GetType() == typeof(Employee) && ((Employee)x).IsLazyLoadingByCurrentUser);
+                        x => x.GetType() == typeof(Employee) && ((Employee) x).IsLazyLoadingByCurrentUser);
                 if (urs != null)
                 {
                     var inx = Array.IndexOf(paramObjects, urs);
                     paramObjects[inx] = V4Page.CurrentUser;
                 }
+
                 val = mInfo.Invoke(obj, paramObjects).ToString();
             }
+
             return val;
         }
 
@@ -1594,20 +1554,16 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     var name = "";
                     if (AnvancedHeaderPopupResult.Length > 0)
                     {
-                        var arr = ValueField.Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries);
+                        var arr = ValueField.Split(new[] {","}, StringSplitOptions.RemoveEmptyEntries);
                         if (arr.Any())
                         {
                             if (t.GetProperty(arr[IndexField]).GetValue(o, null) != null)
-                            {
                                 name = t.GetProperty(arr[IndexField]).GetValue(o, null).ToString();
-                            }
                         }
                         else
                         {
                             if (t.GetProperty(ValueField).GetValue(o, null) != null)
-                            {
                                 name = t.GetProperty(ValueField).GetValue(o, null).ToString();
-                            }
                         }
                     }
                     else
@@ -1616,13 +1572,14 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     }
 
                     SetSingleValue(val, name);
-                    
+
                     return true;
                 }
             }
+
             return false;
         }
-        
+
         private bool TrySetCustomSingleValue(IEnumerable data)
         {
             if (!IsCustomRecordInPopup) return false;
@@ -1644,8 +1601,8 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             SetDependingControlsValue(res);
 
             OnValueChanged(new ValueChangedEventArgs(_value, _oldValue));
-            if (!V4Page.JS.ToString().Contains("isChanged=true;"))
-                JS.Write("isChanged=true;");
+            if (!V4Page.JS.ToString().Contains("v4_isChanged=true;"))
+                JS.Write("v4_isChanged=true;");
 
             //V4Page.JS.Write("v4_setFocus2NextCtrl('{0}');", GetFocusControl());
             //if (_value != _oldValue)
@@ -1654,7 +1611,6 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             //    OnChanged(new ProperyChangedEventArgs(_oldValue, _value));
             //}
         }
-
 
         #endregion
 
@@ -1676,10 +1632,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         /// <returns></returns>
         public Dictionary<string, string> GetHeadControlsOfCurrentElement()
         {
-            if (string.IsNullOrEmpty(HeadControlsOfCurrentElement))
-            {
-                return new Dictionary<string, string>();
-            }
+            if (string.IsNullOrEmpty(HeadControlsOfCurrentElement)) return new Dictionary<string, string>();
             return HeadControlsOfCurrentElement.Split(',').Select(x => x.Split(':')).ToDictionary(x => x[0], x => x[1]);
         }
 
@@ -1691,15 +1644,14 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             var thisCtrl = false;
             foreach (var key in V4Page.V4Controls.Keys)
             {
-                if (thisCtrl && !V4Page.V4Controls[key].IsReadOnly && !V4Page.V4Controls[key].IsDisabled && V4Page.V4Controls[key].Visible)
+                if (thisCtrl && !V4Page.V4Controls[key].IsReadOnly && !V4Page.V4Controls[key].IsDisabled &&
+                    V4Page.V4Controls[key].Visible)
                 {
                     V4Page.V4Controls[key].Focus();
                     break;
                 }
-                if (key.Equals(HtmlID))
-                {
-                    thisCtrl = true;
-                }
+
+                if (key.Equals(HtmlID)) thisCtrl = true;
             }
         }
 
@@ -1768,7 +1720,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         ///     Если в выподающем списке одно значение то выставлять его автоматически
         /// </summary>
         public bool AutoSetSingleValue { get; set; }
-       
+
         /// <summary>
         ///     Отображение попап c отфильтрованными значениями
         /// </summary>
@@ -1784,8 +1736,8 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     V4Page.JS.Write("v4s_hidePopup();");
                     SetPropertyChanged("ValueText");
                     FocusToNextCtrl();
-                   
-                    OnChanged(new ProperyChangedEventArgs(oldValue, _value));
+
+                    OnChanged(new ProperyChangedEventArgs(oldValue, _value, OriginalValue));
                 }
                 else
                 {
@@ -1804,9 +1756,9 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 V4Page.JS.Write("v4s_hidePopup();");
                 SetPropertyChanged("ValueText");
                 FocusToNextCtrl();
-                OnChanged(new ProperyChangedEventArgs(oldValue, _value));
+                OnChanged(new ProperyChangedEventArgs(oldValue, _value, OriginalValue));
             }
-            
+
             JS.Write("v4_stopAsyncEvent = false;");
         }
 
@@ -1834,10 +1786,12 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     }
                     else
                     {
-                        if (!String.IsNullOrEmpty(Value)) return true;
+                        if (!string.IsNullOrEmpty(Value)) return true;
                     }
+
                     break;
             }
+
             return false;
         }
 
@@ -1848,72 +1802,39 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         /// <returns>Возвращает описательную строку условия фильтрации и значение конрола</returns>
         public string GetFilterClauseText()
         {
-            if (String.IsNullOrEmpty(Description)) return "";
+            if (string.IsNullOrEmpty(Description)) return "";
             var item = "";
             if (IsMultiSelect)
-            {
-                //это работает только при добавлении новых элементов через выпадающий список,
-                //поэтому невозможно получать описание фильтра для значений добавленных
-                //через свойство SelectedItems при инициализации элементов
-                /*
-                if (V4Page.V4Controls.ContainsKey(HtmlID + "Data"))
+                foreach (var i in SelectedItems)
                 {
-                    var c = (ListItems) V4Page.V4Controls[HtmlID + "Data"];
-                    if (c.List != null)
-                    {
-                        foreach (var i in c.List)
-                        {
-                            var t = i.GetType();
-                            var o = t.GetProperty("Value").GetValue(i, null) ?? "";
-                            var to = o.GetType();
-                            var oText = to.GetProperty(Field).GetValue(o, null) ?? "";
-                            var text = oText.ToString();
-                            item += text + ", ";
-                        }
-                        if (item.Length > 1)
-                        {
-                            item = item.Remove(item.Length - 2, 2);
-                        }
-                    }
-                }
-                */
-
-                foreach (Entities.Item i in SelectedItems)
-                {
-                    object o = i.Value;
+                    var o = i.Value;
                     if (null == o) continue;
 
-                    PropertyInfo pi = o.GetType().GetProperty(ValueField);
+                    var pi = o.GetType().GetProperty(ValueField);
                     if (null == pi) continue;
-                    object text = pi.GetValue(o, null);
+                    var text = pi.GetValue(o, null);
 
                     if (null != text)
-                    {
                         if (!string.IsNullOrEmpty(text.ToString()))
                         {
                             if (item.Length > 0) item += ", ";
                             item += text;
                         }
-                    }
                 }
-            }
             else
-            {
                 item = ValueText;
-            }
+
             var condition = "";
             if (IsUseCondition)
-            {
                 switch ((SelectEnum) Convert.ToInt32(ValueSelectEnum))
                 {
                     case SelectEnum.Contain:
-                        condition = (IsMultiSelect ? Resx.GetString("Lin") : Resx.GetString("LinOnce"));
+                        condition = IsMultiSelect ? Resx.GetString("Lin") : Resx.GetString("LinOnce");
                         break;
                     case SelectEnum.NotContain:
-                        condition = (IsMultiSelect ? Resx.GetString("Lnotin") : Resx.GetString("LnotinOnce"));
+                        condition = IsMultiSelect ? Resx.GetString("Lnotin") : Resx.GetString("LnotinOnce");
                         break;
                 }
-            }
             switch ((SelectEnum) Convert.ToInt32(ValueSelectEnum))
             {
                 case SelectEnum.Any:
@@ -1922,8 +1843,9 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     return Description + ": " + Resx.GetString("lblNotValue").ToLower();
                 case SelectEnum.Contain:
                 case SelectEnum.NotContain:
-                    return String.IsNullOrEmpty(item) ? "" : Description + ": " + condition.ToLower() + " " + item;
+                    return string.IsNullOrEmpty(item) ? "" : Description + ": " + condition.ToLower() + " " + item;
             }
+
             return "";
         }
 

@@ -25,7 +25,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         ///     Указатель на DocPage
         /// </summary>
         private readonly DocPage _docPage;
-        
+
         /// <summary>
         ///     Конструктор класс менеджер подписей
         /// </summary>
@@ -47,7 +47,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                     RenderControlDocSings(w);
                     var docSigns = w.ToString();
                     _docPage.JS.Write(
-                        $"var objDivSign = document.getElementById('{ContainerHtmlId}'); if(objDivSign) objDivSign.innerHTML='{HttpUtility.JavaScriptStringEncode(docSigns)}';");
+                        $"var objDivSign = document.getElementById(\"{ContainerHtmlId}\"); if(objDivSign) objDivSign.innerHTML=\"{HttpUtility.JavaScriptStringEncode(docSigns)}\";");
                 }
             }
             catch (Exception e)
@@ -167,7 +167,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 w.Write(
                     "<a id=\"sign-final\" style=\"color: #6495ED\" href=\"javascript:void(0);\" onclick=\"v4_prepareSignDocument({0}, 1, {1}, '{2}','{3}','{4}','{5}','{6}','{7}');\">{8}</a>",
                     _docPage.CurrentUser.EmployeeId,
-                    DocViewParams.SignMessageWorkDone?1:0,
+                    DocViewParams.SignMessageWorkDone ? 1 : 0,
                     HttpUtility.JavaScriptStringEncode(_docPage.Resx.GetString("msgFinishSign")),
                     HttpUtility.JavaScriptStringEncode(_docPage.Resx.GetString("msgSendFinishMsg")),
                     HttpUtility.JavaScriptStringEncode(_docPage.Resx.GetString("DOCUMENT_Sign_Title")),

@@ -11,19 +11,17 @@ namespace Kesco.Lib.Web.Controls.V4.Binding
     [Serializable]
     public class BindDocField : V4Binding, IDisposable
     {
-        private readonly DocField _field;
-
         /// <summary>
         ///     Конструктор
         /// </summary>
         public BindDocField(V4Control control, DocField field) : base(control)
         {
-            _field = field;
-            if (_field != null)
-            _field.ValueChangedEvent += FieldOnValueChangedEventHandler;
+            Field = field;
+            if (Field != null)
+                Field.ValueChangedEvent += FieldOnValueChangedEventHandler;
         }
 
-		public DocField Field { get { return _field; } }
+        public DocField Field { get; }
 
         /// <summary>
         ///     Освобождение объекта
@@ -46,16 +44,16 @@ namespace Kesco.Lib.Web.Controls.V4.Binding
 
                 if (ctrl is DatePicker)
                 {
-                    _field.Value = ((DatePicker) ctrl).ValueDate;
+                    Field.Value = ((DatePicker) ctrl).ValueDate;
                 }
                 else if (ctrl is Select)
                 {
                     object v = ((Select) ctrl).Value;
-                    _field.ValueString = v == null || v.Equals(0) ? null : v.ToString();
+                    Field.ValueString = v == null || v.Equals(0) ? null : v.ToString();
                 }
                 else
                 {
-                    _field.Value = arg.NewValue;
+                    Field.Value = arg.NewValue;
                 }
             }
         }
@@ -65,7 +63,7 @@ namespace Kesco.Lib.Web.Controls.V4.Binding
         /// </summary>
         public void RefreshValueFromField()
         {
-            _control.Value = _field.ValueString;
+            _control.Value = Field.ValueString;
         }
 
         /// <summary>
@@ -79,20 +77,21 @@ namespace Kesco.Lib.Web.Controls.V4.Binding
 
                 if (ctrl is DatePicker)
                 {
-                    var dp = ((DatePicker) ctrl);
-                    dp.ValueDate = _field.DateTimeValue;
+                    var dp = (DatePicker) ctrl;
+                    dp.ValueDate = Field.DateTimeValue;
+                }
+                else if (ctrl is Select)
+                {
+                    var s = (Select) ctrl;
+                    if (Field.Value == null || Field.Value.Equals(0))
+                        s.Value = "";
+                    else
+                        s.Value = Field.ValueString;
                 }
                 else
-                    if (ctrl is Select)
-                    {
-                        var s = ((Select) ctrl);
-                        if (_field.Value == null || _field.Value.Equals(0))
-                            s.Value = "";
-                        else
-                            s.Value = _field.ValueString;
-                    }
-                    else
-                        _control.Value = arg.NewValue;
+                {
+                    _control.Value = arg.NewValue;
+                }
             }
         }
 
@@ -102,8 +101,8 @@ namespace Kesco.Lib.Web.Controls.V4.Binding
         protected override void Unsubscribe()
         {
             _control.ValueChanged -= ControlOnValueChanged;
-            if (_field != null)
-            _field.ValueChangedEvent -= FieldOnValueChangedEventHandler;
+            if (Field != null)
+                Field.ValueChangedEvent -= FieldOnValueChangedEventHandler;
         }
 
         /// <summary>

@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Web;
 
 namespace Kesco.Lib.Web.Controls.V4.Handlers
@@ -15,42 +10,96 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
         public static Hashtable ht;
 
 
+        static BarCodeHandler()
+        {
+            ht = new Hashtable(39);
+            //char				bars		spaces
+            ht['1'] = new[] {1, 0, 0, 0, 1, 0, 1, 0, 0};
+            ht['2'] = new[] {0, 1, 0, 0, 1, 0, 1, 0, 0};
+            ht['3'] = new[] {1, 1, 0, 0, 0, 0, 1, 0, 0};
+            ht['4'] = new[] {0, 0, 1, 0, 1, 0, 1, 0, 0};
+            ht['5'] = new[] {1, 0, 1, 0, 0, 0, 1, 0, 0};
+            ht['6'] = new[] {0, 1, 1, 0, 0, 0, 1, 0, 0};
+            ht['7'] = new[] {0, 0, 0, 1, 1, 0, 1, 0, 0};
+            ht['8'] = new[] {1, 0, 0, 1, 0, 0, 1, 0, 0};
+            ht['9'] = new[] {0, 1, 0, 1, 0, 0, 1, 0, 0};
+            ht['0'] = new[] {0, 0, 1, 1, 0, 0, 1, 0, 0};
+
+            ht['A'] = new[] {1, 0, 0, 0, 1, 0, 0, 1, 0};
+            ht['B'] = new[] {0, 1, 0, 0, 1, 0, 0, 1, 0};
+            ht['C'] = new[] {1, 1, 0, 0, 0, 0, 0, 1, 0};
+            ht['D'] = new[] {0, 0, 1, 0, 1, 0, 0, 1, 0};
+            ht['E'] = new[] {1, 0, 1, 0, 0, 0, 0, 1, 0};
+            ht['F'] = new[] {0, 1, 1, 0, 0, 0, 0, 1, 0};
+            ht['G'] = new[] {0, 0, 0, 1, 1, 0, 0, 1, 0};
+            ht['H'] = new[] {1, 0, 0, 1, 0, 0, 0, 1, 0};
+            ht['I'] = new[] {0, 1, 0, 1, 0, 0, 0, 1, 0};
+            ht['J'] = new[] {0, 0, 1, 1, 0, 0, 0, 1, 0};
+            ht['K'] = new[] {1, 0, 0, 0, 1, 0, 0, 0, 1};
+            ht['L'] = new[] {0, 1, 0, 0, 1, 0, 0, 0, 1};
+            ht['M'] = new[] {1, 1, 0, 0, 0, 0, 0, 0, 1};
+            ht['N'] = new[] {0, 0, 1, 0, 1, 0, 0, 0, 1};
+            ht['O'] = new[] {1, 0, 1, 0, 0, 0, 0, 0, 1};
+            ht['P'] = new[] {0, 1, 1, 0, 0, 0, 0, 0, 1};
+            ht['Q'] = new[] {0, 0, 0, 1, 1, 0, 0, 0, 1};
+            ht['R'] = new[] {1, 0, 0, 1, 0, 0, 0, 0, 1};
+            ht['S'] = new[] {0, 1, 0, 1, 0, 0, 0, 0, 1};
+            ht['T'] = new[] {0, 0, 1, 1, 0, 0, 0, 0, 1};
+            ht['U'] = new[] {1, 0, 0, 0, 1, 1, 0, 0, 0};
+            ht['V'] = new[] {0, 1, 0, 0, 1, 1, 0, 0, 0};
+            ht['W'] = new[] {1, 1, 0, 0, 0, 1, 0, 0, 0};
+            ht['X'] = new[] {0, 0, 1, 0, 1, 1, 0, 0, 0};
+            ht['Y'] = new[] {1, 0, 1, 0, 0, 1, 0, 0, 0};
+            ht['Z'] = new[] {0, 1, 1, 0, 0, 1, 0, 0, 0};
+
+            ht['-'] = new[] {0, 0, 0, 1, 1, 1, 0, 0, 0};
+            ht['.'] = new[] {1, 0, 0, 1, 0, 1, 0, 0, 0};
+            ht[' '] = new[] {0, 1, 0, 1, 0, 1, 0, 0, 0};
+            ht['*'] = new[] {0, 0, 1, 1, 0, 1, 0, 0, 0};
+            ht['$'] = new[] {0, 0, 0, 0, 0, 1, 1, 1, 0};
+            ht['/'] = new[] {0, 0, 0, 0, 0, 1, 1, 0, 1};
+            ht['+'] = new[] {0, 0, 0, 0, 0, 1, 0, 1, 1};
+            ht['%'] = new[] {0, 0, 0, 0, 0, 0, 1, 1, 1};
+        }
+
+
         public void ProcessRequest(HttpContext context)
         {
-            string text = "*." + context.Request.QueryString["id"].ToUpper() + "*";
+            var text = "*." + context.Request.QueryString["id"].ToUpper() + "*";
 
             float y = 0;
             float x = 0;
             float h = 30;
             float w;
 
-            SolidBrush bb = new SolidBrush(Color.Black);
+            var bb = new SolidBrush(Color.Black);
 
-            Bitmap bmp = new Bitmap(1000, (int)h + 12);
+            var bmp = new Bitmap(1000, (int) h + 12);
             bmp.SetResolution(300, 300);
 
-            Graphics g = Graphics.FromImage(bmp);
+            var g = Graphics.FromImage(bmp);
             g.Clear(Color.White);
 
             int[] arr;
 
             char ch;
 
-            for (int i = 0; i < text.Length; i++)
+            for (var i = 0; i < text.Length; i++)
             {
                 ch = text[i];
                 if (i > 0)
                 {
                     w = 1;
 
-                    if (ch != '*' && ch != '.') g.DrawString(ch.ToString(), new Font("Arial", 9, GraphicsUnit.Pixel), bb, x + 3, y + h);
+                    if (ch != '*' && ch != '.')
+                        g.DrawString(ch.ToString(), new Font("Arial", 9, GraphicsUnit.Pixel), bb, x + 3, y + h);
 
                     x += w;
                 }
 
                 if (ht.ContainsKey(ch))
                 {
-                    arr = (int[])ht[ch];
+                    arr = (int[]) ht[ch];
                     w = arr[0] * 2 + 1;
                     g.FillRectangle(bb, x, y, w, h);
                     x += w;
@@ -76,72 +125,20 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
                     x += w;
                 }
             }
+
             g.Dispose();
 
             context.Response.ContentType = "image/gif";
 
-            Rectangle rect = new Rectangle(0, 0, (int)x, bmp.Height);
+            var rect = new Rectangle(0, 0, (int) x, bmp.Height);
 
-            Bitmap bmp2 = bmp.Clone(rect, PixelFormat.Format32bppPArgb);
+            var bmp2 = bmp.Clone(rect, PixelFormat.Format32bppPArgb);
             bmp.Dispose();
 
             bmp2.SetResolution(300, 300);
 
             bmp2.Save(context.Response.OutputStream, ImageFormat.Gif);
             bmp2.Dispose();
-        }
-
-
-        static BarCodeHandler()
-        {
-            ht = new Hashtable(39);
-            //char				bars		spaces
-            ht['1'] = new int[] { 1, 0, 0, 0, 1, 0, 1, 0, 0 };
-            ht['2'] = new int[] { 0, 1, 0, 0, 1, 0, 1, 0, 0 };
-            ht['3'] = new int[] { 1, 1, 0, 0, 0, 0, 1, 0, 0 };
-            ht['4'] = new int[] { 0, 0, 1, 0, 1, 0, 1, 0, 0 };
-            ht['5'] = new int[] { 1, 0, 1, 0, 0, 0, 1, 0, 0 };
-            ht['6'] = new int[] { 0, 1, 1, 0, 0, 0, 1, 0, 0 };
-            ht['7'] = new int[] { 0, 0, 0, 1, 1, 0, 1, 0, 0 };
-            ht['8'] = new int[] { 1, 0, 0, 1, 0, 0, 1, 0, 0 };
-            ht['9'] = new int[] { 0, 1, 0, 1, 0, 0, 1, 0, 0 };
-            ht['0'] = new int[] { 0, 0, 1, 1, 0, 0, 1, 0, 0 };
-
-            ht['A'] = new int[] { 1, 0, 0, 0, 1, 0, 0, 1, 0 };
-            ht['B'] = new int[] { 0, 1, 0, 0, 1, 0, 0, 1, 0 };
-            ht['C'] = new int[] { 1, 1, 0, 0, 0, 0, 0, 1, 0 };
-            ht['D'] = new int[] { 0, 0, 1, 0, 1, 0, 0, 1, 0 };
-            ht['E'] = new int[] { 1, 0, 1, 0, 0, 0, 0, 1, 0 };
-            ht['F'] = new int[] { 0, 1, 1, 0, 0, 0, 0, 1, 0 };
-            ht['G'] = new int[] { 0, 0, 0, 1, 1, 0, 0, 1, 0 };
-            ht['H'] = new int[] { 1, 0, 0, 1, 0, 0, 0, 1, 0 };
-            ht['I'] = new int[] { 0, 1, 0, 1, 0, 0, 0, 1, 0 };
-            ht['J'] = new int[] { 0, 0, 1, 1, 0, 0, 0, 1, 0 };
-            ht['K'] = new int[] { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
-            ht['L'] = new int[] { 0, 1, 0, 0, 1, 0, 0, 0, 1 };
-            ht['M'] = new int[] { 1, 1, 0, 0, 0, 0, 0, 0, 1 };
-            ht['N'] = new int[] { 0, 0, 1, 0, 1, 0, 0, 0, 1 };
-            ht['O'] = new int[] { 1, 0, 1, 0, 0, 0, 0, 0, 1 };
-            ht['P'] = new int[] { 0, 1, 1, 0, 0, 0, 0, 0, 1 };
-            ht['Q'] = new int[] { 0, 0, 0, 1, 1, 0, 0, 0, 1 };
-            ht['R'] = new int[] { 1, 0, 0, 1, 0, 0, 0, 0, 1 };
-            ht['S'] = new int[] { 0, 1, 0, 1, 0, 0, 0, 0, 1 };
-            ht['T'] = new int[] { 0, 0, 1, 1, 0, 0, 0, 0, 1 };
-            ht['U'] = new int[] { 1, 0, 0, 0, 1, 1, 0, 0, 0 };
-            ht['V'] = new int[] { 0, 1, 0, 0, 1, 1, 0, 0, 0 };
-            ht['W'] = new int[] { 1, 1, 0, 0, 0, 1, 0, 0, 0 };
-            ht['X'] = new int[] { 0, 0, 1, 0, 1, 1, 0, 0, 0 };
-            ht['Y'] = new int[] { 1, 0, 1, 0, 0, 1, 0, 0, 0 };
-            ht['Z'] = new int[] { 0, 1, 1, 0, 0, 1, 0, 0, 0 };
-
-            ht['-'] = new int[] { 0, 0, 0, 1, 1, 1, 0, 0, 0 };
-            ht['.'] = new int[] { 1, 0, 0, 1, 0, 1, 0, 0, 0 };
-            ht[' '] = new int[] { 0, 1, 0, 1, 0, 1, 0, 0, 0 };
-            ht['*'] = new int[] { 0, 0, 1, 1, 0, 1, 0, 0, 0 };
-            ht['$'] = new int[] { 0, 0, 0, 0, 0, 1, 1, 1, 0 };
-            ht['/'] = new int[] { 0, 0, 0, 0, 0, 1, 1, 0, 1 };
-            ht['+'] = new int[] { 0, 0, 0, 0, 0, 1, 0, 1, 1 };
-            ht['%'] = new int[] { 0, 0, 0, 0, 0, 0, 1, 1, 1 };
         }
 
 
@@ -184,9 +181,6 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
         }
 */
 
-        public bool IsReusable
-        {
-            get { return true; }
-        }
+        public bool IsReusable => true;
     }
 }

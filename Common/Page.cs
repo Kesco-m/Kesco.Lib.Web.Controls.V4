@@ -2,17 +2,18 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Configuration;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Resources;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web;
 using System.Web.UI;
+using System.Web.UI.WebControls;
 using System.Xml;
 using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.Enums;
@@ -20,14 +21,12 @@ using Kesco.Lib.BaseExtention.Enums.Controls;
 using Kesco.Lib.Entities;
 using Kesco.Lib.Entities.Corporate;
 using Kesco.Lib.Entities.Documents;
-using Kesco.Lib.Entities.Persons;
 using Kesco.Lib.Localization;
 using Kesco.Lib.Log;
-using Kesco.Lib.Web.Comet;
 using Kesco.Lib.Web.Controls.V4.Common.DocumentPage;
 using Kesco.Lib.Web.Controls.V4.Renderer;
 using Kesco.Lib.Web.Settings;
-using Kesco.Lib.Web.Settings.Parameters;
+using Kesco.Lib.Web.SignalR;
 
 namespace Kesco.Lib.Web.Controls.V4.Common
 {
@@ -42,10 +41,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="value">контрол</param>
         public void Add(V4Control value)
         {
-            if (!ContainsKey(value.HtmlID))
-            {
-                Add(value.HtmlID, value);
-            }
+            if (!ContainsKey(value.HtmlID)) Add(value.HtmlID, value);
         }
 
         /// <summary>
@@ -57,20 +53,16 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public void AddRange(params V4Control[] values)
         {
             foreach (var value in values)
-            {
                 if (!ContainsKey(value.HtmlID))
-                {
                     Add(value.HtmlID, value);
-                }
-                //else
-                //{
-                //    throw new ArgumentException("Контрол с HtmlID: " + value.HtmlID + " уже существует в коллекции, добавление не возможно.");
-                //}
-            }
+            //else
+            //{
+            //    throw new ArgumentException("Контрол с HtmlID: " + value.HtmlID + " уже существует в коллекции, добавление не возможно.");
+            //}
         }
     }
 
-    public class V4PageObj 
+    public class V4PageObj
     {
         public Type Type { get; set; }
         public Entity Object { get; set; }
@@ -83,24 +75,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
     /// </summary>
     public abstract class Page : System.Web.UI.Page
     {
-        public bool IsKescoRun = false;
-
-        public bool IsSilverLight = true;
-
-        /// <summary>
-        ///     Коллекция кнопок меню
-        /// </summary>
-        protected List<Button> MenuButtons;
-
-        /// <summary>
-        /// Вспомогательный объект для сохранения и восстановления размеров и положения окна
-        /// </summary>
-        protected WndSizePosKeeper SizePosKeeper;
-
-        /// <summary>
-        /// Параметры строки запроса, полученные при первом запросе GET
-        /// </summary>
-        protected NameValueCollection CurrentQS;
+        private string _itemName;
 
         /// <summary>
         ///     Делегат рендеринга части страницы
@@ -114,6 +89,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="w"></param>
         /// <param name="param"></param>
         public delegate void RenderHtmlBlockWithParam(TextWriter w, object param);
+
+        /// <summary>
+        ///     Параметры строки запроса, полученные при первом запросе GET
+        /// </summary>
+        protected NameValueCollection CurrentQS;
 
         /// <summary>
         ///     Коллекция атрибутов
@@ -130,6 +110,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         public NameValueCollection HTMLBlock = new NameValueCollection();
 
+        public bool IsKescoRun = false;
+
+        public bool IsSilverLight = true;
+
         /// <summary>
         ///     Запись скриптов клиенту
         /// </summary>
@@ -141,6 +125,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public ArrayList Listeners = new ArrayList();
 
         /// <summary>
+        ///     Коллекция кнопок меню
+        /// </summary>
+        protected List<Button> MenuButtons;
+
+        /// <summary>
         ///     Получение единственного экземпляра PageEventManager
         /// </summary>
         public PageEventManager PageEventManager = PageEventManager.GetInstatnce();
@@ -149,6 +138,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         ///     Локализация
         /// </summary>
         public ResourceManager Resx = Resources.Resx;
+
+        /// <summary>
+        ///     Вспомогательный объект для сохранения и восстановления размеров и положения окна
+        /// </summary>
+        protected WndSizePosKeeper SizePosKeeper;
 
         /// <summary>
         ///     Словарь контролов
@@ -164,22 +158,15 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             JsScripts = new Dictionary<string, string>();
             CssScripts = new List<string>();
             LastUpdate = DateTime.Now;
+            CreateTime = DateTime.Now;
             EnableViewState = false;
             CurrentUser = new Employee(true);
             MenuButtons = new List<Button>();
-            IsComet = true;
+            IsSignal = true;
         }
 
         /// <summary>
-        /// Метод переадресации текущей страницы по условию
-        /// </summary>
-        protected virtual bool RedirectPageByCondition()
-        {
-            return false;
-        }
-
-        /// <summary>
-        /// Родительская страница для которой текущая открыта в модальном режиме
+        ///     Родительская страница для которой текущая открыта в модальном режиме
         /// </summary>
         public virtual Page ParentPage { get; set; }
 
@@ -203,15 +190,29 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         public int ItemId { get; set; }
 
-        ///// <summary>
-        /////     ID типа сущности
-        ///// </summary>
-        //public int TypeId { get; set; }
+        /// <summary>
+        ///     Название формы сущности
+        /// </summary>
+        public string ItemName
+        {
+            get
+            {
+                if (_itemName == null)
+                {
+                    if (string.IsNullOrEmpty(AppRelativeVirtualPath)) return string.Empty;
+                    var match = Regex.Match(AppRelativeVirtualPath, RegexPattern.FileName,
+                        RegexOptions.IgnoreCase);
+                    _itemName = match.Success ? match.Value : AppRelativeVirtualPath;
+                }
+                return _itemName;
+            }
+            set { _itemName = value; }
+        }
 
         /// <summary>
         /// Название сущности
         /// </summary>
-        public string ItemName { get; set; }
+        public string EntityName { get; set; }
 
         /// <summary>
         ///     Признак возможности редактирования сущности
@@ -266,31 +267,22 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <summary>
         ///     русская локализация клиента
         /// </summary>
-        public bool IsRusLocal
-        {
-            get { return CurrentUser.Language == "ru"; }
-        }
+        public bool IsRusLocal => CurrentUser.Language == "ru";
 
         /// <summary>
         ///     английская локализация клиента
         /// </summary>
-        public bool IsEngLocal
-        {
-            get { return CurrentUser.Language == "en"; }
-        }
+        public bool IsEngLocal => CurrentUser.Language == "en";
 
         /// <summary>
         ///     эстонская локализация клиента
         /// </summary>
-        public bool IsEstLocal
-        {
-            get { return CurrentUser.Language == "et"; }
-        }
+        public bool IsEstLocal => CurrentUser.Language == "et";
 
         /// <summary>
         ///     Признак работы лонгпулинга
         /// </summary>
-        public bool IsComet { get; set; }
+        public bool IsSignal { get; set; }
 
         /// <summary>
         ///     Тайтл страницы
@@ -308,7 +300,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <summary>
         ///     Коллекция данных
         /// </summary>
-        public Dictionary<string, object> Data { get; private set; }
+        public Dictionary<string, object> Data { get; }
 
         /// <summary>
         ///     Установка/снятие для всех контролов на странице свойства "только чтение"
@@ -318,15 +310,9 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             set
             {
                 if (V4IsPostBack && value != IsReadOnly)
-                {
                     foreach (var c in V4Controls.Values)
-                    {
                         if (c.IsReadOnly != value) //чтобы сформировать скрипт для изменения контрола
-                        {
                             c.SetPropertyChanged("IsReadOnly");
-                        }
-                    }
-                }
 
                 El["r"] = value ? "1" : "0";
             }
@@ -336,7 +322,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <summary>
         ///     Отключаем/Включаем ViewState (в текущей реализации ViewState отключен)
         /// </summary>
-        public override sealed bool EnableViewState
+        public sealed override bool EnableViewState
         {
             get { return base.EnableViewState; }
             set { base.EnableViewState = value; }
@@ -356,12 +342,12 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <summary>
         ///     Коллекция скриптов
         /// </summary>
-        public Dictionary<string, string> JsScripts { get; private set; }
+        public Dictionary<string, string> JsScripts { get; }
 
         /// <summary>
         ///     Коллекция стилей
         /// </summary>
-        public List<string> CssScripts { get; private set; }
+        public List<string> CssScripts { get; }
 
         /// <summary>
         ///     Запрос
@@ -372,6 +358,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         ///     Ответ
         /// </summary>
         public HttpResponse V4Response { get; set; }
+
+        /// <summary>
+        /// Время создания объекта Page
+        /// </summary>
+        public DateTime CreateTime { get; set; }
 
         /// <summary>
         ///     Признак сохранения позиции и размера окна
@@ -394,29 +385,50 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public abstract string HelpUrl { get; set; }
 
         /// <summary>
-        /// Идентификатор оценки интерфейса
+        ///     Идентификатор оценки интерфейса
         /// </summary>
-        public virtual string LikeId { get; set; }
+        public string LikeId
+        {
+            get
+            {
+                var section = ConfigurationManager.GetSection("likeSettings");
+                if (section == null) return string.Empty;
+                var likes = (LikeItem[])section;
+                if (likes.Length == 0) return string.Empty;
+                var lk = likes.FirstOrDefault(x => x.FormName.Equals(ItemName, StringComparison.InvariantCultureIgnoreCase));
+                return lk==null ? string.Empty : lk.LikeId;
+            }
+        }
+        
+        private List<V4PageObj> objList { get; set; }
+
+        private List<V4PageObj> ObjList
+        {
+            get
+            {
+                if (objList != null) return objList;
+
+                objList = new List<V4PageObj>();
+                return objList;
+            }
+        }
+
+        /// <summary>
+        ///     Метод переадресации текущей страницы по условию
+        /// </summary>
+        protected virtual bool RedirectPageByCondition()
+        {
+            return false;
+        }
 
         /// <summary>
         ///     Освобождение ресурсов занятых страницей. Блокирует объект Application на время операции
         /// </summary>
         public virtual void V4Dispose(bool redirect = false)
         {
-            CometServer.WriteLog("Start V4Dispose -> " + IDPage);
-
-            CometServer.UnregisterClient(IDPage, !redirect);
-
-            Application.Lock();
-
-            if (Application.AllKeys.Contains(IDPage))
-            {
-                Application.Remove(IDPage);
-
-                CometServer.WriteLog("Application.Remove -> " + IDPage);
-            }
-
-            Application.UnLock();
+            KescoHub.RemovePage(IDPage);
+            var info = $"{DateTime.Now:dd.MM.yy HH:mm:ss} -> Страница [{IDPage}] штатно удалена из KescoHub";
+            KescoHub.RefreshSignalViewInfo(new KescoHubTraceInfo {TraceInfo = info});
         }
 
         private bool IsBasicAuth()
@@ -434,9 +446,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
 
             if (auth != null && auth.Length > 0 && auth.Length > 11 &&
                 !(auth.Substring(0, 6).Equals("Basic ") || auth.Substring(0, 11).Equals("Negotiate Y")))
-            {
                 return true;
-            }
 
             return false;
         }
@@ -469,7 +479,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             JS.Dispose();
 
             JS = new StringWriter();
-
         }
 
         /// <summary>
@@ -478,9 +487,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         private void SetScriptsAfterContent()
         {
             if (!string.IsNullOrEmpty(FocusControl))
-            {
                 JS.Write("setTimeout(function () {var objF=gi('" + FocusControl + "'); if (objF) objF.focus();}, 10);");
-            }
 
             JS.Write("v4_setToolTip(); v4_setLocalDateTime();");
         }
@@ -497,7 +504,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public void ShowMessageOnPage(string htmlMessage)
         {
             var message =
-                String.Format(
+                string.Format(
                     "$(\"body\").prepend(\"<div class='v4Div-outer-container' id='v4DivErrorOuter'></div>\"); " +
                     "$(\"#v4DivErrorOuter\").append(\"<div class='v4Div-inner-container' id='v4DivErrorInner'></div>\");" +
                     "$(\"#v4DivErrorInner\").append(\"<div class='v4Div-centered-content' style='width:500px;' id='v4DivErrorContent'>" +
@@ -508,7 +515,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common
 
         public virtual void EditingStatusChanged()
         {
-
         }
 
         /// <summary>
@@ -519,7 +525,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             if (!V4IsPostBack)
             {
-                if (IsComet)
+                if (IsSignal)
                 {
                     FocusControl = "";
 
@@ -541,7 +547,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         private void GetV4Controls(Control root)
         {
             if (root.HasControls())
-            {
                 foreach (Control control in root.Controls)
                 {
                     GetV4Controls(control);
@@ -553,7 +558,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                         V4Controls.Add(ctrl);
                     }
                 }
-            }
         }
 
         /// <summary>
@@ -572,10 +576,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="url">URL к файлу CSS-стилей</param>
         public void RegisterCss(string url)
         {
-            if (!CssScripts.Contains(url))
-            {
-                CssScripts.Add(url);
-            }
+            if (!CssScripts.Contains(url)) CssScripts.Add(url);
         }
 
         /// <summary>
@@ -591,47 +592,26 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             if (!string.IsNullOrEmpty(Request.QueryString["clid"]))
             {
                 int clid;
-                if (int.TryParse(Request.QueryString["clid"], out clid))
-                {
-                    ClId = clid;
-                }
+                if (int.TryParse(Request.QueryString["clid"], out clid)) ClId = clid;
             }
 
             if (!PostRequest)
             {
                 ItemId = Request["ID"].ToInt();
-                if (string.IsNullOrEmpty(ItemName))
-                {
-                    var match = Regex.Match(AppRelativeVirtualPath, BaseExtention.RegexPattern.FileName,
-                        RegexOptions.IgnoreCase);
 
-                    ItemName = match.Success ? match.Value : AppRelativeVirtualPath;
-                    if (!string.IsNullOrEmpty(ItemName)) ItemName = ItemName.Replace(".", "_");
-                }
-
-                if (!string.IsNullOrEmpty(Request.QueryString["title"]))
-                {
-                    Title = Request.QueryString["title"];
-                }
+                if (!string.IsNullOrEmpty(Request.QueryString["title"])) Title = Request.QueryString["title"];
 
                 CurrentQS = Request.QueryString;
             }
-
-            CometAsyncState state = new CometAsyncState(null, null, null);
-            state.ClientGuid = IDPage;
-            state.Id = ItemId;
-            state.Name = ItemName;
-            state.Page = this;
-            CometServer.RegisterClient(state);
-
+            
             base.OnInit(e);
 
             InitMenuButton();
-
         }
 
         private void RegisterScript()
         {
+            var appRoot = GetWebAppRoot();
             RegisterCss("/Styles/Kesco.V4/CSS/jquery.qtip.min.css");
             RegisterCss("/Styles/Kesco.V4/CSS/jquery-ui.css");
             RegisterCss("/Styles/Kesco.V4/CSS/Kesco.V4.css");
@@ -677,9 +657,20 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                         Config.versionV4js));
             }
 
-            RegisterScript("Comet",
-                string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Comet.js' type='text/javascript'></script>",
+            RegisterScript("SignalR",
+                string.Format(
+                    "<script src='/Styles/Kesco.V4/JS{0}/jquery.signalR-2.4.1.min.js' type='text/javascript'></script>",
                     Config.versionV4js));
+
+            
+            RegisterScript("Hub",
+                string.Format($"<script src='{appRoot}/signalr/hubs' type='text/javascript'></script>",
+                    Config.versionV4js));
+
+            RegisterScript("KescoSignalR",
+                string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.SignalR.js' type='text/javascript'></script>",
+                    Config.versionV4js));
+
             RegisterScript("ContactRedirector",
                 string.Format(
                     "<script src='/Styles/Kesco.V4/JS{0}/Kesco.ContactRedirector.js' type='text/javascript'></script>",
@@ -741,6 +732,18 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                         Config.versionV4js));
         }
 
+        public static string GetWebAppRoot()
+        {
+            string host = (HttpContext.Current.Request.Url.IsDefaultPort) ?
+                HttpContext.Current.Request.Url.Host :
+                HttpContext.Current.Request.Url.Authority;
+            host = $"{HttpContext.Current.Request.Url.Scheme}://{host}";
+            if (HttpContext.Current.Request.ApplicationPath == "/")
+                return host;
+            else
+                return host + HttpContext.Current.Request.ApplicationPath;
+        }
+
         /// <summary>
         ///     Обработчик события загрузки страницы
         /// </summary>
@@ -760,16 +763,20 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 SizePosKeeper.OnLoad();
             }
 
-            if (!IsComet)
+            if (!IsSignal)
             {
                 Header.Controls.AddAt(0,
                     new LiteralControl(Environment.NewLine +
-                                       "<script type='text/javascript'>v4_isComet = false;</script>" +
+                                       "<script type='text/javascript'>v4_isSignal = false;</script>" +
                                        Environment.NewLine));
             }
             else
             {
                 var script_index = 0;
+
+                Header.Controls.AddAt(script_index++,
+                    new LiteralControl(Environment.NewLine + @"<base target=""_self"">"));
+
                 var sbCss = new StringBuilder();
                 foreach (var s in CssScripts)
                 {
@@ -784,31 +791,37 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 var sbScripts = new StringBuilder();
                 foreach (var s in JsScripts)
                 {
-                    //if (s.Key == "XXX" || s.Key == "XXX1")
-                    //{
-                    //    var isDbsDocument = V4Controls.Select(ctrl => ((V4Control) ctrl.Value).GetType().Name).Any(x => x == "DBSDocument");
-                    //    if (!(this is DocumentPage.DocPage) && !isDbsDocument) continue;
-                    //}
-
                     sbScripts.Append(s.Value);
                     sbScripts.Append(Environment.NewLine);
                 }
 
                 sbScripts.Append("<script type='text/javascript'>");
                 sbScripts.Append(Environment.NewLine);
-                sbScripts.AppendFormat("v4_domain ='{0}';", Config.domain);
+                sbScripts.AppendFormat("var v4_domain ='{0}';", Config.domain);
                 sbScripts.Append(Environment.NewLine);
                 sbScripts.AppendFormat("var kesco_ip = '{0}';", Request.ServerVariables["REMOTE_ADDR"]);
                 sbScripts.Append(Environment.NewLine);
-                sbScripts.Append("var isChanged = false;");
+                sbScripts.Append("var v4_isChanged = false;");
                 sbScripts.Append(Environment.NewLine);
-                sbScripts.Append("var isValidate = false;");
+                sbScripts.Append("var v4_isValidate = false;");
                 sbScripts.Append(Environment.NewLine);
-                sbScripts.AppendFormat("var isEditable = '{0}';", IsEditable ? "true" : "false");
+                sbScripts.AppendFormat("var v4_isEditable = {0};", IsEditable ? "true" : "false");
                 sbScripts.Append(Environment.NewLine);
                 sbScripts.AppendFormat("var v4_ItemId = '{0}';", ItemId);
                 sbScripts.Append(Environment.NewLine);
                 sbScripts.AppendFormat("var v4_ItemName = '{0}';", ItemName);
+                sbScripts.Append(Environment.NewLine);
+                sbScripts.AppendFormat("var v4_EntityName = '{0}';", EntityName);
+                sbScripts.Append(Environment.NewLine);
+                sbScripts.AppendFormat("var v4_userId = '{0}';", CurrentUser.Id);
+                sbScripts.Append(Environment.NewLine);
+                sbScripts.AppendFormat("var v4_userName = '{0}';", CurrentUser.FullName);
+                sbScripts.Append(Environment.NewLine);
+                sbScripts.AppendFormat("var v4_userNameLat = '{0}';", CurrentUser.FullNameEn);
+                sbScripts.Append(Environment.NewLine);
+                sbScripts.AppendFormat("var v4_userLang = '{0}';", CurrentUser.Language);
+                sbScripts.Append(Environment.NewLine);
+                sbScripts.AppendFormat("var v4_userForm = '{0}';", Config.user_form);
                 sbScripts.Append(Environment.NewLine);
                 sbScripts.Append("</script>");
                 sbScripts.Append(Environment.NewLine);
@@ -818,8 +831,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
 
                 var sb = new StringBuilder(Environment.NewLine + "<script type='text/javascript'>");
                 sb.Append(Environment.NewLine);
-                sb.AppendFormat("var idp='{0}'; var v4_cometUrl='{1}';", HttpUtility.JavaScriptStringEncode(IDPage),
-                    HttpUtility.JavaScriptStringEncode(Request.ApplicationPath));
+                sb.AppendFormat("var idp='{0}'; ", HttpUtility.JavaScriptStringEncode(IDPage));
                 sb.Append(Environment.NewLine);
 
                 if (!string.IsNullOrEmpty(FocusControl))
@@ -829,7 +841,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                     sb.Append(Environment.NewLine);
                 }
 
-
+                sb.Append(Environment.NewLine);
                 sb.Append("function v4_tooltipCaller() {");
                 sb.Append(Environment.NewLine);
                 sb.Append("var dataId=$(this)[0].getAttribute('data-id');");
@@ -889,7 +901,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common
 
                 //Эти скрипты добавляются в конец заголовка
                 Header.Controls.Add(new LiteralControl(sb.ToString()));
-
             }
         }
 
@@ -912,23 +923,20 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 ProcessCommand(ExternalCmd, null);
                 ExternalCmd = "";
             }
-            if (V4Request.Params.Count == 0)
-            {
-                return;
-            }
+
+            if (V4Request.Params.Count == 0) return;
             var key = V4Request.Params.Keys[1];
             switch (key)
             {
                 case "ctrl":
                     if (!V4Controls.ContainsKey(V4Request.Params["ctrl"]))
-                    {
                         throw new Exception("Control is not found id:" + V4Request.Params["ctrl"] + " Page:" +
                                             V4Request.RawUrl);
-                    }
 
                     V4Controls[V4Request.Params["ctrl"]].ProcessCommand(V4Request.Params);
-
-                    if(ItemId!=0)
+                    var translateCtrlEvent = !(!string.IsNullOrEmpty(V4Request.Params["cmd"]) &&
+                                               V4Request.Params["cmd"].Contains("popup"));
+                    if (ItemId != 0 && translateCtrlEvent /* && V4Request.Params["ctrl"] != "CorrectableTtn"*/)
                         TranslateCtrlEvent(V4Request.Params);
                     break;
 
@@ -942,17 +950,20 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                                 ProcessCommand("PageClose", nvc);
                                 JS.Write("v4_closeWindow();");
                             }
+
                             break;
                         case "clientname":
                             JS.Write(DialerInterop.GetClientName(HttpContext.Current, IDPage));
                             break;
                     }
+
                     break;
                 case "cmd":
                     ProcessCommand(V4Request.Params["cmd"], V4Request.Params);
                     break;
             }
-            JS.Write("isValidate={0};", V4ValidationBeforeExit().ToString(CultureInfo.InvariantCulture).ToLower());
+
+            JS.Write("v4_isValidate={0};", V4ValidationBeforeExit().ToString(CultureInfo.InvariantCulture).ToLower());
         }
 
 
@@ -965,17 +976,14 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             try
             {
-                if (IsRememberWindowProperties)
-                {
-                    SizePosKeeper.ProcessCommand(cmd, param);
-                }
+                if (IsRememberWindowProperties) SizePosKeeper.ProcessCommand(cmd, param);
 
                 switch (cmd)
                 {
                     case "Listener":
                         var listener =
                             (IClientCommandProcessor)
-                                Listeners[int.Parse(param["ctrlId"].ToString(CultureInfo.InvariantCulture))];
+                            Listeners[int.Parse(param["ctrlId"].ToString(CultureInfo.InvariantCulture))];
                         listener.ProcessClientCommand(param);
                         break;
                     case "Refresh":
@@ -995,7 +1003,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                         break;
                 }
             }
-            catch (Exception  ex)
+            catch (Exception ex)
             {
                 var dex = new DetailedException(ex.Message, ex);
                 Logger.WriteEx(dex);
@@ -1023,11 +1031,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                         : "Please fill out yellow fields.");
                     return false;
                 }
-                if (!ctrl.Validation())
-                {
-                    return false;
-                }
+
+                if (!ctrl.Validation()) return false;
             }
+
             return true;
         }
 
@@ -1041,7 +1048,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public void V4Navigate(string url)
         {
             V4Dispose();
-            JS.Write(WebExtention.DynamicLink(url,false));
+            JS.Write(WebExtention.DynamicLink(url, false));
         }
 
         /// <summary>
@@ -1063,9 +1070,9 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             return V4Controls.Values.All(ctrl => !ctrl.NtfValid);
         }
-        
+
         /// <summary>
-        ///  Рендеринг надписей валидации
+        ///     Рендеринг надписей валидации
         /// </summary>
         /// <param name="w">Исходный поток для записи HTML - кода</param>
         /// <param name="ntf">Список надписей</param>
@@ -1074,15 +1081,18 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             ntf.ForEach(n =>
                 {
                     var className = EnumAccessors.GetCssClassByNtfStatus(n.Status, n.SizeIsNtf);
-                    if (!string.IsNullOrEmpty(n.Description) && n.Status != NtfStatus.Empty) className += " v4ContextHelp";
+                    if (!string.IsNullOrEmpty(n.Description) && n.Status != NtfStatus.Empty)
+                        className += " v4ContextHelp";
                     var dashSpace = n.DashSpace ? "- " : "";
 
                     w.Write("<div {0} {1} {2}>",
                         string.IsNullOrEmpty(n.ContainerId) ? "" : $"id=\"{n.ContainerId}\"",
                         string.IsNullOrEmpty(className) ? "" : $"class=\"{className}\"",
-                        string.IsNullOrEmpty(n.Description) || n.Status == NtfStatus.Empty ? "" : $"title=\"{HttpUtility.HtmlEncode(n.Description)}\""
+                        string.IsNullOrEmpty(n.Description) || n.Status == NtfStatus.Empty
+                            ? ""
+                            : $"title=\"{HttpUtility.HtmlEncode(n.Description)}\""
                     );
-                    
+
                     if (n.Message.IndexOf("<ns>", StringComparison.Ordinal) != -1)
                     {
                         var n4check = n.Message.Remove(0, 4);
@@ -1090,20 +1100,17 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                         w.Write(n4check);
                         return;
                     }
-                    else
-                    {
-                        w.Write(dashSpace);
-                    }
+
+                    w.Write(dashSpace);
 
                     w.Write(n.Message);
                     w.Write("</div>");
                 }
             );
-
         }
 
         /// <summary>
-        /// Рендеринг списка надписей в одну сроку
+        ///     Рендеринг списка надписей в одну сроку
         /// </summary>
         /// <param name="w">Поток вывода</param>
         /// <param name="ntfs">список надписей</param>
@@ -1121,13 +1128,14 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                     "{0}<span {1} {2}>{3}</span>{4}",
                     renderWithNewLine && inx == 1 ? "<br/>" : "",
                     string.IsNullOrEmpty(className) ? "" : $"class=\"{className}\"",
-                    string.IsNullOrEmpty(n.Description) || n.Status == NtfStatus.Empty ? "" : $"title=\"{HttpUtility.HtmlEncode(n.Description)}\"",
+                    string.IsNullOrEmpty(n.Description) || n.Status == NtfStatus.Empty
+                        ? ""
+                        : $"title=\"{HttpUtility.HtmlEncode(n.Description)}\"",
                     n.Message,
-                    inx < ntfs.Count  ? separator + " " : ""
+                    inx < ntfs.Count ? separator + " " : ""
                 );
                 inx++;
             });
-
         }
 
         /// <summary>
@@ -1160,12 +1168,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 {
                     var target = ctrl.GetType()
                         .InvokeMember("GetFilterClauseText", BindingFlags.InvokeMethod, null, ctrl, null);
-                    if (!String.IsNullOrEmpty(target.ToString()))
-                    {
-                        result += target + "<br />";
-                    }
+                    if (!string.IsNullOrEmpty(target.ToString())) result += target + "<br />";
                 }
             }
+
             return result;
         }
 
@@ -1177,15 +1183,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             foreach (var ctrl in V4Controls.Values)
             {
-                if (!ctrl.IsReadOnly && ctrl.IsRequired && ctrl.Value.Length == 0)
-                {
-                    return false;
-                }
-                if (!ctrl.Validation())
-                {
-                    return false;
-                }
+                if (!ctrl.IsReadOnly && ctrl.IsRequired && ctrl.Value.Length == 0) return false;
+                if (!ctrl.Validation()) return false;
             }
+
             return true;
         }
 
@@ -1215,11 +1216,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                     ta.Value = El[key];
                     tmpNode.Attributes.Append(ta);
                 }
+
                 root.AppendChild(tmpNode);
             }
 
             if (ElXML.Count > 0)
-            {
                 foreach (string key in ElXML.Keys)
                 {
                     var tmpNodeXml = docXml.CreateElement("elXML");
@@ -1229,10 +1230,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                     tmpNodeXml.InnerXml = ElXML[key];
                     root.AppendChild(tmpNodeXml);
                 }
-            }
 
             if (HTMLBlock.Count > 0)
-            {
                 foreach (string key in HTMLBlock.Keys)
                 {
                     var n = docXml.CreateElement("v4html");
@@ -1242,7 +1241,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                     n.AppendChild(docXml.CreateCDataSection(HTMLBlock[key]));
                     root.AppendChild(n);
                 }
-            }
 
             var el = docXml.CreateElement("js");
 
@@ -1311,7 +1309,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="title">Заголовок окна</param>
         public void ShowMessage(string message, V4Control ctrlFocus, string title = "")
         {
-            if (String.IsNullOrEmpty(title)) title = Resx.GetString("alertMessage");
+            if (string.IsNullOrEmpty(title)) title = Resx.GetString("alertMessage");
             var ctrlId = "";
             if (ctrlFocus != null)
                 ctrlId = ctrlFocus.GetFocusControl();
@@ -1341,14 +1339,15 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="ctrlIdFocus">Идентификатор контрола, на который надо перевести фокус после закрытия окна</param>
         /// <param name="width">Ширина окна</param>
         /// <param name="height">Высота окна</param>
-        public void ShowMessage(string message, string title, MessageStatus status, string ctrlIdFocus, int? width, int? height, string scriptOk="")
+        public void ShowMessage(string message, string title, MessageStatus status, string ctrlIdFocus, int? width,
+            int? height, string scriptOk = "")
         {
             JS.Write("v4_showMessage(\"{0}\",\"{1}\",{2},\"{3}\",{4},{5},\"{6}\");",
                 HttpUtility.JavaScriptStringEncode(message.Replace(Environment.NewLine, "<br>")),
-                HttpUtility.JavaScriptStringEncode(title), 
-                (int) status, 
+                HttpUtility.JavaScriptStringEncode(title),
+                (int) status,
                 ctrlIdFocus,
-                width == null ? "null" : width.ToString(), 
+                width == null ? "null" : width.ToString(),
                 height == null ? "null" : height.ToString(),
                 HttpUtility.JavaScriptStringEncode(scriptOk));
         }
@@ -1372,7 +1371,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
 
 
         /// <summary>
-        ///     Вывод диалогового окна подтверждения 
+        ///     Вывод диалогового окна подтверждения
         /// </summary>
         /// <param name="message">Текст сообщения</param>
         /// <param name="callbackYes">Клиентский скрипт, который долже выполниться после подтверждения</param>
@@ -1409,10 +1408,12 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="callbackYes">Клиентский скрипт, который долже выполниться после подтверждения</param>
         /// <param name="ctrlIdFocus">Идентиикатор контрола, на который необходимо установить фокус после подтверждения</param>
         /// <param name="width">Ширина окна</param>
-        public void ShowConfirm(string message, string title, string captionYes, string captionNo, string callbackYes, string callbackNo,
+        public void ShowConfirm(string message, string title, string captionYes, string captionNo, string callbackYes,
+            string callbackNo,
             string ctrlIdFocus, int? width)
         {
-            ShowConfirm(message, title, captionYes, captionNo, callbackYes, callbackNo, ctrlIdFocus, 75, 75, width, null);
+            ShowConfirm(message, title, captionYes, captionNo, callbackYes, callbackNo, ctrlIdFocus, 75, 75, width,
+                null);
         }
 
         /// <summary>
@@ -1431,7 +1432,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public void ShowConfirm(string message, string title, string captionYes, string captionNo, string callbackYes,
             string ctrlIdFocus, int? widthYes, int? widthNo, int? width, int? height)
         {
-            ShowConfirm(message, title, captionYes, captionNo, callbackYes, "", ctrlIdFocus, widthYes, widthNo, width, height);
+            ShowConfirm(message, title, captionYes, captionNo, callbackYes, "", ctrlIdFocus, widthYes, widthNo, width,
+                height);
         }
 
         /// <summary>
@@ -1444,7 +1446,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="callbackYes">Клиентский скрипт, который долже выполниться после подтверждения</param>
         /// <param name="ctrlIdFocus">Идентиикатор контрола, на который необходимо установить фокус после подтверждения</param>
         /// <param name="width">Ширина окна</param>
-        public void ShowConfirm(string message, string title, string captionYes, string captionNo, string callbackYes, string callbackNo,
+        public void ShowConfirm(string message, string title, string captionYes, string captionNo, string callbackYes,
+            string callbackNo,
             string ctrlIdFocus, int? widthYes, int? widthNo, int? width, int? height)
         {
             JS.Write("v4_showConfirm(\"{0}\",\"{1}\",\"{2}\",\"{3}\",{4},{5},\"{6}\",\"{7}\",\"{8}\",{9},{10});",
@@ -1461,7 +1464,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 height == null ? "null" : height.ToString());
         }
 
-      /// <summary>
+        /// <summary>
         ///     Вывод диалогового окна пересчета
         /// </summary>
         /// <param name="message">Текст сообщения</param>
@@ -1476,14 +1479,14 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="callback4">Клиентский скрипт, который долже выполниться после нажатия на кнопку 4</param>
         /// <param name="ctrlIdFocus">Идентиикатор контрола, на который необходимо установить фокус после подтверждения</param>
         /// <param name="width">Ширина окна</param>
-        public void ShowRecalc(string message, string title, string caption1, string caption2, string caption3, 
+        public void ShowRecalc(string message, string title, string caption1, string caption2, string caption3,
             string caption4, string callback1, string callback2, string callback3, string callback4,
             string ctrlIdFocus, int? width)
-      {
-          ShowRecalc(message, title, caption1, caption2, caption3,
-                     caption4, callback1, callback2, callback3, callback4,
-                     ctrlIdFocus, 80, 80, 80, 80, width, null);
-      }
+        {
+            ShowRecalc(message, title, caption1, caption2, caption3,
+                caption4, callback1, callback2, callback3, callback4,
+                ctrlIdFocus, 80, 80, 80, 80, width, null);
+        }
 
         /// <summary>
         ///     Вывод диалогового окна пересчета
@@ -1501,11 +1504,12 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <param name="ctrlIdFocus">Идентиикатор контрола, на который необходимо установить фокус после подтверждения</param>
         /// <param name="width">Ширина окна</param>
         /// <param name="height">Высота окна</param>
-        public void ShowRecalc(string message, string title, string caption1, string caption2, string caption3, 
+        public void ShowRecalc(string message, string title, string caption1, string caption2, string caption3,
             string caption4, string callback1, string callback2, string callback3, string callback4,
             string ctrlIdFocus, int? width1, int? width2, int? width3, int? width4, int? width, int? height)
         {
-            JS.Write("v4_showRecalc(\"{0}\",\"{1}\",\"{2}\",\"{3}\",\"{4}\",\"{5}\",{6},{7},{8},{9},\"{10}\",\"{11}\",\"{12}\",\"{13}\",\"{14}\",{15},{16});",
+            JS.Write(
+                "v4_showRecalc(\"{0}\",\"{1}\",\"{2}\",\"{3}\",\"{4}\",\"{5}\",{6},{7},{8},{9},\"{10}\",\"{11}\",\"{12}\",\"{13}\",\"{14}\",{15},{16});",
                 HttpUtility.JavaScriptStringEncode(message.Replace(Environment.NewLine, "<br>")),
                 HttpUtility.JavaScriptStringEncode(title),
                 HttpUtility.JavaScriptStringEncode(caption1),
@@ -1536,16 +1540,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             var changed = false;
             foreach (var ctrl in V4Controls.Values)
             {
-                if (ctrl.BindingField.Length == 0)
-                {
-                    continue;
-                }
+                if (ctrl.BindingField.Length == 0) continue;
 
-                if (ctrl.BindSimple(obj, direction))
-                {
-                    changed = true;
-                }
+                if (ctrl.BindSimple(obj, direction)) changed = true;
             }
+
             return changed;
         }
 
@@ -1593,17 +1592,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public void Display(string idControl, string displayType)
         {
             if (displayType == "none")
-            {
                 Hide(idControl);
-            }
             else if (string.IsNullOrEmpty(displayType))
-            {
                 Display(idControl);
-            }
             else
-            {
                 JS.Write("di('{0}','{1}');", idControl, displayType);
-            }
         }
 
         /// <summary>
@@ -1614,13 +1607,9 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public void Display(string idControl, bool isVisible)
         {
             if (isVisible)
-            {
                 Display(idControl);
-            }
             else
-            {
                 Hide(idControl);
-            }
         }
 
         /// <summary>
@@ -1670,7 +1659,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             var resUrl = Config.resource_form;
             w.Write(
                 "<a href=\"#\" onclick=\"v4_windowOpen('{0}{1}id={2}');\"{3}>",
-                resUrl, (resUrl.IndexOf('?') == -1) ? "?" : "&", idRes,
+                resUrl, resUrl.IndexOf('?') == -1 ? "?" : "&", idRes,
                 tabIndex.Length > 0 ? " tabIndex=" + tabIndex : "");
         }
 
@@ -1682,13 +1671,16 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             var resUrl = Config.location_search;
             w.Write(
                 "<a href=\"#\" onclick=\"v4_windowOpen('{0}{1}idLoc={2}');\"{3}>",
-                resUrl, (resUrl.IndexOf('?') == -1) ? "?" : "&", idLoc,
+                resUrl, resUrl.IndexOf('?') == -1 ? "?" : "&", idLoc,
                 tabIndex.Length > 0 ? " tabIndex=" + tabIndex : "");
         }
 
-        public void RenderLinkLocation(TextWriter w, string id, string value, string text, NtfStatus ntf = NtfStatus.Empty, string tabIndex = "")
+        public void RenderLinkLocation(TextWriter w, string id, string value, string text,
+            NtfStatus ntf = NtfStatus.Empty, string tabIndex = "")
         {
-            RenderLink(w, "hrefLoc"+ id, "", text, "", Config.location_search + ((Config.location_search.IndexOf('?') == -1) ? "?" : "&") + "id=" + value, "", "", tabIndex, ntf);
+            RenderLink(w, "hrefLoc" + id, "", text, "",
+                Config.location_search + (Config.location_search.IndexOf('?') == -1 ? "?" : "&") + "id=" + value, "",
+                "", tabIndex, ntf);
         }
 
         /// <summary>
@@ -1697,12 +1689,12 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         public void RenderLinkEquipment(TextWriter w, string id, string className, string title)
         {
             w.Write(
-                  "<a href=\"#\" {2} {3} onclick=\"v4_windowOpen('{0}?id={1}');\">",
-                  Config.equipment_form , id, className.Length > 0 ? className : "", title.Length > 0 ? title : "");
+                "<a href=\"#\" {2} {3} onclick=\"v4_windowOpen('{0}?id={1}');\">",
+                Config.equipment_form, id, className.Length > 0 ? className : "", title.Length > 0 ? title : "");
         }
 
         /// <summary>
-        ///   Отрисовать ссылку на документ
+        ///     Отрисовать ссылку на документ
         /// </summary>
         /// <param name="w">Поток вывода</param>
         /// <param name="docId">КодДокумента</param>
@@ -1710,7 +1702,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             var ntfClass = EnumAccessors.GetCssClassByNtfStatus(ntf, false);
 
-            w.Write("<a {0} href=\"javascript:void(0);\" onclick=\"cmdasync('cmd', 'ShowInDocView', 'DocId', {1}, 'openImage', {2});\">",
+            w.Write(
+                "<a {0} href=\"javascript:void(0);\" onclick=\"cmdasync('cmd', 'ShowInDocView', 'DocId', {1}, 'openImage', {2});\">",
                 ntfClass != "" ? string.Format("class='{0}'", ntfClass) : "",
                 docId,
                 openImage ? 1 : 0);
@@ -1765,288 +1758,55 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
         }
 
-        #region RendeLink
-
         /// <summary>
-        ///     Отрисовка ссылки на сотрудника
-        /// </summary>
-        /// <param name="w">Поток</param>
-        /// <param name="emplId">КодСотрудника</param>
-        /// <param name="emplName">Название сотрудника</param>
-        public void RenderLinkEmployee(TextWriter w, string htmlId, string emplId, string emplName, NtfStatus ntf, bool isNtf = true)
-        {
-            var url = string.Concat(Config.user_form, "?id=", emplId);
-            RenderLinkCaller(w, htmlId, emplId, emplName, url, ntf, isNtf, CallerTypeEnum.Employee);
-        }
-
-        /// <summary>
-        ///     Отрисовка ссылки на сотрудника
-        /// </summary>
-        public void RenderLinkEmployee(TextWriter w, string htmlId, Employee empl, NtfStatus ntf, bool isNtf = true)
-        {
-            var name = IsRusLocal ? empl.FullName : empl.FullNameEn;
-            RenderLinkEmployee(w, htmlId, empl.Id, name, ntf, isNtf);
-        }
-
-        /// <summary>
-        ///     Отсисовка ссылки на лицо
-        /// </summary>
-        /// <param name="w">Поток</param>
-        /// <param name="personId">КодЛица</param>
-        /// <param name="ntf">Стиль NTF</param>
-        /// <param name="isNtf">Размер NTF</param>
-        public void RenderLinkPerson(TextWriter w, string htmlId, string personId, string personName,
-            NtfStatus ntf = NtfStatus.Empty, bool isNtf = true)
-        {
-            var url = string.Concat(Config.person_form, "?id=", personId);
-            RenderLinkCaller(w, htmlId, personId, personName, url, ntf, isNtf, CallerTypeEnum.Person);
-        }
-
-
-        /// <summary>
-        ///     Отрисовка в поток гиперссылки со звонилкой
-        /// </summary>
-        /// <param name="w">Поток</param>
-        /// <param name="id">Идентификатор контрола</param>
-        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
-        /// <param name="text">Текст гиперссылки</param>
-        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
-        /// <param name="urlParams">Параметры окна для window.open</param>
-        /// <param name="urlTarget">Handler окна для window.open</param>
-        /// <param name="tabIndex">Индекс табуляции</param>
-        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
-        public void RenderLinkCaller(TextWriter w, string id, string value, string text, string url, string urlParams,
-            string urlTarget, string tabIndex, CallerTypeEnum callerType)
-        {
-            RenderLink(w, id, value, text, "", url, urlParams, urlTarget, tabIndex, NtfStatus.Empty, false, callerType);
-        }
-
-        /// <summary>
-        ///     Отрисовка в поток гиперссылки со звонилкой
-        /// </summary>
-        /// <param name="w">Поток</param>
-        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
-        /// <param name="text">Текст гиперссылки</param>
-        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
-        /// <param name="urlParams">Параметры окна для window.open</param>
-        /// <param name="urlTarget">Handler окна для window.open</param>
-        /// <param name="tabIndex">Индекс табуляции</param>
-        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
-        public void RenderLinkCaller(TextWriter w, string value, string text, string url, string urlParams, string urlTarget, string tabIndex, CallerTypeEnum callerType)
-        {
-            RenderLink(w, "", value, text, "", url, urlParams, urlTarget, tabIndex, NtfStatus.Empty, false, callerType);
-        }
-
-        
-        /// <summary>
-        /// Отрисовка в поток гиперссылки со звонилкой
-        /// </summary>
-        /// <param name="w">Поток</param>
-        /// <param name="htmlId">Идентификатор ссылки</param>
-        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
-        /// <param name="text">Текст гиперссылки</param>
-        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
-        /// <param name="ntf">Стиль отображения текста</param>
-        /// <param name="isNtf">Определяет размер текста</param>
-        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
-        public void RenderLinkCaller(TextWriter w, string htmlId, string value, string text, string url, NtfStatus ntf, bool isNtf, CallerTypeEnum callerType)
-        {
-            RenderLink(w, htmlId, value, text, "", url, "", "", "", ntf, isNtf, callerType);
-        }
-
-        /// <summary>
-        /// Отрисовка в поток гиперссылки со звонилкой
-        /// </summary>
-        /// <param name="w">Поток</param>
-        /// <param name="htmlId">Идентификатор ссылки</param>
-        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
-        /// <param name="text">Текст гиперссылки</param>
-        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
-        /// <param name="ntf">Стиль отображения текста</param>
-        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
-        public void RenderLinkCaller(TextWriter w, string htmlId, string value, string text, string url, NtfStatus ntf,  CallerTypeEnum callerType)
-        {
-            RenderLink(w, htmlId, value, text, "", url, "", "", "", ntf, true, callerType);
-        }
-
-        /// <summary>
-        ///     Отрисовка в поток гиперссылки со звонилкой
-        /// </summary>
-        /// <param name="w">Поток</param>
-        /// <param name="id">Идентификатор контрола</param>
-        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
-        /// <param name="text">Текст гиперссылки</param>
-        /// <param name="onClick">Javascript-функция, которая вызывается на Click по гиперссылке</param>
-        /// <param name="tabIndex">Индекс табуляции</param>
-        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
-        public void RenderLinkCaller(TextWriter w, string id, string value, string text, string onClick, string tabIndex, CallerTypeEnum callerType)
-        {
-            RenderLink(w, id, value, text, onClick, "", "", "", tabIndex, NtfStatus.Empty, false, callerType);
-        }
-
-        /// <summary>
-        ///     Отрисовка в поток гиперссылки со звонилкой
-        /// </summary>
-        /// <param name="w">Поток</param>
-        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
-        /// <param name="text">Текст гиперссылки</param>
-        /// <param name="onClick">Javascript-функция, которая вызывается на Click по гиперссылке</param>
-        /// <param name="tabIndex">Индекс табуляции</param>
-        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
-        public void RenderLinkCaller(TextWriter w, string value, string text, string onClick, string tabIndex, CallerTypeEnum callerType)
-        {
-            RenderLink(w, "", value, text, onClick, "", "", "", tabIndex, NtfStatus.Empty, false, callerType);
-        }
-
-
-        /// <summary>
-        ///     Отрисовка в поток гиперссылки
-        /// </summary>
-        /// <param name="w">Поток</param>
-        /// <param name="text">Текст гиперссылки</param>
-        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
-        /// <param name="urlParams">Параметры окна для window.open</param>
-        /// <param name="urlTarget">Handler окна для window.open</param>
-        /// <param name="tabIndex">Индекс табуляции</param>
-        public void RenderLink(TextWriter w, string text, string url, string urlParams, string urlTarget,
-            string tabIndex)
-        {
-            RenderLink(w, "", "", text, "", url, urlParams, urlTarget, tabIndex);
-        }
-
-        /// <summary>
-        ///     Отрисовка в поток гиперссылки
-        /// </summary>
-        /// <param name="w">Поток</param>
-        /// <param name="text">Текст гиперссылки</param>
-        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
-        /// <param name="tabIndex">Индекс табуляции</param>
-        public void RenderLink(TextWriter w, string text, string url, string tabIndex)
-        {
-            RenderLink(w, "", "", text, "", url, "", "", tabIndex);
-        }
-
-        /// <summary>
-        ///     Отрисовка в поток гиперссылки
-        /// </summary>
-        /// <param name="w">Поток</param>
-        /// <param name="id">Идентификатор контрола</param>
-        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
-        /// <param name="text">Текст гиперссылки</param>
-        /// <param name="onClick">Javascript-функция, которая вызывается на Click по гиперссылке</param>
-        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
-        /// <param name="urlParams">Параметры окна для window.open</param>
-        /// <param name="urlTarget">Handler окна для window.open</param>
-        /// <param name="tabIndex">Индекс табуляции</param>
-        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
-        public void RenderLink(TextWriter w, string id, string value, string text, string onClick, string url,
-            string urlParams, string urlTarget, string tabIndex, NtfStatus ntf = NtfStatus.Empty, bool isNtf = false,
-            CallerTypeEnum callerType = CallerTypeEnum.Empty)
-        {
-            if (onClick.Length > 0 && url.Length > 0)
-                throw new ArgumentException("Некорректно переданы парметры!");
-
-            w.Write("<a href=\"javascript:void(0);\"");
-
-            if (id.Length > 0)
-                w.Write(" id=\"{0}\" ", id);
-
-            if (onClick.Length > 0)
-                w.Write(" onclick=\"{0}\" ", HttpUtility.JavaScriptStringEncode(onClick));
-
-            if (url.Length > 0)
-                w.Write("onclick=\"v4_windowOpen('{0}','{1}','{2}');\"",
-                    HttpUtility.JavaScriptStringEncode(url),
-                    urlTarget.Length == 0 ? "_blank" : urlTarget,
-                      urlParams.Length == 0
-                        ? "location=no, menubar=no, status=no, toolbar=no, resizable=yes, scrollbars=yes"
-                        : urlParams
-                    );
-                
-            if (tabIndex.Length > 0)
-                w.Write("tabIndex={0} ", tabIndex);
-
-           
-            var className = EnumAccessors.GetCssClassByNtfStatus(ntf, isNtf);
-
-            if (!callerType.Equals(CallerTypeEnum.Empty) && value.Length > 0)
-            {
-                className += " v4_callerControl";
-                w.Write(" data-id=\"" +
-                        HttpUtility.UrlEncode(value) + "\" caller-type=\"" +
-                        (int) callerType + "\"");
-            }
-
-            if (className.Length > 0)
-                w.Write(" class=\"" + className + " \"");
-
-            w.Write(">");
-            w.Write(HttpUtility.HtmlEncode(text));
-            w.Write("</a>");
-        }
-
-        #endregion
-
-        /// <summary>
-        /// Трансляция событий формы на других пользователей
+        ///     Трансляция событий формы на других пользователей
         /// </summary>
         /// <param name="Params">Коллекция параметров</param>
         public virtual void TranslatePageEvent(NameValueCollection Params)
         {
-
         }
-        
+
         /// <summary>
-        /// Трансляция событий элементов управления на других пользователей
+        ///     Трансляция событий элементов управления на других пользователей
         /// </summary>
         /// <param name="Params">Коллекция параметров</param>
         public void TranslateCtrlEvent(NameValueCollection Params)
         {
-            CometMessage m = new CometMessage
+            if (ItemId == 0) return;
+            var existsMessage = false;
+            var pages = KescoHub.GetAllPages().ToList();
+            pages.ForEach(p =>
             {
-                ClientGuid = IDPage,
-                IsV4Script = true,
-                Message = "<js>cmdasync();</js>",
-                Status = 0,
-                UserName = ""
-            };
+                if (!(p is Page)) return;
+                var page = (Page) p;
 
-            Predicate<CometAsyncState> pred = (client) =>
-            {
-                if (client.Page == null) return false;
-                if (client.Page == this) return false;
-                if (((Page)client.Page).IDPage == IDPage) return false;
-                if (client.Id != this.ItemId) return false;
+                if (page.ItemId == 0 || page.ItemId != ItemId || page.ItemName != ItemName) return;
+                var ctrlId = Params["ctrl"];
+                if (!page.V4Controls.ContainsKey(ctrlId)) return;
 
+                existsMessage = true;
 
-                string ctrl_id = Params["ctrl"];
-                //((Page)client.Page).V4Controls[Params["ctrl"]].ProcessCommand(Params);
-                if (!((Page) client.Page).V4Controls.ContainsKey(ctrl_id)) return false;
-                string old = ((Page)client.Page).V4Controls[ctrl_id].Value;
-                string orig = ((Page)client.Page).V4Controls[ctrl_id].OriginalValue;
+                var old = page.V4Controls[ctrlId].Value;
+                var orig = page.V4Controls[ctrlId].OriginalValue;
 
-                ((Page)client.Page).V4Controls[ctrl_id].Value = V4Controls[ctrl_id].Value;
-                ((Page)client.Page).V4Controls[ctrl_id].OnChanged(new ProperyChangedEventArgs(old, V4Controls[ctrl_id].Value, orig));
-                return true;
-            };
+                page.V4Controls[ctrlId].Value = V4Controls[ctrlId].Value;
+                page.V4Controls[ctrlId].OnChanged(new ProperyChangedEventArgs(old, V4Controls[ctrlId].Value, orig, true));
+            });
 
-            CometServer.PushMessage(m, pred);
-            CometServer.Process();
+            if (!existsMessage) return;
+            SendCmdAsyncMessage();
         }
 
-        private List<V4PageObj> objList { get; set; }
-        private List<V4PageObj> ObjList
+        public void SendCmdAsyncMessage()
         {
-            get
+            KescoHub.SendMessage(new SignalMessage
             {
-                if (objList != null)
-                {
-                    return objList;
-                }
-
-                objList = new List<V4PageObj>();
-                return objList;
-            }
+                PageId = IDPage,
+                ItemId = ItemId.ToString(),
+                ItemName = ItemName,
+                IsV4Script = true,
+                Message = "<js>cmdasync();</js>"
+            });
         }
 
         public void ClearObjects()
@@ -2058,49 +1818,54 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             var ret = ObjList.Find(o => (o.Type == t || t == typeof(Document)) && o.Object.Id == id);
 
-            if (ret != null  
+            if (ret != null
                 && V4IsPostBack
-                && (string.IsNullOrEmpty(ret.Object.CurrentPostRequest) || ret.Object.CurrentPostRequest != IDPostRequest)
+                && (string.IsNullOrEmpty(ret.Object.CurrentPostRequest) ||
+                    ret.Object.CurrentPostRequest != IDPostRequest)
                 && ret.Object.GetLastChanged(id) != ret.Object.Changed)
             {
                 objList.Remove(ret);
                 ret = null;
             }
-            
+
             if (ret == null)
             {
-                var ci = t.GetConstructor(new Type[] { typeof(string) });
+                var ci = t.GetConstructor(new[] {typeof(string)});
                 if (ci != null)
                 {
-                    var o = ci.Invoke(new object[] { id }) as Entity;
+                    var o = ci.Invoke(new object[] {id}) as Entity;
                     if (o != null)
                     {
                         o.CurrentPostRequest = IDPostRequest;
-                        ret = new V4PageObj { Type = t, Object = o };
+                        ret = new V4PageObj {Type = t, Object = o};
                         objList.Add(ret);
                     }
-                  
                 }
             }
             else if (V4IsPostBack)
             {
-                if (string.IsNullOrEmpty(ret.Object.CurrentPostRequest) || ret.Object.CurrentPostRequest != IDPostRequest)
-                {
-                    ret.Object.CurrentPostRequest = IDPostRequest;
-                }
+                if (string.IsNullOrEmpty(ret.Object.CurrentPostRequest) ||
+                    ret.Object.CurrentPostRequest != IDPostRequest) ret.Object.CurrentPostRequest = IDPostRequest;
             }
 
-            if (ret != null)
-            {
-                return ret.Object;
-            }
+            if (ret != null) return ret.Object;
 
             return null;
         }
 
+
+        /// <summary>
+        ///     Процедура очистки загруженных и закэшированных свойств объектов
+        /// </summary>
+        protected virtual void ClearLoadedExternalProperties()
+        {
+        }
+
+
         //Удаляем все закешированные объекты на странице
         public void ClearCacheObjects()
         {
+            ClearLoadedExternalProperties();
             if (objList != null) objList.Clear();
             objList = null;
             GC.Collect();
@@ -2204,7 +1969,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common
 
         protected virtual void RenderAddControl(StringWriter w)
         {
-
         }
 
         /// <summary>
@@ -2212,7 +1976,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         public virtual void RenderButtons(StringWriter w)
         {
-            w.Write("<div id=\"pageHeader\" class=\"ui-widget-header ui-corner-all\" style=\"z-index:9999 {0}\">", MenuButtons.Count == 0 ? ";height:23px" : "");
+            w.Write("<div id=\"pageHeader\" class=\"ui-widget-header ui-corner-all\" style=\"overflow:hidden; z-index:9999 {0}\">",
+                MenuButtons.Count == 0 ? ";height:23px" : "");
 
             foreach (var b in MenuButtons)
             {
@@ -2224,9 +1989,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             RenderAddControl(w);
 
             if (!string.IsNullOrEmpty(LogoImage))
-            {
-                w.Write("<img src=\"{0}\" style=\"float: left; margin-left: 2px; border: 0; height: 23px;\">", LogoImage);
-            }
+                w.Write("<img src=\"{0}\" style=\"float: left; margin-left: 2px; border: 0; height: 23px;\">",
+                    LogoImage);
 
             if (!string.IsNullOrEmpty(HelpUrl))
             {
@@ -2248,6 +2012,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 btnHelp.PropertyChanged.Clear();
             }
 
+            
             if (!LikeId.IsNullEmptyOrZero())
             {
                 var btnLike = new LikeDislike
@@ -2277,5 +2042,232 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             }
         }
 
+        #region RendeLink
+
+        /// <summary>
+        ///     Отрисовка ссылки на сотрудника
+        /// </summary>
+        /// <param name="w">Поток</param>
+        /// <param name="emplId">КодСотрудника</param>
+        /// <param name="emplName">Название сотрудника</param>
+        public void RenderLinkEmployee(TextWriter w, string htmlId, string emplId, string emplName, NtfStatus ntf,
+            bool isNtf = true)
+        {
+            var url = string.Concat(Config.user_form, "?id=", emplId);
+            RenderLinkCaller(w, htmlId, emplId, emplName, url, ntf, isNtf, CallerTypeEnum.Employee);
+        }
+
+        /// <summary>
+        ///     Отрисовка ссылки на сотрудника
+        /// </summary>
+        public void RenderLinkEmployee(TextWriter w, string htmlId, Employee empl, NtfStatus ntf, bool isNtf = true)
+        {
+            var name = IsRusLocal ? empl.FullName : empl.FullNameEn;
+            RenderLinkEmployee(w, htmlId, empl.Id, name, ntf, isNtf);
+        }
+
+        /// <summary>
+        ///     Отсисовка ссылки на лицо
+        /// </summary>
+        /// <param name="w">Поток</param>
+        /// <param name="personId">КодЛица</param>
+        /// <param name="ntf">Стиль NTF</param>
+        /// <param name="isNtf">Размер NTF</param>
+        public void RenderLinkPerson(TextWriter w, string htmlId, string personId, string personName,
+            NtfStatus ntf = NtfStatus.Empty, bool isNtf = true)
+        {
+            var url = string.Concat(Config.person_form, "?id=", personId);
+            RenderLinkCaller(w, htmlId, personId, personName, url, ntf, isNtf, CallerTypeEnum.Person);
+        }
+
+
+        /// <summary>
+        ///     Отрисовка в поток гиперссылки со звонилкой
+        /// </summary>
+        /// <param name="w">Поток</param>
+        /// <param name="id">Идентификатор контрола</param>
+        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
+        /// <param name="text">Текст гиперссылки</param>
+        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
+        /// <param name="urlParams">Параметры окна для window.open</param>
+        /// <param name="urlTarget">Handler окна для window.open</param>
+        /// <param name="tabIndex">Индекс табуляции</param>
+        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
+        public void RenderLinkCaller(TextWriter w, string id, string value, string text, string url, string urlParams,
+            string urlTarget, string tabIndex, CallerTypeEnum callerType)
+        {
+            RenderLink(w, id, value, text, "", url, urlParams, urlTarget, tabIndex, NtfStatus.Empty, false, callerType);
+        }
+
+        /// <summary>
+        ///     Отрисовка в поток гиперссылки со звонилкой
+        /// </summary>
+        /// <param name="w">Поток</param>
+        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
+        /// <param name="text">Текст гиперссылки</param>
+        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
+        /// <param name="urlParams">Параметры окна для window.open</param>
+        /// <param name="urlTarget">Handler окна для window.open</param>
+        /// <param name="tabIndex">Индекс табуляции</param>
+        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
+        public void RenderLinkCaller(TextWriter w, string value, string text, string url, string urlParams,
+            string urlTarget, string tabIndex, CallerTypeEnum callerType)
+        {
+            RenderLink(w, "", value, text, "", url, urlParams, urlTarget, tabIndex, NtfStatus.Empty, false, callerType);
+        }
+
+
+        /// <summary>
+        ///     Отрисовка в поток гиперссылки со звонилкой
+        /// </summary>
+        /// <param name="w">Поток</param>
+        /// <param name="htmlId">Идентификатор ссылки</param>
+        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
+        /// <param name="text">Текст гиперссылки</param>
+        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
+        /// <param name="ntf">Стиль отображения текста</param>
+        /// <param name="isNtf">Определяет размер текста</param>
+        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
+        public void RenderLinkCaller(TextWriter w, string htmlId, string value, string text, string url, NtfStatus ntf,
+            bool isNtf, CallerTypeEnum callerType)
+        {
+            RenderLink(w, htmlId, value, text, "", url, "", "", "", ntf, isNtf, callerType);
+        }
+
+        /// <summary>
+        ///     Отрисовка в поток гиперссылки со звонилкой
+        /// </summary>
+        /// <param name="w">Поток</param>
+        /// <param name="htmlId">Идентификатор ссылки</param>
+        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
+        /// <param name="text">Текст гиперссылки</param>
+        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
+        /// <param name="ntf">Стиль отображения текста</param>
+        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
+        public void RenderLinkCaller(TextWriter w, string htmlId, string value, string text, string url, NtfStatus ntf,
+            CallerTypeEnum callerType)
+        {
+            RenderLink(w, htmlId, value, text, "", url, "", "", "", ntf, true, callerType);
+        }
+
+        /// <summary>
+        ///     Отрисовка в поток гиперссылки со звонилкой
+        /// </summary>
+        /// <param name="w">Поток</param>
+        /// <param name="id">Идентификатор контрола</param>
+        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
+        /// <param name="text">Текст гиперссылки</param>
+        /// <param name="onClick">Javascript-функция, которая вызывается на Click по гиперссылке</param>
+        /// <param name="tabIndex">Индекс табуляции</param>
+        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
+        public void RenderLinkCaller(TextWriter w, string id, string value, string text, string onClick,
+            string tabIndex, CallerTypeEnum callerType)
+        {
+            RenderLink(w, id, value, text, onClick, "", "", "", tabIndex, NtfStatus.Empty, false, callerType);
+        }
+
+        /// <summary>
+        ///     Отрисовка в поток гиперссылки со звонилкой
+        /// </summary>
+        /// <param name="w">Поток</param>
+        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
+        /// <param name="text">Текст гиперссылки</param>
+        /// <param name="onClick">Javascript-функция, которая вызывается на Click по гиперссылке</param>
+        /// <param name="tabIndex">Индекс табуляции</param>
+        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
+        public void RenderLinkCaller(TextWriter w, string value, string text, string onClick, string tabIndex,
+            CallerTypeEnum callerType)
+        {
+            RenderLink(w, "", value, text, onClick, "", "", "", tabIndex, NtfStatus.Empty, false, callerType);
+        }
+
+
+        /// <summary>
+        ///     Отрисовка в поток гиперссылки
+        /// </summary>
+        /// <param name="w">Поток</param>
+        /// <param name="text">Текст гиперссылки</param>
+        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
+        /// <param name="urlParams">Параметры окна для window.open</param>
+        /// <param name="urlTarget">Handler окна для window.open</param>
+        /// <param name="tabIndex">Индекс табуляции</param>
+        public void RenderLink(TextWriter w, string text, string url, string urlParams, string urlTarget,
+            string tabIndex)
+        {
+            RenderLink(w, "", "", text, "", url, urlParams, urlTarget, tabIndex);
+        }
+
+        /// <summary>
+        ///     Отрисовка в поток гиперссылки
+        /// </summary>
+        /// <param name="w">Поток</param>
+        /// <param name="text">Текст гиперссылки</param>
+        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
+        /// <param name="tabIndex">Индекс табуляции</param>
+        public void RenderLink(TextWriter w, string text, string url, string tabIndex)
+        {
+            RenderLink(w, "", "", text, "", url, "", "", tabIndex);
+        }
+
+        /// <summary>
+        ///     Отрисовка в поток гиперссылки
+        /// </summary>
+        /// <param name="w">Поток</param>
+        /// <param name="id">Идентификатор контрола</param>
+        /// <param name="value">Значение контрола, используется для передачи в звонилку</param>
+        /// <param name="text">Текст гиперссылки</param>
+        /// <param name="onClick">Javascript-функция, которая вызывается на Click по гиперссылке</param>
+        /// <param name="url">Ссылка, которая будет открыта через window.open</param>
+        /// <param name="urlParams">Параметры окна для window.open</param>
+        /// <param name="urlTarget">Handler окна для window.open</param>
+        /// <param name="tabIndex">Индекс табуляции</param>
+        /// <param name="callerType">Если не пустой, то определяет тип получаемых контактов для звонилки</param>
+        public void RenderLink(TextWriter w, string id, string value, string text, string onClick, string url,
+            string urlParams, string urlTarget, string tabIndex, NtfStatus ntf = NtfStatus.Empty, bool isNtf = false,
+            CallerTypeEnum callerType = CallerTypeEnum.Empty)
+        {
+            if (onClick.Length > 0 && url.Length > 0)
+                throw new ArgumentException("Некорректно переданы парметры!");
+
+            w.Write("<a href=\"javascript:void(0);\"");
+
+            if (id.Length > 0)
+                w.Write(" id=\"{0}\" ", id);
+
+            if (onClick.Length > 0)
+                w.Write(" onclick=\"{0}\" ", HttpUtility.JavaScriptStringEncode(onClick));
+
+            if (url.Length > 0)
+                w.Write("onclick=\"v4_windowOpen('{0}','{1}','{2}');\"",
+                    HttpUtility.JavaScriptStringEncode(url),
+                    urlTarget.Length == 0 ? "_blank" : urlTarget,
+                    urlParams.Length == 0
+                        ? "location=no, menubar=no, status=no, toolbar=no, resizable=yes, scrollbars=yes"
+                        : urlParams
+                );
+
+            if (tabIndex.Length > 0)
+                w.Write("tabIndex={0} ", tabIndex);
+
+
+            var className = EnumAccessors.GetCssClassByNtfStatus(ntf, isNtf);
+
+            if (!callerType.Equals(CallerTypeEnum.Empty) && value.Length > 0)
+            {
+                className += " v4_callerControl";
+                w.Write(" data-id=\"" +
+                        HttpUtility.UrlEncode(value) + "\" caller-type=\"" +
+                        (int) callerType + "\"");
+            }
+
+            if (className.Length > 0)
+                w.Write(" class=\"" + className + " \"");
+
+            w.Write(">");
+            w.Write(HttpUtility.HtmlEncode(text));
+            w.Write("</a>");
+        }
+
+        #endregion
     }
 }

@@ -11,7 +11,6 @@ namespace Kesco.Lib.Web.Controls.V4.Renderer
     public class NumberRenderer : Renderer
     {
         private readonly bool _alignRight;
-        private readonly NumberFormatInfo _format;
         private readonly string _groupSeparator;
         private readonly int _maxScale;
         private readonly int _minScale;
@@ -42,7 +41,7 @@ namespace Kesco.Lib.Web.Controls.V4.Renderer
             _maxScale = maxScale;
             _groupSeparator = groupSeparator;
             _alignRight = alignRight;
-            _format = null;
+            Format = null;
         }
 
         /// <summary>
@@ -50,7 +49,7 @@ namespace Kesco.Lib.Web.Controls.V4.Renderer
         /// </summary>
         public NumberRenderer()
         {
-            _format = (NumberFormatInfo) NumberFormatInfo.CurrentInfo.Clone();
+            Format = (NumberFormatInfo) NumberFormatInfo.CurrentInfo.Clone();
         }
 
         /// <summary>
@@ -59,16 +58,13 @@ namespace Kesco.Lib.Web.Controls.V4.Renderer
         /// <param name="format"></param>
         public NumberRenderer(NumberFormatInfo format)
         {
-            _format = format;
+            Format = format;
         }
 
         /// <summary>
         ///     Формат числа
         /// </summary>
-        public NumberFormatInfo Format
-        {
-            get { return _format; }
-        }
+        public NumberFormatInfo Format { get; }
 
         /// <summary>
         ///     Значение в виде строки
@@ -132,16 +128,20 @@ namespace Kesco.Lib.Web.Controls.V4.Renderer
             if (_undefined) return;
 
             if (_alignRight) w.Write("<div align=\"right\">");
-            if (_format != null)
+            if (Format != null)
             {
-                var scale = _format.NumberDecimalDigits;
+                var scale = Format.NumberDecimalDigits;
                 var n = 0;
                 for (var r = _d; r - decimal.Truncate(r) != 0; r *= 10) n++;
-                var nfi = (NumberFormatInfo) _format.Clone();
+                var nfi = (NumberFormatInfo) Format.Clone();
                 nfi.NumberDecimalDigits = Math.Max(scale, n);
                 w.Write(_d.ToString("N", nfi));
             }
-            else w.Write(Number.FormatNumber(ValueString, _minScale, _maxScale, _groupSeparator));
+            else
+            {
+                w.Write(Number.FormatNumber(ValueString, _minScale, _maxScale, _groupSeparator));
+            }
+
             if (_alignRight) w.Write("</div>");
         }
     }

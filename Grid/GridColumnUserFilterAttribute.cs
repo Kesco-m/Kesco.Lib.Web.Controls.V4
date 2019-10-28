@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace Kesco.Lib.Web.Controls.V4.Grid
 {
@@ -14,8 +11,8 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             AliasDate = aliasDate;
         }
 
-        public string AliasString { get; private set; }
-        public string AliasNumber { get; private set; }
-        public string AliasDate { get; private set; }
+        public string AliasString { get; }
+        public string AliasNumber { get; }
+        public string AliasDate { get; }
     }
 }

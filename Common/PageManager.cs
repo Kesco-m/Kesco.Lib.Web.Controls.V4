@@ -1,87 +1,38 @@
-﻿using System.Timers;
-using System.Web;
-using Kesco.Lib.Web.Comet;
+﻿using System.Diagnostics;
+using System.Timers;
+using Kesco.Lib.Web.SignalR;
 
 namespace Kesco.Lib.Web.Controls.V4.Common
 {
     /// <summary>
     ///     Класс управления страницей (основной функционал - "сборщик мусора", то есть удаление просроченных страниц из
-    ///     Application)
+    ///     KescoHub)
     /// </summary>
     public class PageManager
     {
         private static Timer _timer;
 
-        /// <summary>
-        ///     Объект Application
-        /// </summary>
-        public static HttpApplicationState Application;
 
         /// <summary>
         ///     Метод вызывается при старте приложения, в нем устанавливается таймер проверки страниц на неактуальность - 2 минуты
         ///     То есть, GC запускается каждую 2 минуты
         /// </summary>
-        /// <param name="application">Объект Application приложения</param>
-        public static void Start(HttpApplicationState application)
+        public static void Start()
         {
-            CometServer.WriteLog("Start PageManager Start");
+            Debug.WriteLine("Таймер очистки запущен");
 
-            Application?.Clear(); 
             _timer?.Dispose();
-
-            Application = application;
 
             _timer = new Timer(120000);
             _timer.Elapsed += TimerElapsed;
             _timer.Enabled = true;
-
-            CometServer.WriteLog("End PageManager Start");
         }
 
         public static void TimerElapsed(object sender, ElapsedEventArgs e)
         {
-            CometServer.WriteLog("############# Start TimerElapsed ################");
-            DeleteOldPagesFromApplication(sender, e);
-            CometServer.WriteLog("############# End TimerElapsed ################");
+            KescoHub.RemovePagesWithOutConnection();
         }
 
-        /// <summary>
-        ///     Удаление неактуальных страниц и соединений
-        /// </summary>
-        /// <param name="sender">таймер</param>
-        /// <param name="e">аргумент таймера</param>
-        public static void DeleteOldPagesFromApplication(object sender, ElapsedEventArgs e)
-        {
-            CometServer.WriteLog("Start DeleteOldPagesFromApplication");
-
-            CometServer.ClearExpiredConnections();
-            Application.Lock();
-            for (var i = Application.Keys.Count - 1; i >= 0; i--)
-            {
-                var key = Application.GetKey(i);
-                var p = Application[key] as Page;
-
-                //null объекты не нужны
-                if (Application[key] == null)
-                {
-                    Application.Remove(key);
-                    CometServer.WriteLog("Application.Remove DeleteOldPages -> " + key);
-                    continue;
-                }
-
-                if (p == null) continue;
-
-                if (!CometServer.Connections.Exists(s => s.ClientGuid == key))
-                {
-                    p.V4Dispose();
-
-                    CometServer.WriteLog("V4Dispose DeleteOldPages -> " + key);
-                }
-            }
-
-            Application.UnLock();
-
-            CometServer.WriteLog("End DeleteOldPagesFromApplication");
-        }
+        
     }
 }

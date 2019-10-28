@@ -14,10 +14,7 @@ namespace Kesco.Lib.Web.Controls.V4.Renderer
         /// <summary>
         ///     Получение V4Page
         /// </summary>
-        public Page V4Page
-        {
-            get { return Page ?? (Page = (Page) HttpContext.Current.Handler); }
-        }
+        public Page V4Page => Page ?? (Page = (Page) HttpContext.Current.Handler);
 
         /// <summary>
         ///     Отрисовка

@@ -18,18 +18,16 @@ namespace Kesco.Lib.Web.Controls.V4
     [ToolboxData("<{0}:TextBox runat=server />")]
     public class TextBox : V4Control
     {
-        /// <summary>
-        /// Класс описывающий событие выбора элемента 
-        /// </summary>
-        public class CheckEventArgs : EventArgs
-        {
-            public CheckEventArgs(bool checkedValue)
-            {
-                Checked = checkedValue;
-            }
+        private const string _fieldset_style = "position: relative; padding-top: 5px;";
 
-            public bool Checked { get; set; }
-        }
+        private const string _fieldset_div_style =
+            "width: 20px; height:20px; position: absolute; top: 0px; right: 0px;";
+
+        //Значение свойства Checked
+        private bool _checked;
+
+        //Значение свойства HasCheckbox
+        private bool _has_checkbox;
 
         /// <summary>
         ///     Контейнер доступных значений фильтра
@@ -42,22 +40,18 @@ namespace Kesco.Lib.Web.Controls.V4
         public string ValueTextBoxEnum = "0";
 
         /// <summary>
-        /// Функция обратного вызова для события выбора элемента
+        ///     Конструктор
         /// </summary>
-        public event EventHandler<CheckEventArgs> CheckChanged;
-
-        private const string _fieldset_style = "position: relative; padding-top: 5px;";
-        private const string _fieldset_div_style = "width: 20px; height:20px; position: absolute; top: 0px; right: 0px;";
-
-        private string _fieldset_input_onclick(string id)
+        public TextBox()
         {
-            return string.Format("var input_text=gi('{0}_0'); if(input_text) {{ input_text.disabled=input_text.readonly=!this.checked; if(this.checked) input_text.focus(); }} if(this.checked) gi('{0}HeadControl').className='v4_selectClause'; else {{ gi('{0}HeadControl').className='v4_selectClauseDisabled'; }} cmdasync('ctrl', '{0}', 'checked', this.checked ? '1' : '0');", id);
-            //return string.Format("var input_text=gi('{0}_0'); if(input_text) input_text.disabled=input_text.readonly=!this.checked; function f(el, disabled){{var next=el.nextSibling; if(null==next) return; next.disabled=disabled; return f(next, disabled);}} f(this.parentNode, !this.checked); cmdasync('ctrl', '{0}', 'checked', this.checked ? '1' : '0');", id);
-            //return string.Format("var input_text=gi('{0}_0'); if(input_text) input_text.readonly=input_text.disabled=!this.checked; cmdasync('ctrl', '{0}', 'checked', this.checked ? '1' : '0');", id);
+            MaxLength = 0;
+            Type = TextBoxType.Text;
+            CSSClass = "";
+            IsDisabled = false;
         }
 
         /// <summary>
-        /// Признак использования элемента CheckBox
+        ///     Признак использования элемента CheckBox
         /// </summary>
         public bool HasCheckbox
         {
@@ -72,11 +66,8 @@ namespace Kesco.Lib.Web.Controls.V4
             }
         }
 
-        //Значение свойства HasCheckbox
-        private bool _has_checkbox;
-
         /// <summary>
-        /// Свойство значения элемента CheckBox
+        ///     Свойство значения элемента CheckBox
         /// </summary>
         public bool Checked
         {
@@ -91,20 +82,6 @@ namespace Kesco.Lib.Web.Controls.V4
                         CheckChanged(this, new CheckEventArgs(value));
                 }
             }
-        }
-
-        //Значение свойства Checked
-        private bool _checked;
-
-        /// <summary>
-        ///     Конструктор
-        /// </summary>
-        public TextBox()
-        {
-            MaxLength = 0;
-            Type = TextBoxType.Text;
-            CSSClass = "";
-            IsDisabled = false;
         }
 
         /// <summary>
@@ -137,6 +114,20 @@ namespace Kesco.Lib.Web.Controls.V4
         }
 
         /// <summary>
+        ///     Функция обратного вызова для события выбора элемента
+        /// </summary>
+        public event EventHandler<CheckEventArgs> CheckChanged;
+
+        private string _fieldset_input_onclick(string id)
+        {
+            return string.Format(
+                "var input_text=gi('{0}_0'); if(input_text) {{ input_text.disabled=input_text.readonly=!this.checked; if(this.checked) input_text.focus(); }} if(this.checked) gi('{0}HeadControl').className='v4_selectClause'; else {{ gi('{0}HeadControl').className='v4_selectClauseDisabled'; }} cmdasync('ctrl', '{0}', 'checked', this.checked ? '1' : '0');",
+                id);
+            //return string.Format("var input_text=gi('{0}_0'); if(input_text) input_text.disabled=input_text.readonly=!this.checked; function f(el, disabled){{var next=el.nextSibling; if(null==next) return; next.disabled=disabled; return f(next, disabled);}} f(this.parentNode, !this.checked); cmdasync('ctrl', '{0}', 'checked', this.checked ? '1' : '0');", id);
+            //return string.Format("var input_text=gi('{0}_0'); if(input_text) input_text.readonly=input_text.disabled=!this.checked; cmdasync('ctrl', '{0}', 'checked', this.checked ? '1' : '0');", id);
+        }
+
+        /// <summary>
         ///     Инициализируем коллекцию условий и устанавливаем другие свойства составного контрола
         /// </summary>
         public override void V4OnInit()
@@ -144,17 +135,17 @@ namespace Kesco.Lib.Web.Controls.V4
             if (!IsUseCondition) return;
             _list.Add(new Item(((int) TextBoxEnum.ContainsAll).ToString(CultureInfo.InvariantCulture),
                 Resx.GetString("cContainsAll")));
-            _list.Add(new Item(((int)TextBoxEnum.NotContainsAny).ToString(CultureInfo.InvariantCulture),
+            _list.Add(new Item(((int) TextBoxEnum.NotContainsAny).ToString(CultureInfo.InvariantCulture),
                 Resx.GetString("cNotContainAny")));
 
-            _list.Add(new Item(((int)TextBoxEnum.ContainsAllOrdered).ToString(CultureInfo.InvariantCulture),
+            _list.Add(new Item(((int) TextBoxEnum.ContainsAllOrdered).ToString(CultureInfo.InvariantCulture),
                 Resx.GetString("cContainsAllOrdered")));
-            _list.Add(new Item(((int)TextBoxEnum.NotContainsAllOrdered).ToString(CultureInfo.InvariantCulture),
+            _list.Add(new Item(((int) TextBoxEnum.NotContainsAllOrdered).ToString(CultureInfo.InvariantCulture),
                 Resx.GetString("cNotContainsAllOrdered")));
 
             _list.Add(new Item(((int) TextBoxEnum.ContainsAny).ToString(CultureInfo.InvariantCulture),
                 Resx.GetString("cContainsAny")));
-            _list.Add(new Item(((int)TextBoxEnum.NotContainsAll).ToString(CultureInfo.InvariantCulture),
+            _list.Add(new Item(((int) TextBoxEnum.NotContainsAll).ToString(CultureInfo.InvariantCulture),
                 Resx.GetString("cNotContainAll")));
 
             _list.Add(new Item(((int) TextBoxEnum.Starts).ToString(CultureInfo.InvariantCulture),
@@ -162,9 +153,9 @@ namespace Kesco.Lib.Web.Controls.V4
             _list.Add(new Item(((int) TextBoxEnum.NotStart).ToString(CultureInfo.InvariantCulture),
                 Resx.GetString("cNotStart")));
 
-            _list.Add(new Item(((int)TextBoxEnum.Ends).ToString(CultureInfo.InvariantCulture),
+            _list.Add(new Item(((int) TextBoxEnum.Ends).ToString(CultureInfo.InvariantCulture),
                 Resx.GetString("cEnds")));
-            _list.Add(new Item(((int)TextBoxEnum.NotEnds).ToString(CultureInfo.InvariantCulture),
+            _list.Add(new Item(((int) TextBoxEnum.NotEnds).ToString(CultureInfo.InvariantCulture),
                 Resx.GetString("cNotEnds")));
 
             _list.Add(new Item(((int) TextBoxEnum.Matches).ToString(CultureInfo.InvariantCulture),
@@ -182,14 +173,14 @@ namespace Kesco.Lib.Web.Controls.V4
         }
 
         /// <summary>
-        /// Определят возможно ли редактирование текста
+        ///     Определят возможно ли редактирование текста
         /// </summary>
         /// <returns>true если  возможно редактирование текста</returns>
         protected virtual bool IsEditable()
         {
             return !(IsDisabled || IsUseCondition && HasCheckbox && !Checked
-                              || ValueTextBoxEnum == ((int)TextBoxEnum.Empty).ToString()
-                              || ValueTextBoxEnum == ((int)TextBoxEnum.NotEmpty).ToString());
+                                || ValueTextBoxEnum == ((int) TextBoxEnum.Empty).ToString()
+                                || ValueTextBoxEnum == ((int) TextBoxEnum.NotEmpty).ToString());
         }
 
         /// <summary>
@@ -200,21 +191,24 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             if (IsUseCondition)
             {
-                string disabled_attribute = IsDisabled || IsReadOnly ? "disabled='disabled'" : string.Empty;
+                var disabled_attribute = IsDisabled || IsReadOnly ? "disabled='disabled'" : string.Empty;
 
                 if (HasCheckbox)
                 {
                     w.Write("<fieldset style='{0}' {1}>", _fieldset_style, disabled_attribute);
-                    string checked_attribute = Checked ? "checked='checked'" : string.Empty;
-                    w.Write("<div style='{3}' ><input id='{0}_2' type='checkbox' tabindex='0' {1} {2} onclick=\"{4}\"/></div>", HtmlID, checked_attribute, disabled_attribute, _fieldset_div_style, _fieldset_input_onclick(HtmlID));
+                    var checked_attribute = Checked ? "checked='checked'" : string.Empty;
+                    w.Write(
+                        "<div style='{3}' ><input id='{0}_2' type='checkbox' tabindex='0' {1} {2} onclick=\"{4}\"/></div>",
+                        HtmlID, checked_attribute, disabled_attribute, _fieldset_div_style,
+                        _fieldset_input_onclick(HtmlID));
                 }
                 else
                 {
                     w.Write("<fieldset {0} >", disabled_attribute);
                 }
 
-                bool fEnabled = (!HasCheckbox || Checked) && !IsDisabled && !IsReadOnly;
-                string strClass = fEnabled ? "v4_selectClause" : "v4_selectClauseDisabled";
+                var fEnabled = (!HasCheckbox || Checked) && !IsDisabled && !IsReadOnly;
+                var strClass = fEnabled ? "v4_selectClause" : "v4_selectClauseDisabled";
 
                 w.Write(@"<legend><div id=""{1}"" class=""{4}"" 
 onclick=""cmd('ctrl', '{2}', 'cmd', 'popupHead');"" 
@@ -223,7 +217,9 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     _list.Find(x => x.Code == ValueTextBoxEnum).Name,
                     ID + "HeadControl",
                     HtmlID,
-                    fEnabled ? (TabIndex.HasValue ? " tabindex='" + TabIndex.Value + "'" : " tabindex='0'") : string.Empty,
+                    fEnabled
+                        ? TabIndex.HasValue ? " tabindex='" + TabIndex.Value + "'" : " tabindex='0'"
+                        : string.Empty,
                     strClass);
             }
 
@@ -234,7 +230,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             }
             else
             {
-                string strDisabledAttrChecked = IsEditable() ? string.Empty : "disabled='disabled'";
+                var strDisabledAttrChecked = IsEditable() ? string.Empty : "disabled='disabled'";
 
                 w.Write("<input  id='{0}_0' style='{1}{2}' value='{3}' type='{4}' {5}",
                     HtmlID,
@@ -254,9 +250,12 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 if (IsRequired)
                     w.Write("v4_replaceStyleRequired(this);");
                 w.Write("\"");
+                w.Write(" onkeyup=\"return v4t_keyUp(event);\"");
                 w.Write(" onchange=\"v4_ctrlChanged('{0}', false);\"", HtmlID);
 
-                w.Write(" t='{0}' help='{1}' ov='{2}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help), HttpUtility.HtmlEncode(OriginalValue));
+                w.Write(" t='{0}' help='{1}' ov='{2}' nv='{3}'", HttpUtility.HtmlEncode(Value),
+                    HttpUtility.HtmlEncode(Help), HttpUtility.HtmlEncode(OriginalValue),
+                    IsShowEditingStatus ? "1" : "");
 
                 var className = "";
                 if (IsCaller)
@@ -265,7 +264,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     w.Write(" caller-type='" + (int) CallerType + "'");
                 }
 
-                if (IsRequired && (Value==null || Value.Length == 0))
+                if (IsRequired && (Value == null || Value.Length == 0))
                     className += "v4s_required";
 
                 if (className.Length > 0)
@@ -299,14 +298,17 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 if (Value == null) Value = "";
                 if (IsReadOnly)
                     //Недопустимо устанавливать свойство innerText всего элемента, т.к. он может содержать вложенный элемент div _ntf
+                {
                     JS.Write("if(gi('{0}'))gi('{0}').firstChild.innerText='{1}';", HtmlID,
                         HttpUtility.JavaScriptStringEncode(Value));
+                }
                 else
                 {
                     JS.Write("if(gi('{0}_0')){{gi('{0}_0').value='{1}';", HtmlID,
                         HttpUtility.JavaScriptStringEncode(Value));
 
-                    JS.Write("gi('{0}_0').setAttribute('t','{1}');}}", HtmlID, Value.Length == 0 ? "" : HttpUtility.JavaScriptStringEncode(Value));
+                    JS.Write("gi('{0}_0').setAttribute('t','{1}');}}", HtmlID,
+                        Value.Length == 0 ? "" : HttpUtility.JavaScriptStringEncode(Value));
 
                     if (IsRequired)
                         JS.Write("if(gi('{0}_0'))v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
@@ -325,33 +327,40 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 {
                     if (HasCheckbox)
                     {
-                        string disabled_attribute = IsDisabled || IsReadOnly ? "disabled='disabled'" : string.Empty;
-                        string checked_attribute = Checked ? "checked='checked'" : string.Empty;
-                        string strJS = string.Format("void function(){{ var el=gi('{0}').firstChild; if(el && null==gi('{0}_2')) {{el.setAttribute('style','{3}'); var el_div=document.createElement('div'); el.insertBefore(el_div, el.firstChild); el_div.setAttribute('style','{4}') ; el_div.innerHTML = \"<input id='{0}_2' type='checkbox' {1} {2} onclick=\\\"{5}\\\"/>\";}} }}();", HtmlID, checked_attribute, disabled_attribute, _fieldset_style, _fieldset_div_style, _fieldset_input_onclick(HtmlID));
+                        var disabled_attribute = IsDisabled || IsReadOnly ? "disabled='disabled'" : string.Empty;
+                        var checked_attribute = Checked ? "checked='checked'" : string.Empty;
+                        var strJS = string.Format(
+                            "void function(){{ var el=gi('{0}').firstChild; if(el && null==gi('{0}_2')) {{el.setAttribute('style','{3}'); var el_div=document.createElement('div'); el.insertBefore(el_div, el.firstChild); el_div.setAttribute('style','{4}') ; el_div.innerHTML = \"<input id='{0}_2' type='checkbox' {1} {2} onclick=\\\"{5}\\\"/>\";}} }}();",
+                            HtmlID, checked_attribute, disabled_attribute, _fieldset_style, _fieldset_div_style,
+                            _fieldset_input_onclick(HtmlID));
                         JS.Write(strJS);
                     }
                     else
                     {
-                        JS.Write("void function(){{var el=gi('{0}').firstChild; if(el) el.removeAttribute('style'); var el_input=gi('{0}_2'); if (el_input) el.removeChild(el_input.parentNode);}}();", HtmlID);
+                        JS.Write(
+                            "void function(){{var el=gi('{0}').firstChild; if(el) el.removeAttribute('style'); var el_input=gi('{0}_2'); if (el_input) el.removeChild(el_input.parentNode);}}();",
+                            HtmlID);
                     }
 
-                    if (IsDisabled || IsReadOnly) JS.Write("gi('{0}').getElementsByTagName('fieldset')[0].setAttribute('disabled', 'disabled');", HtmlID);
+                    if (IsDisabled || IsReadOnly)
+                        JS.Write("gi('{0}').getElementsByTagName('fieldset')[0].setAttribute('disabled', 'disabled');",
+                            HtmlID);
                     else JS.Write("gi('{0}').getElementsByTagName('fieldset')[0].removeAttribute('disabled');", HtmlID);
                 }
 
                 if (PropertyChanged.Contains("Checked"))
                 {
-                    bool fEnabled = (!HasCheckbox || Checked) && !IsDisabled && !IsReadOnly;
-                    string strClass = fEnabled ? "v4_selectClause" : "v4_selectClauseDisabled";
-                    JS.Write("void function(){{var input_checkbox=gi('{0}_2'); if(input_checkbox) input_checkbox.checked={1}; var input_text=gi('{0}_0'); if(input_text) input_text.readonly=input_text.disabled=!input_checkbox.checked; var legend=gi('{0}HeadControl'); if(legend) legend.className='{2}';}}();", HtmlID, Checked ? "true" : "false", strClass);
+                    var fEnabled = (!HasCheckbox || Checked) && !IsDisabled && !IsReadOnly;
+                    var strClass = fEnabled ? "v4_selectClause" : "v4_selectClauseDisabled";
+                    JS.Write(
+                        "void function(){{var input_checkbox=gi('{0}_2'); if(input_checkbox) input_checkbox.checked={1}; var input_text=gi('{0}_0'); if(input_text) input_text.readonly=input_text.disabled=!input_checkbox.checked; var legend=gi('{0}HeadControl'); if(legend) legend.className='{2}';}}();",
+                        HtmlID, Checked ? "true" : "false", strClass);
                 }
             }
             ///////////////////////////////////////////
 
             if (!IsReadOnly && PropertyChanged.Contains("IsDisabled"))
-            {
                 JS.Write("if(gi('{0}'))gi('{0}').disabled={1};", HtmlID, IsDisabled ? "1" : "null");
-            }
 
             if (PropertyChanged.Contains("ListChanged"))
             {
@@ -371,7 +380,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         /// <returns></returns>
         public virtual string GetFilterClauseText()
         {
-            if (String.IsNullOrEmpty(Description)) return "";
+            if (string.IsNullOrEmpty(Description)) return "";
             switch ((TextBoxEnum) Convert.ToInt32(ValueTextBoxEnum))
             {
                 case TextBoxEnum.NotEmpty:
@@ -379,54 +388,55 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 case TextBoxEnum.Empty:
                     return Description + ": " + Resx.GetString("cEmpty").ToLower();
                 case TextBoxEnum.NotEnds:
-                    return String.IsNullOrEmpty(Value)
+                    return string.IsNullOrEmpty(Value)
                         ? ""
                         : Description + ": " + Resx.GetString("cNotEnds").ToLower() + " " + Value;
                 case TextBoxEnum.Ends:
-                    return String.IsNullOrEmpty(Value) ? "" : Description + ": " + Resx.GetString("cEnds").ToLower() + " " + Value;
+                    return string.IsNullOrEmpty(Value)
+                        ? ""
+                        : Description + ": " + Resx.GetString("cEnds").ToLower() + " " + Value;
                 case TextBoxEnum.NotMatches:
-                    return String.IsNullOrEmpty(Value)
+                    return string.IsNullOrEmpty(Value)
                         ? ""
                         : Description + ": " + Resx.GetString("cNotMatches").ToLower() + " " + Value;
                 case TextBoxEnum.Matches:
-                    return String.IsNullOrEmpty(Value)
+                    return string.IsNullOrEmpty(Value)
                         ? ""
                         : Description + ": " + Resx.GetString("cMatches").ToLower() + " " + Value;
                 case TextBoxEnum.NotStart:
-                    return String.IsNullOrEmpty(Value)
+                    return string.IsNullOrEmpty(Value)
                         ? ""
                         : Description + ": " + Resx.GetString("cNotStart").ToLower() + " " + Value;
                 case TextBoxEnum.Starts:
-                    return String.IsNullOrEmpty(Value)
+                    return string.IsNullOrEmpty(Value)
                         ? ""
                         : Description + ": " + Resx.GetString("cStarts").ToLower() + " " + Value;
                 case TextBoxEnum.NotContainsAll:
-                    return String.IsNullOrEmpty(Value)
+                    return string.IsNullOrEmpty(Value)
                         ? ""
                         : Description + ": " + Resx.GetString("cNotContainAll").ToLower() + " " + Value;
                 case TextBoxEnum.ContainsAll:
-                    return String.IsNullOrEmpty(Value)
+                    return string.IsNullOrEmpty(Value)
                         ? ""
                         : Description + ": " + Resx.GetString("cContainsAll").ToLower() + " " + Value;
                 case TextBoxEnum.NotContainsAny:
-                    return String.IsNullOrEmpty(Value)
+                    return string.IsNullOrEmpty(Value)
                         ? ""
                         : Description + ": " + Resx.GetString("cNotContainAny").ToLower() + " " + Value;
                 case TextBoxEnum.ContainsAny:
-                    return String.IsNullOrEmpty(Value)
+                    return string.IsNullOrEmpty(Value)
                         ? ""
                         : Description + ": " + Resx.GetString("cContainsAny").ToLower() + " " + Value;
 
                 case TextBoxEnum.ContainsAllOrdered:
-                    return String.IsNullOrEmpty(Value)
+                    return string.IsNullOrEmpty(Value)
                         ? ""
                         : Description + ": " + Resx.GetString("cContainsAllOrdered").ToLower() + " " + Value;
 
                 case TextBoxEnum.NotContainsAllOrdered:
-                    return String.IsNullOrEmpty(Value)
+                    return string.IsNullOrEmpty(Value)
                         ? ""
                         : Description + ": " + Resx.GetString("cNotContainsAllOrdered").ToLower() + " " + Value;
-
             }
 
             return "";
@@ -441,21 +451,14 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             base.ProcessCommand(collection);
             if (collection["checked"] != null)
             {
-                bool is_checked = collection["checked"] == "1";
+                var is_checked = collection["checked"] == "1";
                 if (_checked != is_checked)
                 {
                     _checked = is_checked;
 
                     if (is_checked)
-                    {
-                        //Вся HTML разметка меняется на стороне клиента, серверу нет необходимости вносить изменения
-
-                        //При включении элемента управления разрешается редактирование, в некоторых случаях его следует снова запретить
                         if (!IsEditable())
-                        {
                             JS.Write("if(gi('{0}_0')) gi('{0}_0').disabled=true;", HtmlID);
-                        }
-                    }
 
                     if (null != CheckChanged)
                         CheckChanged(this, new CheckEventArgs(_checked));
@@ -471,18 +474,17 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 Value = collection["vn"];
                 OnChanged(new ProperyChangedEventArgs(oldVal, Value, origVal));
             }
+
             if (collection["cmd"] != null)
-            {
                 switch (collection["cmd"])
                 {
                     case "popupHead":
                         ShowPopupWindowClause();
                         break;
                     case "setHead":
-                        SetControlClause(collection["val"]);
+                        SetControlClause(collection["val"], collection["ov"]);
                         break;
                 }
-            }
         }
 
         /// <summary>
@@ -499,6 +501,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 Focus();
                 return false;
             }
+
             return true;
         }
 
@@ -514,9 +517,10 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 case TextBoxEnum.NotEmpty:
                     return true;
                 default:
-                    if (!String.IsNullOrEmpty(Value)) return true;
+                    if (!string.IsNullOrEmpty(Value)) return true;
                     break;
             }
+
             return false;
         }
 
@@ -524,7 +528,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         ///     Установка заголовка
         /// </summary>
         /// <param name="val">Значение заголовка</param>
-        private void SetControlClause(object val)
+        private void SetControlClause(object val, object origVal)
         {
             if (val != null)
             {
@@ -535,9 +539,10 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     Value = "";
                     FocusToNextCtrl();
                 }
+
                 IsCanUseFilter = CheckCanUse();
                 SetPropertyChanged("ListChanged");
-                OnChanged(new ProperyChangedEventArgs(Value, Value));
+                OnChanged(new ProperyChangedEventArgs(Value, Value, origVal?.ToString()));
             }
         }
 
@@ -572,7 +577,21 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 w.Write("<td name='tblClause{1}'>{0}</td>", HttpUtility.HtmlEncode(item.Name), HtmlID);
                 w.Write("</tr>");
             }
+
             w.Write("</table>");
+        }
+
+        /// <summary>
+        ///     Класс описывающий событие выбора элемента
+        /// </summary>
+        public class CheckEventArgs : EventArgs
+        {
+            public CheckEventArgs(bool checkedValue)
+            {
+                Checked = checkedValue;
+            }
+
+            public bool Checked { get; set; }
         }
     }
 }

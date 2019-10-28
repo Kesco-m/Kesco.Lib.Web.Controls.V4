@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Kesco.Lib.Web.Controls.V4</RootNamespace>
     <AssemblyName>Controls.V4</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SccProjectName>
     </SccProjectName>
@@ -20,6 +20,7 @@
     </SccAuxPath>
     <SccProvider>
     </SccProvider>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -33,6 +34,7 @@
     <DocumentationFile>bin\Debug\Controls.V4.XML</DocumentationFile>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <RunCodeAnalysis>false</RunCodeAnalysis>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -41,6 +43,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Work|AnyCPU'">
     <DebugSymbols>true</DebugSymbols>
@@ -58,6 +61,7 @@
     <CodeAnalysisRuleDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\FxCop\\Rules</CodeAnalysisRuleDirectories>
     <CodeAnalysisIgnoreBuiltInRules>true</CodeAnalysisIgnoreBuiltInRules>
     <CodeAnalysisFailOnMissingRules>false</CodeAnalysisFailOnMissingRules>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'KORE|AnyCPU'">
     <DebugSymbols>true</DebugSymbols>
@@ -74,12 +78,18 @@
     <CodeAnalysisIgnoreBuiltInRuleSets>true</CodeAnalysisIgnoreBuiltInRuleSets>
     <CodeAnalysisRuleDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\FxCop\\Rules</CodeAnalysisRuleDirectories>
     <CodeAnalysisIgnoreBuiltInRules>true</CodeAnalysisIgnoreBuiltInRules>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.AspNet.SignalR.Core, Version=2.4.1.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\_Assemblies\Microsoft.AspNet.SignalR.Core.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Security" />
     <Reference Include="System.Web" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data" />
@@ -92,9 +102,11 @@
     <Compile Include="Binding\BindDocField.cs" />
     <Compile Include="Binding\BindStringValue.cs" />
     <Compile Include="Button.cs" />
-    <Compile Include="Chat.cs" />
     <Compile Include="CheckBox.cs" />
     <Compile Include="ComboBox.cs" />
+    <Compile Include="Common\LikeItem.cs" />
+    <Compile Include="Handlers\LikeConfigurationSectionHandler.cs" />
+    <Compile Include="SignalR.cs" />
     <Compile Include="Common\DocumentPage\DocPage.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
@@ -105,12 +117,12 @@
     <Compile Include="Common\ReturnDialogResult.cs" />
     <Compile Include="Common\WndSizePosKeeper.cs" />
     <Compile Include="Control.cs" />
-    <Compile Include="Comet.cs" />
     <Compile Include="DBControls\Changed.cs" />
     <Compile Include="DropDownList.cs" />
     <Compile Include="FilterGroupBox.cs" />
     <Compile Include="Globals\GlobalBase.cs" />
     <Compile Include="Handlers\CurrentEmployeeHandler.cs" />
+    <Compile Include="Handlers\SignalRHubHandler.cs" />
     <Compile Include="LikeDislike.cs" />
     <Compile Include="SelectMethodGetEntityValue.cs" />
     <Compile Include="Grid\Grid.cs" />
@@ -121,7 +133,6 @@
     <Compile Include="Grid\GridEnums.cs" />
     <Compile Include="Grid\GridSettings.cs" />
     <Compile Include="Handlers\BarCodeHandler.cs" />
-    <Compile Include="Handlers\CometServerHandler.cs" />
     <Compile Include="Handlers\DialogResultHandler.cs" />
     <Compile Include="Div.cs" />
     <Compile Include="Common\IClientCommandProcessor.cs" />
@@ -193,13 +204,13 @@
       <Project>{FC924B22-160A-4F7F-98EB-63E420DE694E}</Project>
       <Name>Kesco.Lib.Log</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Kesco.Lib.Web.Comet\Kesco.Lib.Web.Comet\Kesco.Lib.Web.Comet.csproj">
-      <Project>{EB32DBFE-59E0-4F6C-A718-BE9BA708C64F}</Project>
-      <Name>Kesco.Lib.Web.Comet</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Kesco.Lib.Web.Settings\Kesco.Lib.Web.Settings.csproj">
       <Project>{26BB8CDB-8901-44BF-85BC-864F97941C60}</Project>
       <Name>Kesco.Lib.Web.Settings</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Kesco.Lib.Web.SignalR\Kesco.Lib.Web.SignalR.csproj">
+      <Project>{eb32dbfe-59e0-4f6c-a718-be9ba708c64f}</Project>
+      <Name>Kesco.Lib.Web.SignalR</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

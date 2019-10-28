@@ -1,6 +1,6 @@
 ﻿using System.IO;
-using System.Web.UI;
 using System.Text;
+using System.Web.UI;
 
 namespace Kesco.Lib.Web.Controls.V4
 {
@@ -23,7 +23,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="w">Поток</param>
         public override void RenderControl(TextWriter w)
         {
-            string display_style = Visible ? "" : "none";
+            var display_style = Visible ? "" : "none";
 
             w.Write("<div id='{0}' class='{1}' style='display: {3}'>{2}", HtmlID, CSSClass, Value, display_style);
             RenderChildren(w as HtmlTextWriter);
@@ -36,9 +36,7 @@ namespace Kesco.Lib.Web.Controls.V4
         public override void Flush()
         {
             if (PropertyChanged.Contains("Visible"))
-            {
                 JS.Write("gi('{0}').style.display='{1}';", HtmlID, Visible ? "" : "none");
-            }
 
             if (PropertyChanged.Contains("Value"))
             {
@@ -48,7 +46,7 @@ namespace Kesco.Lib.Web.Controls.V4
 
                 //Строка будет передана в Javascript код поэтому экранируем обратную косую черту, кавычки и переводы строки
                 //HttpUtility.JavaScriptStringEncode() не заменяет \r\n, поэтому используем свой вариант
-                StringBuilder sb = new StringBuilder(Value + strWriter);
+                var sb = new StringBuilder(Value + strWriter);
                 sb.Replace(@"\", @"\\");
                 sb.Replace(@"'", @"\'");
                 sb.Replace("\"", "\\\"");

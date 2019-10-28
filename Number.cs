@@ -35,6 +35,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 rez = rez.Substring(0, rez.Length - 1);
                 d--;
             }
+
             return rez.TrimEnd(',', '.');
         }
 
@@ -52,11 +53,9 @@ namespace Kesco.Lib.Web.Controls.V4
             for (var i = 0; i < numberEndingZeros; i++)
             {
                 start++;
-                if (rez.Length <= start)
-                {
-                    rez += "0";
-                }
+                if (rez.Length <= start) rez += "0";
             }
+
             return rez.TrimEnd(',', '.');
         }
     }
@@ -203,7 +202,7 @@ namespace Kesco.Lib.Web.Controls.V4
             get
             {
                 int rez;
-                if (int.TryParse(Regex.Replace(Value.Replace(",", "").Replace(".",""), @"\s+", ""), out rez))
+                if (int.TryParse(Regex.Replace(Value.Replace(",", "").Replace(".", ""), @"\s+", ""), out rez))
                     return rez;
                 return null;
             }
@@ -230,9 +229,9 @@ namespace Kesco.Lib.Web.Controls.V4
             {
                 if (val == null)
                     Value = "";
-                else if (type == typeof (decimal))
+                else if (type == typeof(decimal))
                     ValueDecimal = (decimal) val;
-                else if (type == typeof (int))
+                else if (type == typeof(int))
                     ValueInt = (int) val;
                 else
                     Value = val.ToString();
@@ -240,31 +239,37 @@ namespace Kesco.Lib.Web.Controls.V4
             else
             {
                 object newval = null;
-                if (type == typeof (string))
+                if (type == typeof(string))
+                {
                     newval = Value;
-                else if (type == typeof (int) || type == typeof (int?))
+                }
+                else if (type == typeof(int) || type == typeof(int?))
                 {
                     if (Value.Length > 0)
                         newval = ValueInt;
                 }
-                else if (type == typeof (short) || type == typeof (short?))
+                else if (type == typeof(short) || type == typeof(short?))
                 {
                     if (Value.Length > 0)
                         newval = short.Parse(Value, NumberStyles.Any);
                 }
-                else if (type == typeof (decimal))
+                else if (type == typeof(decimal))
+                {
                     newval = ValueDecimal;
-                else if (type == typeof (decimal?))
+                }
+                else if (type == typeof(decimal?))
                 {
                     if (Value.Length > 0)
                         newval = ValueDecimal;
                 }
+
                 if (newval == null && val != null)
                     changed = true;
                 else if (newval != null)
                     changed = !newval.Equals(val);
                 val = newval;
             }
+
             return changed;
         }
 
@@ -295,6 +300,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 _list.Add(new Item(((int) NumbersEnum.NoValue).ToString(CultureInfo.InvariantCulture),
                     Resx.GetString("lblNotValue")));
             }
+
             IsUseCondition = true;
         }
 
@@ -306,16 +312,19 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             if (IsReadOnly)
             {
-                w.Write(HttpUtility.HtmlEncode(IsUseCondition ? _value1 : Value));
+                w.Write(HttpUtility.HtmlEncode(IsUseCondition
+                    ? _value1
+                    : Utils.Convert.Decimal2Str(ValueDecimal ?? 0, Precision, false)));
             }
             else
             {
                 if (IsUseCondition)
                 {
-                    IsInterval = ValueNumbersEnum == ((int) NumbersEnum.Interval).ToString(CultureInfo.InvariantCulture);
-                    var isNovalue = (ValueNumbersEnum ==
-                                     ((int) NumbersEnum.NoValue).ToString(CultureInfo.InvariantCulture) ||
-                                     ValueNumbersEnum == ((int) NumbersEnum.Any).ToString(CultureInfo.InvariantCulture));
+                    IsInterval = ValueNumbersEnum ==
+                                 ((int) NumbersEnum.Interval).ToString(CultureInfo.InvariantCulture);
+                    var isNovalue = ValueNumbersEnum ==
+                                    ((int) NumbersEnum.NoValue).ToString(CultureInfo.InvariantCulture) ||
+                                    ValueNumbersEnum == ((int) NumbersEnum.Any).ToString(CultureInfo.InvariantCulture);
                     var number = new Number
                     {
                         HtmlID = ID + "Number",
@@ -376,20 +385,18 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 else
                 {
                     var addClass = CSSClass;
-                    w.Write("<input  style='width:{0};{1};' id='{2}_0' value='{3}' ov='{4}' type='Text' ",
+                    w.Write(
+                        "<input  style='width:{0};{1};' id='{2}_0' value='{3}' ov='{4}' nv='{5}' sc='{6}' type='Text' ",
                         Width.IsEmpty ? "100%" : Width.ToString(),
                         Height.IsEmpty ? "" : "height:" + Height,
-                        HtmlID, HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(OriginalValue));
+                        HtmlID, HttpUtility.HtmlEncode(Utils.Convert.Decimal2Str(ValueDecimal ?? 0, Precision, false)),
+                        HttpUtility.HtmlEncode(OriginalValue), IsShowEditingStatus ? "1" : "", Precision);
                     if (IsDisabled)
                         w.Write(" disabled='true'");
 
                     w.Write(" t='{0}' help='{1}'", HttpUtility.HtmlEncode(Value), HttpUtility.HtmlEncode(Help));
 
-                    if (!string.IsNullOrEmpty(NextControl))
-                    {
-                        //w.Write(" nc='{0}'", GetHtmlIdNextControl());
-                        w.Write(" nc='{0}'", NextControl);
-                    }
+                    if (!string.IsNullOrEmpty(NextControl)) w.Write(" nc='{0}'", NextControl);
                     w.Write(" isRequired={0}", IsRequired ? 1 : 0);
                     w.Write(" onkeydown=\"return v4t_keyDown(event);");
                     if (IsRequired)
@@ -405,8 +412,8 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
 
                     if (addClass.Length > 0)
                         w.Write(" class=\"{0}\"", addClass);
-                    
-                    
+
+
                     if (Title.Length > 0)
                         w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
 
@@ -427,11 +434,21 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             if (PropertyChanged.Contains("Value"))
             {
                 if (IsReadOnly)
-                    JS.Write("if(gi('{0}_0')) gi('{0}').innerText='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
+                {
+                    JS.Write("if(gi('{0}_0')) gi('{0}').innerText='{1}';", HtmlID,
+                        HttpUtility.JavaScriptStringEncode(Utils.Convert.Decimal2Str(ValueDecimal ?? 0, Precision,
+                            false)));
+                }
                 else
                 {
-                    JS.Write("if(gi('{0}_0')){{gi('{0}_0').value='{1}';", HtmlID, HttpUtility.JavaScriptStringEncode(Value));
-                    JS.Write("gi('{0}_0').setAttribute('t','{1}');}}", HtmlID, Value.Length == 0 ? "" : HttpUtility.JavaScriptStringEncode(Value));
+                    JS.Write("if(gi('{0}_0')){{gi('{0}_0').value='{1}';", HtmlID,
+                        HttpUtility.JavaScriptStringEncode(Utils.Convert.Decimal2Str(ValueDecimal ?? 0, Precision,
+                            false)));
+                    JS.Write("gi('{0}_0').setAttribute('t','{1}');}}", HtmlID,
+                        Value.Length == 0
+                            ? ""
+                            : HttpUtility.JavaScriptStringEncode(Utils.Convert.Decimal2Str(ValueDecimal ?? 0, Precision,
+                                false)));
                     if (IsRequired)
                         JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
                 }
@@ -441,10 +458,9 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 JS.Write("if(gi('{0}_0')) gi('{0}_0').setAttribute('isRequired','{1}');", HtmlID, IsRequired ? 1 : 0);
                 JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
             }
+
             if (!IsReadOnly && PropertyChanged.Contains("IsDisabled"))
-            {
                 JS.Write("if(gi('{0}_0')) gi('{0}_0').disabled={1};", HtmlID, IsDisabled ? "1" : "null");
-            }
             if (PropertyChanged.Contains("ListChanged"))
             {
                 JS.Write("gi('" + ID + "HeadControl').innerHTML = '{0}';",
@@ -472,6 +488,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     JS.Write("gi('" + ID + "Number_0').setAttribute('nc','{0}');", NextControl);
                     JS.Write("gi('" + ID + "Margin').style.marginBottom = '-2px';");
                 }
+
                 if (ValueNumbersEnum == ((int) NumbersEnum.NoValue).ToString(CultureInfo.InvariantCulture) ||
                     ValueNumbersEnum == ((int) NumbersEnum.Any).ToString(CultureInfo.InvariantCulture))
                 {
@@ -484,6 +501,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     JS.Write("gi('" + ID + "Number_0').disabled=\"\";");
                 }
             }
+
             if (PropertyChanged.Contains("IntervalChanged"))
             {
                 JS.Write("gi('{0}Number_0').value=\"{1}\";", ID, _value1);
@@ -506,6 +524,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     _value1 = _value2 = "";
                     FocusToNextCtrl();
                 }
+
                 IsInterval = ValueNumbersEnum == ((int) NumbersEnum.Interval).ToString(CultureInfo.InvariantCulture);
                 IsCanUseFilter = CheckCanUse();
                 SetPropertyChanged("ListChanged");
@@ -542,6 +561,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 w.Write("<td name='tblClause{1}'>{0}</td>", HttpUtility.HtmlEncode(item.Name), HtmlID);
                 w.Write("</tr>");
             }
+
             w.Write("</table>");
         }
 
@@ -558,8 +578,8 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 Value = collection["vn"];
                 OnChanged(new ProperyChangedEventArgs(oldVal, Value));
             }
+
             if (collection["cmd"] != null)
-            {
                 switch (collection["cmd"])
                 {
                     case "popupHead":
@@ -569,7 +589,6 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                         SetControlClause(collection["val"]);
                         break;
                 }
-            }
         }
 
         /// <summary>
@@ -578,7 +597,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         /// <returns></returns>
         public string GetFilterClauseText()
         {
-            if (String.IsNullOrEmpty(Description)) return "";
+            if (string.IsNullOrEmpty(Description)) return "";
             switch ((NumbersEnum) Convert.ToInt32(ValueNumbersEnum))
             {
                 case NumbersEnum.Any:
@@ -586,37 +605,36 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 case NumbersEnum.NoValue:
                     return Description + ": " + Resx.GetString("lblNotValue");
                 case NumbersEnum.Equally:
-                    return String.IsNullOrEmpty(_value1)
+                    return string.IsNullOrEmpty(_value1)
                         ? ""
                         : Description + ": " + Resx.GetString("cEqually") + " " + _value1;
                 case NumbersEnum.More:
-                    return String.IsNullOrEmpty(_value1)
+                    return string.IsNullOrEmpty(_value1)
                         ? ""
                         : Description + ": " + Resx.GetString("cMore") + " " + _value1;
                 case NumbersEnum.Less:
-                    return String.IsNullOrEmpty(_value1)
+                    return string.IsNullOrEmpty(_value1)
                         ? ""
                         : Description + ": " + Resx.GetString("cLess") + " " + _value1;
                 case NumbersEnum.MoreOrEqual:
-                    return String.IsNullOrEmpty(_value1)
+                    return string.IsNullOrEmpty(_value1)
                         ? ""
                         : Description + ": " + Resx.GetString("cMoreOrEqual") + " " + _value1;
                 case NumbersEnum.LessOrEqual:
-                    return String.IsNullOrEmpty(_value1)
+                    return string.IsNullOrEmpty(_value1)
                         ? ""
                         : Description + ": " + Resx.GetString("cLessOrEqual") + " " + _value1;
                 case NumbersEnum.NotEqual:
-                    return String.IsNullOrEmpty(_value1)
+                    return string.IsNullOrEmpty(_value1)
                         ? ""
                         : Description + ": " + Resx.GetString("cNotEqual") + " " + _value1;
                 case NumbersEnum.Interval:
-                    if (!String.IsNullOrEmpty(_value1) && !String.IsNullOrEmpty(_value2))
-                    {
+                    if (!string.IsNullOrEmpty(_value1) && !string.IsNullOrEmpty(_value2))
                         return Description + ": " + Resx.GetString("dInterval") + " " + Resx.GetString("lFrom") + " " +
                                _value1 + " " + Resx.GetString("lTo") + " " + _value2;
-                    }
                     break;
             }
+
             return "";
         }
 
@@ -643,6 +661,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     if (ValueDecimal1 != null && ValueDecimal2 != null) return true;
                     break;
             }
+
             return false;
         }
 
@@ -669,12 +688,14 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 {
                     if (_minValue != decimal.MinValue && rez < MinValue)
                     {
-                        JS.Write("v4_showMessage('Minimal value: {0}','{1}',{2});", MinValue, Resx.GetString("alertError"), (int)MessageStatus.Error);
+                        JS.Write("v4_showMessage('Minimal value: {0}','{1}',{2});", MinValue,
+                            Resx.GetString("alertError"), (int) MessageStatus.Error);
                         Value = e.OldValue;
                     }
                     else if (_maxValue != decimal.MinValue && rez > MaxValue)
                     {
-                        JS.Write("v4_showMessage('Maximal value: {0}','{1}',{2});", MaxValue, Resx.GetString("alertError"), (int)MessageStatus.Error);
+                        JS.Write("v4_showMessage('Maximal value: {0}','{1}',{2});", MaxValue,
+                            Resx.GetString("alertError"), (int) MessageStatus.Error);
                         Value = e.OldValue;
                     }
                     else
@@ -687,7 +708,9 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     Value = rez2.ToString(CultureInfo.InvariantCulture);
                 }
                 else
+                {
                     Value = e.OldValue;
+                }
             }
         }
 
@@ -726,7 +749,6 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 if (decimal.TryParse(_value1.Replace(".", ","), out rez))
                     return rez;
                 if (ValueFloat1.HasValue)
-                {
                     try
                     {
                         return (decimal) ValueFloat1;
@@ -735,7 +757,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     {
                         return null;
                     }
-                }
+
                 return null;
             }
             set { _value1 = value.HasValue ? value.Value.ToString(NumberEndingZeros) : ""; }
@@ -788,7 +810,6 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 if (decimal.TryParse(_value2.Replace(".", ","), out rez))
                     return rez;
                 if (ValueFloat2.HasValue)
-                {
                     try
                     {
                         return (decimal) ValueFloat2;
@@ -797,7 +818,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     {
                         return null;
                     }
-                }
+
                 return null;
             }
             set { _value2 = value.HasValue ? value.Value.ToString(NumberEndingZeros) : ""; }
@@ -876,8 +897,11 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                         ValueFloat2 = ValueFloat1;
                 }
                 else
+                {
                     _value1 = e.OldValue;
+                }
             }
+
             SetPropertyChanged("IntervalChanged");
             OnChanged(new ProperyChangedEventArgs(Value, Value));
         }
@@ -914,8 +938,11 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                         ValueFloat1 = ValueFloat2;
                 }
                 else
+                {
                     _value2 = e.OldValue;
+                }
             }
+
             SetPropertyChanged("IntervalChanged");
             OnChanged(new ProperyChangedEventArgs(Value, Value));
         }

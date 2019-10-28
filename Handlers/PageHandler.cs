@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections.Specialized;
 using System.Globalization;
+using System.IO;
+using System.Reflection;
 using System.Resources;
 using System.Text;
 using System.Threading;
@@ -8,7 +11,8 @@ using System.Web.UI;
 using Kesco.Lib.Entities.Corporate;
 using Kesco.Lib.Localization;
 using Kesco.Lib.Log;
-using Kesco.Lib.Web.Controls.V4.Common;
+using Kesco.Lib.Web.Settings;
+using Kesco.Lib.Web.SignalR;
 using Page = Kesco.Lib.Web.Controls.V4.Common.Page;
 
 namespace Kesco.Lib.Web.Controls.V4.Handlers
@@ -36,6 +40,7 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             context.Response.CacheControl = "no-cache";
             context.Response.AppendHeader("X-UA-Compatible", "IE=Edge");
 
+
             Page p;
 
             try
@@ -44,41 +49,49 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
                 {
                     context.Handler = base.GetHandler(context, context.Request.RequestType,
                         context.Request.CurrentExecutionFilePath, context.Request.PhysicalApplicationPath);
-                    p = (context.Handler as Page);
+                    p = context.Handler as Page;
                     if (p != null)
                     {
-                        Thread.CurrentThread.CurrentUICulture = CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
-                        Thread.CurrentThread.CurrentCulture = CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
+                        Thread.CurrentThread.CurrentCulture = Thread.CurrentThread.CurrentUICulture =
+                            CorporateCulture.GetCorporateCulture(p.CurrentUser.Language);
 
                         p.Data["StartDate"] = DateTime.UtcNow;
                         p.Data["Url"] = context.Request.Url.PathAndQuery;
                         p.CurrentUser.Host = context.Server.MachineName;
-                        context.Application.Lock();
+
+
                         p.IDPage = Guid.NewGuid().ToString();
                         p.V4Request = context.Request;
                         p.V4Response = context.Response;
+                        
+                        KescoHub.AddPage(p.IDPage, p);
 
-                        context.Application[p.IDPage] = p;
-                        context.Application.UnLock();
+                        var info =
+                            $"{DateTime.Now:dd.MM.yy HH:mm:ss} -> В KescoHub зарегистрирована новая страница [{p.IDPage}]";
+                        KescoHub.RefreshSignalViewInfo(new KescoHubTraceInfo {TraceInfo = info});
                     }
 
-                    if (context.Handler != null)
-                    {
-                        context.Handler.ProcessRequest(context);
-                    }
+                    if (context.Handler != null) context.Handler.ProcessRequest(context);
                 }
                 else
                 {
-                    p = context.Application[context.Request.QueryString["idp"]] as Page;
+                    var qsidp = context.Request.QueryString["idp"];
+
+                    p = KescoHub.GetPage(qsidp) as Page;
 
                     if (p == null)
                     {
                         RenderPageReload(context);
+                        var info =
+                            $"{DateTime.Now.ToString("dd.MM.yy HH:mm:ss")} -> Станица {qsidp} не найдена в KescoHub. Страница, отправившая запрос с левым idp - будут перезагружена";
+
+                        KescoHub.RefreshSignalViewInfo(new KescoHubTraceInfo {TraceInfo = info});
                     }
                     else
                     {
-                        Thread.CurrentThread.CurrentUICulture = CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
-                        Thread.CurrentThread.CurrentCulture = CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
+                        Thread.CurrentThread.CurrentCulture = Thread.CurrentThread.CurrentUICulture =
+                            CorporateCulture.GetCorporateCulture(p.CurrentUser.Language);
+
                         p.V4IsPostBack = true;
                         p.IDPostRequest = Guid.NewGuid().ToString();
                         p.V4Request = context.Request;
@@ -86,19 +99,22 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
                         p.ProcessRequest();
 
                         p.Flush();
-
+                        var requestParams = GetRequestV4Params(context.Request.Params);
+                        var info = $"{DateTime.Now:dd.MM.yy HH:mm:ss} -> Перехват события.{requestParams}";
+                        KescoHub.RefreshSignalViewInfo(new KescoHubTraceInfo {TraceInfo = info});
                     }
                 }
             }
             catch (Exception ex)
             {
                 var sb = new StringBuilder();
-                if (context.Request.QueryString["idp"] != null
-                    && context.Request.QueryString["idp"] != "")
+                var qsidp = context.Request.QueryString["idp"];
+                if (!string.IsNullOrEmpty(qsidp))
                 {
                     try
                     {
-                        p = context.Application[context.Request.QueryString["idp"]] as Page;
+                        p = KescoHub.GetPage(qsidp) as Page;
+
                         p.V4Request = context.Request;
                         p.V4Response = context.Response;
                         RenderDialogException(sb, ex, true);
@@ -111,15 +127,21 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
                         RenderDialogException(sb, ex, false);
                         RenderErrorPage(context, sb);
                     }
+
+                    var info =
+                        $"{DateTime.Now:dd.MM.yy HH:mm:ss} -> На странице [{qsidp}] возникла ошибка {ex.Message}";
+                    KescoHub.RefreshSignalViewInfo(new KescoHubTraceInfo {TraceInfo = info});
                 }
                 else
                 {
                     Logger.WriteEx(ex);
                     RenderDialogException(sb, ex, false);
                     RenderErrorPage(context, sb);
+
+                    var info = $"{DateTime.Now:dd.MM.yy HH:mm:ss} -> В приложении возникла ошибка {ex.Message}";
+                    KescoHub.RefreshSignalViewInfo(new KescoHubTraceInfo {TraceInfo = info});
                 }
             }
-
         }
 
         /// <summary>
@@ -130,9 +152,25 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
         ///     Значение true, если экземпляр <see cref="T:System.Web.IHttpHandler" /> доступен для повторного использования; в
         ///     противном случае — значение false.
         /// </returns>
-        public bool IsReusable
+        public bool IsReusable => false;
+
+
+        private string GetRequestV4Params(NameValueCollection requestParams)
         {
-            get { return false; }
+            var w = new StringWriter();
+            w.Write(Environment.NewLine);
+            foreach (string key in requestParams)
+                switch (key.ToLower())
+                {
+                    case "idp":
+                    case "cmd":
+                    case "page":
+                    case "ctrl":
+                        w.Write($"{key}={requestParams[key]}; ");
+                        break;
+                }
+
+            return w.ToString();
         }
 
         /// <summary>
@@ -148,17 +186,23 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
         /// <param name="requestType">Метод http для передачи данных (GET или POST), используемый клиентом.</param>
         /// <param name="virtualPath">Виртуальный путь к требуемому ресурсу.</param>
         /// <param name="path">Свойство <see cref="P:System.Web.HttpRequest.PhysicalApplicationPath" /> требуемого ресурса.</param>
-        public override IHttpHandler GetHandler(HttpContext context, string requestType, string virtualPath, string path)
+        public override IHttpHandler GetHandler(HttpContext context, string requestType, string virtualPath,
+            string path)
         {
-            if (context != null && !string.IsNullOrEmpty(context.Request.QueryString["idp"]))
-                return (IHttpHandler) context.Application[context.Request.QueryString["idp"]];
+            if (context != null)
+            {
+                var idp = context.Request.QueryString["idp"];
+                if (!string.IsNullOrEmpty(idp))
+                    return (IHttpHandler) KescoHub.GetPage(idp);
+            }
+
             return base.GetHandler(context, requestType, virtualPath, path);
         }
 
-      
+
         private void RenderPageReload(HttpContext context)
         {
-            Employee сEmployee = new Employee(true);
+            var сEmployee = new Employee(true);
             var culture = "en";
             if (!сEmployee.Unavailable)
                 culture = сEmployee.Language;
@@ -177,13 +221,12 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
 */
             var dex = new LogicalException(Resx.GetString("lSession"),
                 Resx.GetString("lSession"),
-                System.Reflection.Assembly.GetExecutingAssembly().GetName(), Priority.ExternalError);
+                Assembly.GetExecutingAssembly().GetName(), Priority.ExternalError);
             Logger.WriteEx(dex);
 
             sb.AppendFormat(
                 @"v4_isConfirmDelete = false; location.href = location.href;");
 
-            
 
             sb.Append("</js></f>");
             context.Response.Write(sb.ToString());
@@ -199,9 +242,12 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             sb0.Append("<title>");
             sb0.Append("Ошибка!");
             sb0.Append("</title>");
-            sb0.Append(string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery-1.12.4.min.js' type='text/javascript'></script>", Settings.Config.versionV4js));
-            sb0.Append(string.Format("<script src='/Styles/Kesco.V4/JS{0}/jquery-ui.js' type='text/javascript'></script>", Settings.Config.versionV4js));
-            sb0.Append(string.Format("<script src='/Styles/Kesco.V4/JS{0}/Kesco.Wait.js' type='text/javascript'></script>", Settings.Config.versionV4js));
+            sb0.Append(string.Format(
+                "<script src='/Styles/Kesco.V4/JS{0}/jquery-1.12.4.min.js' type='text/javascript'></script>",
+                Config.versionV4js));
+            sb0.Append(string.Format(
+                "<script src='/Styles/Kesco.V4/JS{0}/jquery-ui.js' type='text/javascript'></script>",
+                Config.versionV4js));
             sb0.Append("<link href='/Styles/Kesco.V4/CSS/Kesco.V4.css' rel='stylesheet' type='text/css'/>");
             sb0.Append("</head>");
             sb0.Append("<body>");
@@ -220,8 +266,6 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
 
         private void RenderDialogException(StringBuilder sb, Exception ex, bool close)
         {
-            sb.Append("Wait.render(false);");//Восстановление курсора по-умолчанию после асинхронного вызова
-
             sb.Append("$(\"body\").prepend(\"<div class='v4div-outer-container' id='v4DivErrorOuter'></div>\");");
             sb.Append(
                 "$(\"#v4DivErrorOuter\").append(\"<div class='v4div-inner-container' id='v4DivErrorInner'></div>\");");
@@ -247,10 +291,12 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
 
             string errorMessage;
             if (ex is DetailedException)
-                errorMessage = HttpUtility.JavaScriptStringEncode(HttpUtility.HtmlEncode(((DetailedException)ex).CustomMessage));
+                errorMessage =
+                    HttpUtility.JavaScriptStringEncode(HttpUtility.HtmlEncode(((DetailedException) ex).CustomMessage));
             else
-                errorMessage = HttpUtility.JavaScriptStringEncode(HttpUtility.HtmlEncode(ex.GetBaseException().Message));
-            
+                errorMessage =
+                    HttpUtility.JavaScriptStringEncode(HttpUtility.HtmlEncode(ex.GetBaseException().Message));
+
             sb.Append(errorMessage);
 
             sb.Append("</td>");
@@ -273,13 +319,15 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             {
                 var exception = ex as DetailedException;
                 if (exception != null)
-                    sb.Append(HttpUtility.JavaScriptStringEncode(HttpUtility.HtmlEncode(exception.GetExtendedDetails())));
+                    sb.Append(
+                        HttpUtility.JavaScriptStringEncode(HttpUtility.HtmlEncode(exception.GetExtendedDetails())));
                 else
                     sb.Append(HttpUtility.JavaScriptStringEncode(ex.GetBaseException().StackTrace));
             }
             catch
             {
             }
+
             sb.Append("</pre>");
             sb.Append("</div>");
 

@@ -7,7 +7,6 @@ using System.Linq;
 using System.Reflection;
 using System.Web;
 using System.Web.UI;
-using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.Enums;
 using Kesco.Lib.BaseExtention.Enums.Controls;
 using Kesco.Lib.DALC;
@@ -16,7 +15,6 @@ using Page = Kesco.Lib.Web.Controls.V4.Common.Page;
 
 namespace Kesco.Lib.Web.Controls.V4.Grid
 {
-    
     /// <summary>
     ///     Контрол Grid (Таблица)
     /// </summary>
@@ -36,13 +34,11 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         private GridDbSourceSettings _dbSourceSettings;
 
         public DataTable _dtLocal;
-        private NtfStatus _emptyDataNtfStatus = NtfStatus.Empty;
         private string _emptyDataString = "";
-        private int _marginBottom = 100;
         private int? _maxPrintRenderRows;
-        private bool _showModifyInfoTooltip = false;
         private string _modifyDateColumn;
         private string _modifyUserColumn;
+        private bool _showModifyInfoTooltip;
 
         protected int GridCmdListnerIndex;
 
@@ -54,11 +50,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// <summary>
         ///     Отступ от нижнего края страницы
         /// </summary>
-        public int MarginBottom
-        {
-            get { return _marginBottom; }
-            set { _marginBottom = value; }
-        }
+        public int MarginBottom { get; set; } = 100;
 
         /// <summary>
         ///     Высота грида, если не указана, используется MarginBottom
@@ -82,11 +74,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// <summary>
         ///     Тип строки, которая выводится, если источник данных пустой
         /// </summary>
-        public NtfStatus EmptyDataNtfStatus
-        {
-            get { return _emptyDataNtfStatus; }
-            set { _emptyDataNtfStatus = value; }
-        }
+        public NtfStatus EmptyDataNtfStatus { get; set; } = NtfStatus.Empty;
 
         /// <summary>
         ///     Максимальное количество строк
@@ -295,7 +283,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
 
             sourceContent = sourceContent.Replace(_constIdTag, ID);
             sourceContent = sourceContent.Replace(_constGroupingTag, ShowGroupPanel ? "true" : "false");
-            sourceContent = sourceContent.Replace(_constMarginBottom, _marginBottom.ToString());
+            sourceContent = sourceContent.Replace(_constMarginBottom, MarginBottom.ToString());
             sourceContent = sourceContent.Replace(_constGridHeight, GridHeight.ToString());
             sourceContent = sourceContent.Replace(_constGridAutoSize, GridAutoSize.ToString().ToLower());
             sourceContent = sourceContent.Replace(_constGroupingPanelEmptyText,
@@ -450,7 +438,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
 
         private void RenderEmptyDataString(TextWriter w)
         {
-            var className = EnumAccessors.GetCssClassByNtfStatus(_emptyDataNtfStatus, true);
+            var className = EnumAccessors.GetCssClassByNtfStatus(EmptyDataNtfStatus, true);
 
             w.Write("<div{1}>{0}</div>", EmptyDataString,
                 string.IsNullOrEmpty(className) ? "" : " class='" + className + "'");
@@ -524,7 +512,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             if (results.Rows.Count > 0)
             {
                 _currentPagingBarCtrl.RowsPerPage = RowsPerPage;
-                _currentPagingBarCtrl.MaxPageNumber = (int) Math.Ceiling(results.Rows.Count / (double)RowsPerPage);
+                _currentPagingBarCtrl.MaxPageNumber = (int) Math.Ceiling(results.Rows.Count / (double) RowsPerPage);
                 pageIndex = (_currentPagingBarCtrl.CurrentPageNumber - 1) * RowsPerPage;
                 _currentPagingBarCtrl.SetDisabled(false, false);
                 JS.Write("$('#divResultCount_{0}').html(' {1}: {2}');", ID, Resx.GetString("lblGridRecordCount"),
@@ -606,7 +594,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 w.Write(@"<th>&nbsp;</th>");
 
             if (_existServiceColumnChecked)
-                w.Write(@"<th style=""text-align:center""><input type=""checkbox"" id=""allCheck_{0}"" onclick=""v4_gridCheckedAll('{0}','{1}', this.checked);""></th>", ID, GridCmdListnerIndex);
+                w.Write(
+                    @"<th style=""text-align:center""><input type=""checkbox"" id=""allCheck_{0}"" onclick=""v4_gridCheckedAll('{0}','{1}', this.checked);""></th>",
+                    ID, GridCmdListnerIndex);
 
 
             if (ExistServiceColumn)
@@ -693,7 +683,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             var requiredGrouping = ShowGroupPanel && Settings.GroupingColumns != null;
 
             for (var i = 0; i < results.Rows.Count; i++)
-                if ((i >= pageIndex && rowNumber < RowsPerPage) || Settings.IsPrintVersion && i < MaxPrintRenderRows)
+                if (i >= pageIndex && rowNumber < RowsPerPage || Settings.IsPrintVersion && i < MaxPrintRenderRows)
                 {
                     if (!renderEmptyTr)
                     {
@@ -754,7 +744,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                             w.Write("<div class=\"v4DivTable\">");
                             w.Write("<div class=\"v4DivTableRow\">");
 
-                            
+
                             RenderServiceCheckedColumn(w, results.Rows[i], i);
 
                             w.Write("</div>");
@@ -768,7 +758,8 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                             w.Write("<div class=\"v4DivTable\">");
                             w.Write("<div class=\"v4DivTableRow\">");
 
-                            bool needRenderingReturn = !RenderConditionServiceColumnReturn.Any(x => !CheckCellValueOnCondition(results.Rows[i], x.Key, x.Value));
+                            var needRenderingReturn = !RenderConditionServiceColumnReturn.Any(x =>
+                                !CheckCellValueOnCondition(results.Rows[i], x.Key, x.Value));
 
                             if (needRenderingReturn)
                                 RenderServiceColumnReturn(w, results.Rows[i], i);
@@ -784,12 +775,16 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                             w.Write("<div class=\"v4DivTable\">");
                             w.Write("<div class=\"v4DivTableRow\">");
 
-                            bool needRenderingDelete = !RenderConditionServiceColumnDelete.Any(x => !CheckCellValueOnCondition(results.Rows[i], x.Key, x.Value));
-                            bool needRenderingEdit = !RenderConditionServiceColumnEdit.Any(x => !CheckCellValueOnCondition(results.Rows[i], x.Key, x.Value));
+                            var needRenderingDelete = !RenderConditionServiceColumnDelete.Any(x =>
+                                !CheckCellValueOnCondition(results.Rows[i], x.Key, x.Value));
+                            var needRenderingEdit = !RenderConditionServiceColumnEdit.Any(x =>
+                                !CheckCellValueOnCondition(results.Rows[i], x.Key, x.Value));
 
                             if (_existServiceColumnCopy) RenderServiceColumnCopy(w, results.Rows[i], i);
-                            if (_existServiceColumnDelete && needRenderingDelete) RenderServiceColumnDelete(w, results.Rows[i], i);
-                            if (_existServiceColumnEdit && needRenderingEdit) RenderServiceColumnEdit(w, results.Rows[i], i);
+                            if (_existServiceColumnDelete && needRenderingDelete)
+                                RenderServiceColumnDelete(w, results.Rows[i], i);
+                            if (_existServiceColumnEdit && needRenderingEdit)
+                                RenderServiceColumnEdit(w, results.Rows[i], i);
 
                             w.Write("</div>");
                             w.Write("</div>");
@@ -1274,7 +1269,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// <param name="direction">Направление сортировки</param>
         public void SetOrderBy(string fieldName, GridColumnOrderByDirectionEnum direction)
         {
-            string columnId = Settings?.TableColumns?.FirstOrDefault(x => x.FieldName == fieldName)?.Id;
+            var columnId = Settings?.TableColumns?.FirstOrDefault(x => x.FieldName == fieldName)?.Id;
             SetOrderByColumnValues(columnId, direction);
         }
 
@@ -1326,6 +1321,18 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             return _dtLocal == null ? 0 : _dtLocal.Rows.Count;
         }
 
+        /// <summary>
+        ///     Проверка значения ячейки таблицы на удовлетворение условию
+        /// </summary>
+        /// <param name="dr">Текущая запись</param>
+        /// <param name="columnId">Идентификтатор колонки</param>
+        /// <param name="values">Список условий</param>
+        /// <returns></returns>
+        private bool CheckCellValueOnCondition(DataRow dr, string columnId, List<object> values)
+        {
+            return !values.Any(x => !x.Equals(dr[columnId]));
+        }
+
         #region ServiceColumn
 
         private string _returnClientFuncName = "";
@@ -1361,7 +1368,6 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// </summary>
         public bool ExistServiceColumn { get; set; }
 
-       
 
         /// <summary>
         ///     Свойство указывающее, что у грида есть колонка с управляющей иконкой детализации
@@ -1374,17 +1380,17 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         public bool ExistServiceColumnReturn { get; set; }
 
         /// <summary>
-        /// Свойство, указывающее при каком условии рисовать кнопку возврата значения в таблице
+        ///     Свойство, указывающее при каком условии рисовать кнопку возврата значения в таблице
         /// </summary>
         public Dictionary<string, List<object>> RenderConditionServiceColumnReturn { get; set; }
 
         /// <summary>
-        /// Свойство, указывающее при каком условии рисовать кнопку редактирования записи в таблице
+        ///     Свойство, указывающее при каком условии рисовать кнопку редактирования записи в таблице
         /// </summary>
         public Dictionary<string, List<object>> RenderConditionServiceColumnEdit { get; set; }
 
         /// <summary>
-        /// Свойство, указывающее при каком условии рисовать кнопку удаления записи в таблице
+        ///     Свойство, указывающее при каком условии рисовать кнопку удаления записи в таблице
         /// </summary>
         public Dictionary<string, List<object>> RenderConditionServiceColumnDelete { get; set; }
 
@@ -1564,7 +1570,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         private void RenderServiceColumnEdit(TextWriter w, DataRow dr, int tabIndex)
         {
             var clientParams = "";
-            string elementId = "imgEdit_" + (_editPkFieldsName.Count > 0 ? dr[_editPkFieldsName[0]] : "0");
+            var elementId = "imgEdit_" + (_editPkFieldsName.Count > 0 ? dr[_editPkFieldsName[0]] : "0");
 
             _editPkFieldsName.ForEach(delegate(string fieldName)
             {
@@ -1584,7 +1590,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             if (_showModifyInfoTooltip)
             {
                 // текст подсказки с информацией о том, кем и когда была изменена запись
-                string title = string.Format("\"{0}\\r\\n{1}:\\r\\n{2}\\r\\n\"",
+                var title = string.Format("\"{0}\\r\\n{1}:\\r\\n{2}\\r\\n\"",
                     _editTitle,
                     Resx.GetString("lblLastModify"),
                     dr[_modifyUserColumn]);
@@ -1602,13 +1608,11 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         {
             var val = "";
             _checkedFieldsName.ForEach(x =>
-                val += val.Length > 0 ? ((char)31).ToString() : (dr[x]==null?"":dr[x].ToString())
+                val += val.Length > 0 ? ((char) 31).ToString() : dr[x] == null ? "" : dr[x].ToString()
             );
 
             w.Write("<input type='checkbox' class=\"v4GridCheckbox\" data-id=\"{0}\"/> ", val);
         }
-
-
 
         #endregion
 
@@ -1670,17 +1674,5 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         }
 
         #endregion
-
-        /// <summary>
-        ///     Проверка значения ячейки таблицы на удовлетворение условию
-        /// </summary>
-        /// <param name="dr">Текущая запись</param>
-        /// <param name="columnId">Идентификтатор колонки</param>
-        /// <param name="values">Список условий</param>
-        /// <returns></returns>
-        private bool CheckCellValueOnCondition(DataRow dr, string columnId, List<object> values)
-        {
-            return !values.Any(x => !x.Equals(dr[columnId]));
-        }
     }
 }

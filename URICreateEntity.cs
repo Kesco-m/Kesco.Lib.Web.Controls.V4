@@ -44,33 +44,21 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <summary>
         ///     Идентификатор ссылки
         /// </summary>
-        public Guid Id
-        {
-            get { return _id; }
-        }
+        public Guid Id => _id;
 
         /// <summary>
         ///     Ссылка на иконку
         /// </summary>
-        public string ImgPath
-        {
-            get { return _imgPath; }
-        }
+        public string ImgPath => _imgPath;
 
         /// <summary>
         ///     Ссылка на форму создания сущности
         /// </summary>
-        public string URL
-        {
-            get { return _url; }
-        }
+        public string URL => _url;
 
         /// <summary>
         ///     Локализованное название ссылки
         /// </summary>
-        public string Label
-        {
-            get { return _label; }
-        }
+        public string Label => _label;
     }
 }

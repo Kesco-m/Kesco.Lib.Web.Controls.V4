@@ -46,9 +46,7 @@ namespace Kesco.Lib.Web.Controls.V4
             get
             {
                 if (_change != null && _change != DateTime.MinValue)
-                {
                     return _change.Value.ToString("yyyy-MM-dd HH:mm:ss");
-                }
                 return null;
             }
             set { _change = Convert.ToDateTime(value); }
@@ -67,7 +65,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public override void RenderControl(TextWriter w)
         {
-            if (ChangedByID != null && _change!=null && _change!=DateTime.MinValue)
+            if (ChangedByID != null && _change != null && _change != DateTime.MinValue)
             {
                 SetParametrs();
 
@@ -98,7 +96,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public override void Flush()
         {
-            if (ChangedByID == null || _change==null || _change==DateTime.MinValue)
+            if (ChangedByID == null || _change == null || _change == DateTime.MinValue)
             {
                 JS.Write("gi('{0}').style.display='none';", HtmlID);
             }
@@ -120,9 +118,8 @@ namespace Kesco.Lib.Web.Controls.V4
             }
 
             if (PropertyChanged.Contains("Visible"))
-            {
-                JS.Write("if(gi('{0}')) gi('{0}').style.display='{1}';", HtmlID, Visible && ChangedByID != null ? "" : "none");
-            }
+                JS.Write("if(gi('{0}')) gi('{0}').style.display='{1}';", HtmlID,
+                    Visible && ChangedByID != null ? "" : "none");
         }
 
         /// <summary>
@@ -150,13 +147,8 @@ namespace Kesco.Lib.Web.Controls.V4
                         sqlParams);
 
                     if (V4Page.IsRusLocal && dt.Rows.Count == 1)
-                    {
                         ChangedName = dt.Rows[0].Field<string>("Сотрудник");
-                    }
-                    else if (dt.Rows.Count == 1)
-                    {
-                        ChangedName = dt.Rows[0].Field<string>("Employee");
-                    }
+                    else if (dt.Rows.Count == 1) ChangedName = dt.Rows[0].Field<string>("Employee");
                 }
             }
 

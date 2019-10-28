@@ -18,7 +18,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
     /// </summary>
     public class GridColumn
     {
-        private readonly string _applyImage = "<span class=\"ui-icon ui-icon-check\" border=0 style=\"display:inline-block\"></span>";
+        private readonly string _applyImage =
+            "<span class=\"ui-icon ui-icon-check\" border=0 style=\"display:inline-block\"></span>";
+
         private readonly string _cssClassInterval = "filterType" + (int) GridColumnUserFilterEnum.Между;
 
         public Dictionary<object, object> FilterStandartType;
@@ -60,10 +62,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// <summary>
         ///     Признак того, что возможна сортировка по данной колонке
         /// </summary>
-        public bool IsSortedColumn
-        {
-            get { return Settings.SortingColumns.Contains(FieldName); }
-        }
+        public bool IsSortedColumn => Settings.SortingColumns.Contains(FieldName);
 
         public bool IsBit { get; set; }
 
@@ -96,7 +95,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         public string TextAlign { get; set; }
         public bool IsNoWrap { get; set; }
 
-        private GridSettings Settings { get; set; }
+        private GridSettings Settings { get; }
 
         #region Render
 
@@ -109,8 +108,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// <param name="beforeText">Текст перед данными</param>
         /// <param name="afterText">Текст после данных</param>
         /// <param name="isGroupHeader">По данной колонке происходит группировка</param>
-        public void RenderColumnData(TextWriter w, DataRow dr, int rowIndex, string colspan = "", string beforeText = "",
-            string afterText = "", bool isGroupHeader = false )
+        public void RenderColumnData(TextWriter w, DataRow dr, int rowIndex, string colspan = "",
+            string beforeText = "",
+            string afterText = "", bool isGroupHeader = false)
         {
             var sbAdvProp = new StringBuilder();
             var textAlignStyle = !string.IsNullOrEmpty(TextAlign) && !isGroupHeader
@@ -125,22 +125,21 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
 
             if (!string.IsNullOrEmpty(Title))
                 sbAdvProp.AppendFormat(" title=\"{0}\" ", Title);
-            
+
 
             switch (ColumnType)
             {
                 case GridColumnTypeEnum.Date:
+                    if (string.IsNullOrEmpty(dr[FieldName].ToString()) || (DateTime)dr[FieldName] == DateTimeExtensionMethods.MinDateTime) { w.Write("<td>&nbsp;"); break;}
                     w.Write("<td {0} {1} {5}>{2}{4}{3}</td>", sbAdvProp, colspan, beforeText, afterText,
                         IsLocalTime
-                            ? string.Format("<script>$(\"#{0}_{1}\").html(v4_toLocalTime(\"{2}\",\"{3}\"));</script>", 
-                                Id, 
+                            ? string.Format("<script>$(\"#{0}_{1}\").html(v4_toLocalTime(\"{2}\",\"{3}\"));</script>",
+                                Id,
                                 rowIndex,
                                 ((DateTime) dr[FieldName]).ToString("yyyy-MM-dd HH:mm:ss"), "dd.mm.yyyy hh:mi:ss")
-                            : (
-                                FormatString != ""
-                                    ? ((DateTime) dr[FieldName]).ToString(FormatString)
-                                    : dr[FieldName].ToString()),
-
+                            : FormatString != ""
+                                ? ((DateTime) dr[FieldName]).ToString(FormatString)
+                                : dr[FieldName].ToString(),
                         IsLocalTime ? string.Format("id=\"{0}_{1}\"", Id, rowIndex) : "");
                     break;
                 case GridColumnTypeEnum.Double:
@@ -154,10 +153,18 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                         scale = dr[ScaleFieldName] == null ? DefaultScale : (int) dr[ScaleFieldName];
                     else if (IsScaleByValue)
                         if (ColumnType == GridColumnTypeEnum.Decimal)
-                            scale = ((decimal) dr[FieldName]).GetScaleValue(DefaultScale, MaxScale);
+                        {
+                            if (!String.IsNullOrEmpty(dr[FieldName].ToString()))
+                                scale = ((decimal) dr[FieldName]).GetScaleValue(DefaultScale, MaxScale);
+                        }
 
                     if (ColumnType == GridColumnTypeEnum.Decimal)
-                        w.Write(((decimal) dr[FieldName]).ToString(FormatString + scale));
+                    {
+                        if (!String.IsNullOrEmpty(dr[FieldName].ToString()))
+                            w.Write(((decimal) dr[FieldName]).ToString(FormatString + scale));
+                        else
+                            w.Write("");
+                    }
                     else
                         w.Write(((double) dr[FieldName]).ToString(FormatString + scale));
 
@@ -177,8 +184,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                     if (IsBit)
                         w.Write("<td {0} {1}>{2}{4}{3}</td>", sbAdvProp, colspan, beforeText, afterText,
                             isGroupHeader ? dr[FieldName].ToString() == "1"
-                                ?
-                                "[" + Settings.V4Page.Resx.GetString("lblGridColumnValueBooleanTrue") + "]"
+                                ? "[" + Settings.V4Page.Resx.GetString("lblGridColumnValueBooleanTrue") + "]"
                                 : "[" + Settings.V4Page.Resx.GetString("lblGridColumnValueBooleanFalse") + "]" :
                             dr[FieldName].ToString() == "1" ? "<img src='/styles/ok.gif' border='0' />" : "&nbsp;");
                     else
@@ -539,7 +545,6 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             {
                 w.Write("</div>");
                 w.Write("</div>");
-                
             }
 
             if (isHtml)
@@ -830,23 +835,23 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
     </div>
 </th>
 ",
-                IsSortedColumn ?
-                    "<span style =\"cursor:pointer\""
-                    + " onmouseover=\"this.style.textDecoration='underline';\""
-                    + " onmouseout=\"this.style.textDecoration='none';\""
-                    + string.Format(" onclick=\"v4_setOrderByColumnValues({0}, '{1}',{2});\"",
-                        Settings.GridCmdListnerIndex,
-                        Id,
-                        OrderByNumber == null ? 0 : OrderByDirection == GridColumnOrderByDirectionEnum.Asc ? 1 : 0)
-                    + ">" + Alias + "</span>"
+                IsSortedColumn
+                    ? "<span style =\"cursor:pointer\""
+                      + " onmouseover=\"this.style.textDecoration='underline';\""
+                      + " onmouseout=\"this.style.textDecoration='none';\""
+                      + string.Format(" onclick=\"v4_setOrderByColumnValues({0}, '{1}',{2});\"",
+                          Settings.GridCmdListnerIndex,
+                          Id,
+                          OrderByNumber == null ? 0 : OrderByDirection == GridColumnOrderByDirectionEnum.Asc ? 1 : 0)
+                      + ">" + Alias + "</span>"
                     : "<span>" + Alias + "</span>",
                 !string.IsNullOrEmpty(HeaderTitle) ? string.Format("title=\"{0}\"", HeaderTitle) : "",
-                Settings.IsFilterEnable ?
-                    string.Format(
+                Settings.IsFilterEnable
+                    ? string.Format(
                         //                        "<img src=\"/styles/DownGrayed.gif\" id=\"imgSettings{1}_{3}\" style=\"cursor:pointer\" onclick=\" cmdasync('cmd', 'Listener', 'ctrlId', '{3}', 'cmdName', 'RenderColumnSettings','ColumnId','{0}');\" border=0 title=\"{2}\"/>",
                         "<span class=\"ui-icon ui-icon-wrench\" style=\"display: inline-block;cursor:pointer\" id=\"imgSettings{1}_{3}\" onclick=\"cmdasync('cmd', 'Listener', 'ctrlId', '{3}', 'cmdName', 'RenderColumnSettings','ColumnId','{0}');\" border=0 title=\"{2}\"></span>",
                         FieldName, DisplayOrder, Settings.V4Page.Resx.GetString("msgOpenSettingFilter"),
-                        Settings.GridCmdListnerIndex) 
+                        Settings.GridCmdListnerIndex)
                     : "",
                 FilterUniqueValues != null && FilterUniqueValues.Count > 0 || FilterUser != null
                     ? string.Format("<img src=\"/styles/FilterApply.gif\" border=\"0\" title=\"{0}\" {1}/>",
@@ -1041,9 +1046,12 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 "<div class=\"v4DivTableCell v4PaddingCell\">");
 
             //w.Write("<img  style=\"cursor:pointer;\" src=\"/styles/delete.gif\" onclick=\"v4_clearFilterColumnValues({0}, '{1}');\"/>");
-            w.Write("<span class=\"ui-icon ui-icon-closethick\" style=\"display: inline-block;cursor:pointer\" onclick=\"v4_clearFilterColumnValues({0}, '{1}');\"></span>", Settings.GridCmdListnerIndex, Id);
+            w.Write(
+                "<span class=\"ui-icon ui-icon-closethick\" style=\"display: inline-block;cursor:pointer\" onclick=\"v4_clearFilterColumnValues({0}, '{1}');\"></span>",
+                Settings.GridCmdListnerIndex, Id);
 
-            w.Write("</div><div class=\"v4DivTableCell\" style=\"text-align:left;\"><a href=\"javascript:void(0);\" onclick=\"v4_clearFilterColumnValues({0},'{1}');\"><nobr>{2}</nobr></a></div>",
+            w.Write(
+                "</div><div class=\"v4DivTableCell\" style=\"text-align:left;\"><a href=\"javascript:void(0);\" onclick=\"v4_clearFilterColumnValues({0},'{1}');\"><nobr>{2}</nobr></a></div>",
                 Settings.GridCmdListnerIndex, Id, Settings.V4Page.Resx.GetString("msgGrigNoFilter"));
             w.Write("</div>");
             w.Write("</div>");

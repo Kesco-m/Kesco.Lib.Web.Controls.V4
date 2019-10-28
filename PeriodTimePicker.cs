@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
-using System.Reflection.Emit;
 using System.Web;
 using System.Web.UI.WebControls;
 using Kesco.Lib.BaseExtention.Enums.Controls;
@@ -30,7 +29,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <summary>
         ///     Коллекция возможных периодов
         /// </summary>
-        public List<Kesco.Lib.Entities.Item> List = new List<Kesco.Lib.Entities.Item>();
+        public List<Entities.Item> List = new List<Entities.Item>();
 
         /// <summary>
         ///     Конструктор контрола выбора периода
@@ -50,10 +49,7 @@ namespace Kesco.Lib.Web.Controls.V4
             set
             {
                 value = value.Trim();
-                if (!_valueFrom.Equals(value))
-                {
-                    SetPropertyChanged("ValueFrom");
-                }
+                if (!_valueFrom.Equals(value)) SetPropertyChanged("ValueFrom");
                 _valueFrom = value;
             }
         }
@@ -61,26 +57,17 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <summary>
         ///     Текстовое представление даты начала периода (в виде "yyyyMMddHHmmss")
         /// </summary>
-        public string ValueFromODBC
-        {
-            get
-            {
-                return ValueDateFrom.HasValue
-                    ? ValueDateFrom.Value.ToString("yyyyMMdd" + (ShowTime ? "HHmmss" : ""))
-                    : "";
-            }
-        }
+        public string ValueFromODBC =>
+            ValueDateFrom.HasValue
+                ? ValueDateFrom.Value.ToString("yyyyMMdd" + (ShowTime ? "HHmmss" : ""))
+                : "";
 
         /// <summary>
         ///     Текстовое представление даты окончания периода (в виде "yyyyMMddHHmmss")
         /// </summary>
-        public string ValueToODBC
-        {
-            get
-            {
-                return ValueDateTo.HasValue ? ValueDateTo.Value.ToString("yyyyMMdd" + (ShowTime ? "HHmmss" : "")) : "";
-            }
-        }
+        public string ValueToODBC => ValueDateTo.HasValue
+            ? ValueDateTo.Value.ToString("yyyyMMdd" + (ShowTime ? "HHmmss" : ""))
+            : "";
 
         /// <summary>
         ///     Текстовое представление даты окончания периода
@@ -91,10 +78,7 @@ namespace Kesco.Lib.Web.Controls.V4
             set
             {
                 value = value.Trim();
-                if (!_valueTo.Equals(value))
-                {
-                    SetPropertyChanged("ValueTo");
-                }
+                if (!_valueTo.Equals(value)) SetPropertyChanged("ValueTo");
                 _valueTo = value;
             }
         }
@@ -108,10 +92,7 @@ namespace Kesco.Lib.Web.Controls.V4
             set
             {
                 value = value.Trim();
-                if (!_valuePeriod.Equals(value))
-                {
-                    SetPropertyChanged("ValuePeriod");
-                }
+                if (!_valuePeriod.Equals(value)) SetPropertyChanged("ValuePeriod");
                 _valuePeriod = value;
             }
         }
@@ -206,7 +187,8 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             if (IsReadOnly)
             {
-                w.Write(Resx.GetString("lFrom") + "&nbsp;" + HttpUtility.HtmlEncode(ValueFrom) + "&nbsp;" + Resx.GetString("lTo") +
+                w.Write(Resx.GetString("lFrom") + "&nbsp;" + HttpUtility.HtmlEncode(ValueFrom) + "&nbsp;" +
+                        Resx.GetString("lTo") +
                         "&nbsp;" + HttpUtility.HtmlEncode(ValueTo));
             }
             else
@@ -240,18 +222,16 @@ namespace Kesco.Lib.Web.Controls.V4
                     period.RenderControl(w);
 
                     w.Write("</td><td>");
-                    if (ValuePeriod == ((int)PeriodsEnum.Custom).ToString(CultureInfo.InvariantCulture))
-                    {
+                    if (ValuePeriod == ((int) PeriodsEnum.Custom).ToString(CultureInfo.InvariantCulture))
                         w.Write(
                             @"<img id=""periodTimePicker_datePrev_{0}"" src=""/STYLES/PagePrev.gif"" help=""{1}"" onclick=""return false;"" onmouseover=""return false;"" />",
                             ID, HttpUtility.HtmlEncode(Help));
-                    }
                     else
-                    {
-                        w.Write(@"<img onclick=""cmdasync('ctrl', '{0}' ,'cmd', 'prev');"" onmouseover=""v4ptp_mouseOver();""
-id=""periodTimePicker_datePrev_{0}"" src=""/STYLES/PagePrevActive.gif"" tabindex=""{1}"" help=""{2}"" />", ID, TabIndex,
+                        w.Write(
+                            @"<img onclick=""cmdasync('ctrl', '{0}' ,'cmd', 'prev');"" onmouseover=""v4ptp_mouseOver();""
+id=""periodTimePicker_datePrev_{0}"" src=""/STYLES/PagePrevActive.gif"" tabindex=""{1}"" help=""{2}"" />", ID,
+                            TabIndex,
                             HttpUtility.HtmlEncode(Help));
-                    }
                     w.Write("</td>");
                 }
                 else
@@ -259,6 +239,7 @@ id=""periodTimePicker_datePrev_{0}"" src=""/STYLES/PagePrevActive.gif"" tabindex
                     w.Write("<table cellspacing=\"0\" cellpadding=\"0\" class='{0}'>", CSSClass);
                     w.Write("<tr>");
                 }
+
                 w.Write("<td id=\"" + ID + "lFrom\" style=\"padding-bottom:3px\">");
                 w.Write(Resx.GetString("lFrom") + "&nbsp;");
                 w.Write("</td><td>");
@@ -302,20 +283,19 @@ id=""periodTimePicker_datePrev_{0}"" src=""/STYLES/PagePrevActive.gif"" tabindex
                 if (!IsOnlyPeriod)
                 {
                     w.Write("<td>");
-                    if (ValuePeriod == ((int)PeriodsEnum.Custom).ToString(CultureInfo.InvariantCulture))
-                    {
+                    if (ValuePeriod == ((int) PeriodsEnum.Custom).ToString(CultureInfo.InvariantCulture))
                         w.Write(
                             @"<img id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNext.gif"" help=""{1}"" onclick=""return false;"" onmouseover=""return false;"" />",
                             ID, HttpUtility.HtmlEncode(Help));
-                    }
                     else
-                    {
-                        w.Write(@"<img onclick=""cmdasync('ctrl', '{0}' ,'cmd', 'next');"" onmouseover=""v4ptp_mouseOver();""
-id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex=""{1}"" help=""{2}"" />", ID, TabIndex,
+                        w.Write(
+                            @"<img onclick=""cmdasync('ctrl', '{0}' ,'cmd', 'next');"" onmouseover=""v4ptp_mouseOver();""
+id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex=""{1}"" help=""{2}"" />", ID,
+                            TabIndex,
                             HttpUtility.HtmlEncode(Help));
-                    }
                     w.Write("</td>");
                 }
+
                 w.Write("</tr></table>");
                 if (isDay)
                     w.Write("<script type=\"text/javascript\">hi('" + ID + "lFrom');hi('" + ID + "lTo');hi('" + ID +
@@ -332,15 +312,14 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
         {
             ValueFrom = e.NewValue;
 
-            if (ValuePeriod != ((int)PeriodsEnum.Day).ToString(CultureInfo.InvariantCulture))
+            if (ValuePeriod != ((int) PeriodsEnum.Day).ToString(CultureInfo.InvariantCulture))
             {
-                if (ValueDateFrom > ValueDateTo)
-                {
-                    ValueTo = ValueFrom;
-                }
+                if (ValueDateFrom > ValueDateTo) ValueTo = ValueFrom;
             }
             else
+            {
                 ValueTo = ValueFrom;
+            }
 
             //Вызывается после возможного изменения ValueTo, иначе в обработчике события ValueTo неактуально
             OnChanged(new ProperyChangedEventArgs(e.OldValue, e.NewValue));
@@ -357,15 +336,14 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
         {
             ValueTo = e.NewValue;
 
-            if (ValuePeriod != ((int)PeriodsEnum.Day).ToString(CultureInfo.InvariantCulture))
+            if (ValuePeriod != ((int) PeriodsEnum.Day).ToString(CultureInfo.InvariantCulture))
             {
-                if (ValueDateFrom > ValueDateTo)
-                {
-                    ValueFrom = ValueTo;
-                }
+                if (ValueDateFrom > ValueDateTo) ValueFrom = ValueTo;
             }
             else
+            {
                 ValueFrom = ValueTo;
+            }
 
             //Вызывается после возможного изменения ValueFrom, иначе в обработчике события ValueFrom неактуально
             OnChanged(new ProperyChangedEventArgs(e.OldValue, e.NewValue));
@@ -387,10 +365,10 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
                 //    return Math.Ceiling((decimal)ValueDateFrom.Value.DayOfYear / 7).ToString(CultureInfo.InvariantCulture);
                 //case (int) PeriodsEnum.Mounth:
                 //    return ValueDateFrom.Value.Month.ToString(CultureInfo.InvariantCulture);
-                case (int)PeriodsEnum.Quarter:
+                case (int) PeriodsEnum.Quarter:
                     if (ValueDateFrom.HasValue)
                     {
-                        var q = Math.Ceiling((decimal)ValueDateFrom.Value.Month / 3);
+                        var q = Math.Ceiling((decimal) ValueDateFrom.Value.Month / 3);
                         switch (Convert.ToInt32(q))
                         {
                             case 1:
@@ -403,8 +381,10 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
                                 return "IV";
                         }
                     }
+
                     break;
             }
+
             return "";
         }
 
@@ -414,8 +394,8 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
         /// </summary>
         private void CheckPeriod()
         {
-            if (ValuePeriod == ((int)PeriodsEnum.Day).ToString(CultureInfo.InvariantCulture)) return;
-            ValuePeriod = ((int)PeriodsEnum.Custom).ToString(CultureInfo.InvariantCulture);
+            if (ValuePeriod == ((int) PeriodsEnum.Day).ToString(CultureInfo.InvariantCulture)) return;
+            ValuePeriod = ((int) PeriodsEnum.Custom).ToString(CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -430,10 +410,7 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
 
         private void FillDropDownList(DropDownList period)
         {
-            foreach (var item in List)
-            {
-                period.DataItems.Add(item.Id, item.Name);
-            }
+            foreach (var item in List) period.DataItems.Add(item.Id, item.Name);
         }
 
         /// <summary>
@@ -443,7 +420,7 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
         /// <returns>элемент</returns>
         public object GetObjectById(string id)
         {
-            var item = new Entities.Item()
+            var item = new Entities.Item
             {
                 Id = id,
                 Value = List.Find(x => x.Id == id).Name
@@ -463,15 +440,16 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
         {
             if (!string.IsNullOrEmpty(e.NewValue))
             {
-                bool increase = int.Parse(e.NewValue) > int.Parse(e.OldValue);
+                var increase = int.Parse(e.NewValue) > int.Parse(e.OldValue);
                 SetPeriod(e.NewValue, increase);
             }
             else
             {
                 e.NewValue = e.OldValue;
-                ((DropDownList)sender).Value = e.NewValue;
+                ((DropDownList) sender).Value = e.NewValue;
             }
-            ValuePeriod = ((DropDownList)sender).Value;
+
+            ValuePeriod = ((DropDownList) sender).Value;
             //((ComboBox)sender).ValueText = List.Find(x => x.Code == ValuePeriod).Name + " " + GetNumberPeriod();
             OnChanged(new ProperyChangedEventArgs(e.OldValue, e.NewValue));
         }
@@ -490,19 +468,22 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
                 //if (!IsOnlyPeriod)
                 //    ((Select)V4Page.V4Controls[ID + "Select"]).ValueText = List.Find(x => x.Code == ValuePeriod).Name + " " + GetNumberPeriod();
             }
+
             if (PropertyChanged.Contains("ValueTo"))
             {
                 JS.Write("gi('{0}_0').value='{1}';", ID + "To", HttpUtility.JavaScriptStringEncode(ValueTo));
-                JS.Write("gi('{0}_0').setAttribute('t','{1}');", ID + "To", HttpUtility.JavaScriptStringEncode(ValueTo));
+                JS.Write("gi('{0}_0').setAttribute('t','{1}');", ID + "To",
+                    HttpUtility.JavaScriptStringEncode(ValueTo));
             }
+
             //if (!IsOnlyPeriod)
             //    ((Select)V4Page.V4Controls[ID + "Select"]).ValueText = List.Find(x => x.Code == ValuePeriod).Name + " " + GetNumberPeriod();
             if (!IsOnlyPeriod && PropertyChanged.Contains("ValuePeriod"))
             {
-                string periodName = List?.Find(x => x.Id == ValuePeriod).Name?.ToString();
+                var periodName = List?.Find(x => x.Id == ValuePeriod).Name?.ToString();
 
                 JS.Write("gi('{0}_0').value='{1}';",
-                    ID + "Select", 
+                    ID + "Select",
                     string.IsNullOrEmpty(periodName) ? "" : HttpUtility.JavaScriptStringEncode(periodName));
 
                 JS.Write("gi('{0}_0').setAttribute('t','{1}');",
@@ -516,14 +497,10 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
                 JS.Write("gi('{0}_0').setAttribute('stxt','');",
                     ID + "Select");
 
-                if (ValuePeriod == ((int)PeriodsEnum.Custom).ToString(CultureInfo.InvariantCulture))
-                {
+                if (ValuePeriod == ((int) PeriodsEnum.Custom).ToString(CultureInfo.InvariantCulture))
                     DisableListing(true);
-                }
                 else
-                {
                     DisableListing(false);
-                }
             }
         }
 
@@ -564,17 +541,17 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
         /// <param name="val">значение периода</param>
         public void SetPeriod(string val, bool increase)
         {
-            DateTime valueDateFrom = increase && ValueDateFrom.HasValue
+            var valueDateFrom = increase && ValueDateFrom.HasValue
                 ? ValueDateFrom.Value
                 : DateTime.Now;
 
-            if (String.IsNullOrEmpty(val)) return;
+            if (string.IsNullOrEmpty(val)) return;
             JS.Write("di('" + ID + "lFrom');");
             JS.Write("di('" + ID + "lTo');");
             JS.Write("di('" + ID + "dpTo');");
             switch (int.Parse(val))
             {
-                case (int)PeriodsEnum.Day:
+                case (int) PeriodsEnum.Day:
                     //if (ValueDateFrom != null)
                     //{
                     //    ValueDateTo = ValueDateFrom;
@@ -583,52 +560,49 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
                     //{
                     //    ValueDateFrom = ValueDateTo = ((DatePicker) V4Page.V4Controls[ID + "From"]).ValueDate = DateTime.Now;
                     //}
-                    ValueDateFrom = ValueDateTo = ((DatePicker)V4Page.V4Controls[ID + "From"]).ValueDate = DateTime.Now;
+                    ValueDateFrom =
+                        ValueDateTo = ((DatePicker) V4Page.V4Controls[ID + "From"]).ValueDate = DateTime.Now;
                     JS.Write("hi('" + ID + "lFrom');");
                     JS.Write("hi('" + ID + "lTo');");
                     JS.Write("hi('" + ID + "dpTo');");
                     break;
-                case (int)PeriodsEnum.Week:
+                case (int) PeriodsEnum.Week:
                     ValueDateTo =
-                        ((DatePicker)V4Page.V4Controls[ID + "To"]).ValueDate =
-                            valueDateFrom.AddDays(7 - (int)valueDateFrom.DayOfWeek);
+                        ((DatePicker) V4Page.V4Controls[ID + "To"]).ValueDate =
+                        valueDateFrom.AddDays(7 - (int) valueDateFrom.DayOfWeek);
                     ValueDateFrom =
-                        ((DatePicker)V4Page.V4Controls[ID + "From"]).ValueDate =
-                            valueDateFrom.AddDays(-1 * (int)valueDateFrom.DayOfWeek + 1);
+                        ((DatePicker) V4Page.V4Controls[ID + "From"]).ValueDate =
+                        valueDateFrom.AddDays(-1 * (int) valueDateFrom.DayOfWeek + 1);
                     break;
-                case (int)PeriodsEnum.Mounth:
+                case (int) PeriodsEnum.Mounth:
                     ValueDateFrom =
-                        ((DatePicker)V4Page.V4Controls[ID + "From"]).ValueDate =
-                            new DateTime(valueDateFrom.Year, valueDateFrom.Month, 1);
+                        ((DatePicker) V4Page.V4Controls[ID + "From"]).ValueDate =
+                        new DateTime(valueDateFrom.Year, valueDateFrom.Month, 1);
                     if (valueDateFrom.Month == 12)
-                    {
                         ValueDateTo =
-                            ((DatePicker)V4Page.V4Controls[ID + "To"]).ValueDate =
-                                new DateTime(valueDateFrom.Year + 1, 1, 1).AddDays(-1);
-                    }
+                            ((DatePicker) V4Page.V4Controls[ID + "To"]).ValueDate =
+                            new DateTime(valueDateFrom.Year + 1, 1, 1).AddDays(-1);
                     else
-                    {
                         ValueDateTo =
-                            ((DatePicker)V4Page.V4Controls[ID + "To"]).ValueDate =
-                                new DateTime(valueDateFrom.Year, valueDateFrom.Month + 1, 1).AddDays(-1);
-                    }
+                            ((DatePicker) V4Page.V4Controls[ID + "To"]).ValueDate =
+                            new DateTime(valueDateFrom.Year, valueDateFrom.Month + 1, 1).AddDays(-1);
                     break;
-                case (int)PeriodsEnum.Quarter:
+                case (int) PeriodsEnum.Quarter:
                     var q = (valueDateFrom.Month - 1) / 3;
                     ValueDateFrom =
-                        ((DatePicker)V4Page.V4Controls[ID + "From"]).ValueDate =
-                            new DateTime(valueDateFrom.Year, q * 3 + 1, 1);
+                        ((DatePicker) V4Page.V4Controls[ID + "From"]).ValueDate =
+                        new DateTime(valueDateFrom.Year, q * 3 + 1, 1);
                     ValueDateTo =
-                        ((DatePicker)V4Page.V4Controls[ID + "To"]).ValueDate =
-                            new DateTime(valueDateFrom.Year, (q + 1) * 3, 1).AddMonths(1).AddDays(-1);
+                        ((DatePicker) V4Page.V4Controls[ID + "To"]).ValueDate =
+                        new DateTime(valueDateFrom.Year, (q + 1) * 3, 1).AddMonths(1).AddDays(-1);
                     break;
-                case (int)PeriodsEnum.Year:
+                case (int) PeriodsEnum.Year:
                     ValueDateFrom =
-                        ((DatePicker)V4Page.V4Controls[ID + "From"]).ValueDate =
-                            new DateTime(valueDateFrom.Year, 1, 1);
+                        ((DatePicker) V4Page.V4Controls[ID + "From"]).ValueDate =
+                        new DateTime(valueDateFrom.Year, 1, 1);
                     ValueDateTo =
-                        ((DatePicker)V4Page.V4Controls[ID + "To"]).ValueDate =
-                            new DateTime(valueDateFrom.Year + 1, 1, 1).AddDays(-1);
+                        ((DatePicker) V4Page.V4Controls[ID + "To"]).ValueDate =
+                        new DateTime(valueDateFrom.Year + 1, 1, 1).AddDays(-1);
                     break;
             }
         }
@@ -639,60 +613,50 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
         /// <param name="val">значение периода</param>
         private bool InitPeriod(string val)
         {
-            if (String.IsNullOrEmpty(val)) return false;
+            if (string.IsNullOrEmpty(val)) return false;
             switch (int.Parse(val))
             {
-                case (int)PeriodsEnum.Day:
+                case (int) PeriodsEnum.Day:
                     if (ValueDateFrom == null)
-                    {
                         ValueDateFrom = ValueDateTo = DateTime.Now;
-                    }
                     else
-                    {
                         ValueDateTo = ValueDateFrom;
-                    }
                     //ValueDateFrom = ValueDateTo = DateTime.Now;
                     return true;
-                case (int)PeriodsEnum.Week:
+                case (int) PeriodsEnum.Week:
                     if (ValueDateFrom == null)
                     {
-                        ValueDateFrom = DateTime.Now.AddDays(-1 * (int)DateTime.Now.DayOfWeek + 1);
-                        ValueDateTo = DateTime.Now.AddDays(7 - (int)DateTime.Now.DayOfWeek);
+                        ValueDateFrom = DateTime.Now.AddDays(-1 * (int) DateTime.Now.DayOfWeek + 1);
+                        ValueDateTo = DateTime.Now.AddDays(7 - (int) DateTime.Now.DayOfWeek);
                     }
                     else
                     {
-                        ValueDateFrom = ValueDateFrom.Value.AddDays(-1 * (int)ValueDateFrom.Value.DayOfWeek + 1);
-                        ValueDateTo = ValueDateFrom.Value.AddDays(7 - (int)ValueDateFrom.Value.DayOfWeek);
+                        ValueDateFrom = ValueDateFrom.Value.AddDays(-1 * (int) ValueDateFrom.Value.DayOfWeek + 1);
+                        ValueDateTo = ValueDateFrom.Value.AddDays(7 - (int) ValueDateFrom.Value.DayOfWeek);
                     }
+
                     return false;
-                case (int)PeriodsEnum.Mounth:
+                case (int) PeriodsEnum.Mounth:
                     if (ValueDateFrom == null)
                     {
                         ValueDateFrom = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
                         if (DateTime.Now.Month == 12)
-                        {
                             ValueDateTo = new DateTime(DateTime.Now.Year + 1, 1, 1).AddDays(-1);
-                        }
                         else
-                        {
                             ValueDateTo = new DateTime(DateTime.Now.Year, DateTime.Now.Month + 1, 1).AddDays(-1);
-                        }
                     }
                     else
                     {
                         ValueDateFrom = new DateTime(ValueDateFrom.Value.Year, ValueDateFrom.Value.Month, 1);
                         if (ValueDateFrom.Value.Month == 12)
-                        {
                             ValueDateTo = new DateTime(ValueDateFrom.Value.Year + 1, 1, 1).AddDays(-1);
-                        }
                         else
-                        {
                             ValueDateTo =
                                 new DateTime(ValueDateFrom.Value.Year, ValueDateFrom.Value.Month + 1, 1).AddDays(-1);
-                        }
                     }
+
                     return false;
-                case (int)PeriodsEnum.Quarter:
+                case (int) PeriodsEnum.Quarter:
                     if (ValueDateFrom == null)
                     {
                         var q = (DateTime.Now.Month - 1) / 3;
@@ -705,8 +669,9 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
                         ValueDateFrom = new DateTime(ValueDateFrom.Value.Year, q * 3 + 1, 1);
                         ValueDateTo = new DateTime(ValueDateFrom.Value.Year, (q + 1) * 3, 1).AddMonths(1).AddDays(-1);
                     }
+
                     return false;
-                case (int)PeriodsEnum.Year:
+                case (int) PeriodsEnum.Year:
                     if (ValueDateFrom == null)
                     {
                         ValueDateFrom = new DateTime(DateTime.Now.Year, 1, 1);
@@ -717,8 +682,10 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
                         ValueDateFrom = new DateTime(ValueDateFrom.Value.Year, 1, 1);
                         ValueDateTo = new DateTime(ValueDateFrom.Value.Year + 1, 1, 1).AddDays(-1);
                     }
+
                     return false;
             }
+
             return false;
         }
 
@@ -730,7 +697,6 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
         {
             base.ProcessCommand(collection);
             if (collection["cmd"] != null)
-            {
                 switch (collection["cmd"])
                 {
                     case "prev":
@@ -742,7 +708,6 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
                         OnChanged(new ProperyChangedEventArgs("cmd", "next"));
                         break;
                 }
-            }
         }
 
         /// <summary>
@@ -750,32 +715,32 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
         /// </summary>
         private void SetPrevPeriod()
         {
-            if (String.IsNullOrEmpty(ValuePeriod)) return;
+            if (string.IsNullOrEmpty(ValuePeriod)) return;
             switch (int.Parse(ValuePeriod))
             {
-                case (int)PeriodsEnum.Day:
+                case (int) PeriodsEnum.Day:
                     if (!ValueDateFrom.HasValue) return;
                     ValueDateFrom = ValueDateTo = ValueDateFrom.Value.AddDays(-1);
                     break;
-                case (int)PeriodsEnum.Week:
+                case (int) PeriodsEnum.Week:
                     if (!ValueDateFrom.HasValue) return;
                     ValueDateFrom = ValueDateFrom.Value.AddDays(-7);
                     if (!ValueDateTo.HasValue) return;
                     ValueDateTo = ValueDateTo.Value.AddDays(-7);
                     break;
-                case (int)PeriodsEnum.Mounth:
+                case (int) PeriodsEnum.Mounth:
                     if (!ValueDateFrom.HasValue) return;
                     ValueDateFrom = ValueDateFrom.Value.AddMonths(-1);
                     if (!ValueDateTo.HasValue) return;
                     ValueDateTo = ValueDateFrom.Value.AddMonths(1).AddDays(-1);
                     break;
-                case (int)PeriodsEnum.Quarter:
+                case (int) PeriodsEnum.Quarter:
                     if (!ValueDateFrom.HasValue) return;
                     ValueDateFrom = ValueDateFrom.Value.AddMonths(-3);
                     if (!ValueDateTo.HasValue) return;
                     ValueDateTo = ValueDateFrom.Value.AddMonths(3).AddDays(-1);
                     break;
-                case (int)PeriodsEnum.Year:
+                case (int) PeriodsEnum.Year:
                     if (!ValueDateFrom.HasValue) return;
                     ValueDateFrom = ValueDateFrom.Value.AddYears(-1);
                     if (!ValueDateTo.HasValue) return;
@@ -789,32 +754,32 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
         /// </summary>
         private void SetNextPeriod()
         {
-            if (String.IsNullOrEmpty(ValuePeriod)) return;
+            if (string.IsNullOrEmpty(ValuePeriod)) return;
             switch (int.Parse(ValuePeriod))
             {
-                case (int)PeriodsEnum.Day:
+                case (int) PeriodsEnum.Day:
                     if (!ValueDateFrom.HasValue) return;
                     ValueDateFrom = ValueDateTo = ValueDateFrom.Value.AddDays(1);
                     break;
-                case (int)PeriodsEnum.Week:
+                case (int) PeriodsEnum.Week:
                     if (!ValueDateFrom.HasValue) return;
                     ValueDateFrom = ValueDateFrom.Value.AddDays(7);
                     if (!ValueDateTo.HasValue) return;
                     ValueDateTo = ValueDateTo.Value.AddDays(7);
                     break;
-                case (int)PeriodsEnum.Mounth:
+                case (int) PeriodsEnum.Mounth:
                     if (!ValueDateFrom.HasValue) return;
                     ValueDateFrom = ValueDateFrom.Value.AddMonths(1);
                     if (!ValueDateTo.HasValue) return;
                     ValueDateTo = ValueDateFrom.Value.AddMonths(1).AddDays(-1);
                     break;
-                case (int)PeriodsEnum.Quarter:
+                case (int) PeriodsEnum.Quarter:
                     if (!ValueDateFrom.HasValue) return;
                     ValueDateFrom = ValueDateFrom.Value.AddMonths(3);
                     if (!ValueDateTo.HasValue) return;
                     ValueDateTo = ValueDateFrom.Value.AddMonths(3).AddDays(-1);
                     break;
-                case (int)PeriodsEnum.Year:
+                case (int) PeriodsEnum.Year:
                     if (!ValueDateFrom.HasValue) return;
                     ValueDateFrom = ValueDateFrom.Value.AddYears(1);
                     if (!ValueDateTo.HasValue) return;
@@ -842,7 +807,6 @@ id=""periodTimePicker_dateNext_{0}"" src=""/STYLES/PageNextActive.gif"" tabindex
 
         public Item()
         {
-
         }
 
         /// <summary>

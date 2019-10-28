@@ -6,7 +6,7 @@ namespace Kesco.Lib.Web.Controls.V4.Binding
     /// <summary>
     ///     Базовый класс валидации
     /// </summary>
-   [Serializable]
+    [Serializable]
     public abstract class V4Binding
     {
         protected readonly V4Control _control;

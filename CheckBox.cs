@@ -8,8 +8,6 @@ namespace Kesco.Lib.Web.Controls.V4
     /// </summary>
     public class CheckBox : V4Control
     {
-        private bool _labelFor = true;
-
         /// <summary>
         ///     Текст чекбокса
         /// </summary>
@@ -18,27 +16,17 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <summary>
         ///     Создавать надпись как связанную с контролом
         /// </summary>
-        public bool LabelFor
-        {
-            get { return _labelFor; }
-            set { _labelFor = value; }
-        }
+        public bool LabelFor { get; set; } = true;
 
         /// <summary>
         ///     Признак выбора чекбокса
         /// </summary>
         public bool Checked
         {
-            get
-            {
-                return !Value.IsNullEmptyOrZero();
-            }
+            get { return !Value.IsNullEmptyOrZero(); }
             set
             {
-                if (Value.Equals("1") ^ value)
-                {
-                    SetPropertyChanged("Value");
-                }
+                if (Value.Equals("1") ^ value) SetPropertyChanged("Value");
                 Value = value ? "1" : "0";
             }
         }
@@ -50,9 +38,7 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             base.Flush();
             if (PropertyChanged.Contains("Value"))
-            {
                 JS.Write("if (gi('{0}_0')) gi('{0}_0').checked={1};", HtmlID, Checked ? 1 : 0);
-            }
         }
 
         /// <summary>

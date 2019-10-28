@@ -1,5 +1,4 @@
 ﻿using System.Collections.Specialized;
-using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.Enums.Docs;
 using Kesco.Lib.Web.Settings.Parameters;
 
@@ -28,22 +27,22 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// <summary>
         ///     Отступ слева
         /// </summary>
-        public string Left { get; private set; }
+        public string Left { get; }
 
         /// <summary>
         ///     Отступ сверху
         /// </summary>
-        public string Top { get; private set; }
+        public string Top { get; }
 
         /// <summary>
         ///     Ширина
         /// </summary>
-        public string Width { get; private set; }
+        public string Width { get; }
 
         /// <summary>
         ///     Высота
         /// </summary>
-        public string Height { get; private set; }
+        public string Height { get; }
     }
 
     /// <summary>

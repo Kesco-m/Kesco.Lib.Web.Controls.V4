@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Data;
-using System.Globalization;
 using System.Resources;
 using System.Threading;
 using System.Web;
@@ -14,6 +13,7 @@ using Kesco.Lib.Localization;
 using Kesco.Lib.Web.Controls.V4.Common;
 using Kesco.Lib.Web.Settings;
 using Kesco.Lib.Web.Settings.Parameters;
+using Kesco.Lib.Web.SignalR;
 using SQLQueries = Kesco.Lib.Entities.SQLQueries;
 
 namespace Kesco.Lib.Web.Controls.V4.TreeView
@@ -28,6 +28,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         protected static string SelectedIds { get; set; }
         protected static string ReturnId { get; set; }
         protected static string ReturnType { get; set; }
+        protected static string ReturnCondition { get; set; }
         protected static string OrderByField { get; set; }
         protected static string OrderByDirection { get; set; }
         protected static string SearchText { get; set; }
@@ -86,6 +87,9 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             ReturnType = string.IsNullOrWhiteSpace(context.Request.QueryString["returntype"])
                 ? ""
                 : context.Request.QueryString["returntype"];
+            ReturnCondition = string.IsNullOrWhiteSpace(context.Request.QueryString["returncondition"])
+                ? ""
+                : context.Request.QueryString["returncondition"];
             OrderByField = string.IsNullOrWhiteSpace(context.Request.QueryString["orderByField"])
                 ? "L"
                 : context.Request.QueryString["orderByField"];
@@ -119,12 +123,13 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                 : bool.Parse(context.Request.QueryString["searchShowTop"]);
             var json = string.Empty;
 
-            var p = (Page) context.Application[IDPage];
+
+            var p = KescoHub.GetPage(IDPage) as Page;
 
             if (p == null) return;
 
-            Thread.CurrentThread.CurrentUICulture = CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
-            Thread.CurrentThread.CurrentCulture = CultureInfo.CreateSpecificCulture(p.CurrentUser.Language);
+            Thread.CurrentThread.CurrentCulture = Thread.CurrentThread.CurrentUICulture =
+                CorporateCulture.GetCorporateCulture(p.CurrentUser.Language);
             Resx = Resources.Resx;
 
             treeView = (TreeView) p.V4Controls[CtrlID];

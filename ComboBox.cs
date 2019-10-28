@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Data;
@@ -101,7 +100,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 {
                     key = (o as DataRow)[KeyField].ToString();
                     val = (o as DataRow)[ValueField].ToString();
-                    if (!String.IsNullOrEmpty(DataField))
+                    if (!string.IsNullOrEmpty(DataField))
                         data = (o as DataRow)[DataField];
                 }
                 else if (o is string)
@@ -113,9 +112,10 @@ namespace Kesco.Lib.Web.Controls.V4
                     var t = o.GetType();
                     key = t.GetProperty(KeyField).GetValue(o, null).ToString();
                     val = t.GetProperty(ValueField).GetValue(o, null).ToString();
-                    if (!String.IsNullOrEmpty(DataField))
+                    if (!string.IsNullOrEmpty(DataField))
                         data = t.GetProperty(DataField).GetValue(o, null);
                 }
+
                 if (key.Equals(Value))
                 {
                     ValueText = val;
@@ -154,19 +154,13 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="w">Поток</param>
         protected override void RenderControlBody(TextWriter w)
         {
-            if (Items.Count == 0 && FillList != null)
-            {
-                FillItems();
-            }
+            if (Items.Count == 0 && FillList != null) FillItems();
             if (IsReadOnly)
             {
                 if (Value.Length > 0)
                 {
                     object o = Items[Value];
-                    if (o != null)
-                    {
-                        w.Write(HttpUtility.HtmlEncode(o.ToString()));
-                    }
+                    if (o != null) w.Write(HttpUtility.HtmlEncode(o.ToString()));
                 }
             }
             else
@@ -180,7 +174,7 @@ namespace Kesco.Lib.Web.Controls.V4
                     OnChangeClientScript);
                 w.Write(" onkeydown='v4cb_keyDown(event);'");
                 w.Write(" isRequired={0}", IsRequired ? 1 : 0);
-                w.Write(" class='{0}{1}'", CSSClass, (IsRequired && Value.Length == 0) ? " v4s_required" : "");
+                w.Write(" class='{0}{1}'", CSSClass, IsRequired && Value.Length == 0 ? " v4s_required" : "");
 
                 if (IsRequired && Value.Length == 0)
                     w.Write(" selectedIndex=-1");
@@ -196,10 +190,8 @@ namespace Kesco.Lib.Web.Controls.V4
                     w.Write("<option value=''>{0}</option>", EmptyValueText);
 
                 foreach (var o in Items)
-                {
                     w.Write("<option{2} value='{1}'>{0}</option>", o.Value, o.Key,
                         o.Key.Equals(Value) ? " selected='selected'" : "");
-                }
                 w.Write("</select>");
             }
         }
@@ -210,10 +202,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="collection">Коллекция параметров</param>
         public override void ProcessCommand(NameValueCollection collection)
         {
-            if (collection["t"] != null)
-            {
-                ValueText = collection["t"].Trim();
-            }
+            if (collection["t"] != null) ValueText = collection["t"].Trim();
             base.ProcessCommand(collection);
         }
 
@@ -226,16 +215,17 @@ namespace Kesco.Lib.Web.Controls.V4
             if (PropertyChanged.Contains("Value"))
             {
                 if (!IsReadOnly)
+                {
                     JS.Write("v4cb_setValue('{0}','{1}');", HtmlID, HttpUtility.HtmlEncode(Value));
+                }
                 else
                 {
                     if (Value.Length > 0)
                     {
                         object o = Items[Value];
                         if (o != null)
-                        {
-                            JS.Write("v4cb_setValueReadOnly('{0}','{1}');", HtmlID, HttpUtility.HtmlEncode(o.ToString()));
-                        }
+                            JS.Write("v4cb_setValueReadOnly('{0}','{1}');", HtmlID,
+                                HttpUtility.HtmlEncode(o.ToString()));
                     }
                 }
             }

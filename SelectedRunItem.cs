@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace Kesco.Lib.Web.Controls.V4
+﻿namespace Kesco.Lib.Web.Controls.V4
 {
     public class SelectedRunItem
     {
@@ -13,6 +8,5 @@ namespace Kesco.Lib.Web.Controls.V4
         public bool IsDisabled { get; set; }
         public int Order { get; set; }
         public int? GroupValue { get; set; }
-
     }
 }

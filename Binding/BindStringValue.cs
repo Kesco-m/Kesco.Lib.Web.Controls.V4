@@ -36,7 +36,10 @@ namespace Kesco.Lib.Web.Controls.V4.Binding
         private void FieldOnValueChangedEvent(object sender, ValueChangedEventArgs arg)
         {
             if (arg.IsChange)
+            {
                 _control.Value = arg.NewValue;
+                _control.BinderValue = _control.Value;
+            }
         }
 
         protected override void ControlOnValueChanged(object sender, ValueChangedEventArgs arg)
