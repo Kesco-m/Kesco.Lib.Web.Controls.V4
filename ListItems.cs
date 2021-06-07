@@ -187,7 +187,7 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
                     else
                     {
                         if (!string.IsNullOrEmpty(openPath))
-                            w.Write("<a href=\"javascript:v4_windowOpen('{0}{1}id={2}');\"{3}>", openPath,
+                            w.Write("<a id=\"linkLI_{2}\" href=\"javascript:void(0);\" onclick=\"Kesco.windowOpen('{0}{1}id={2}', null, null, 'linkLI');\"{3}>", openPath,
                                 openPath.IndexOf("?", StringComparison.InvariantCulture) > -1 ? "&" : "?", id, toolTip);
                         else if (!string.IsNullOrEmpty(openFunc))
                             w.Write("<a href=\"#\" onclick='{0}' {1}>",
@@ -262,7 +262,7 @@ onkeydown = ""var key=v4_getKeyCode(event); if(key == 13 || key == 32) cmdasync(
                 else
                 {
                     if (!string.IsNullOrEmpty(openPath))
-                        w.Write("<a href=\"javascript:v4_windowOpen('{0}{1}id={2}');\"{3}>", openPath,
+                        w.Write("<a id=\"linkLI_{2}\" href=\"javascript:void(0);\" onclick=\"Kesco.windowOpen('{0}{1}id={2}', null, null, 'linkLI');\"{3}>", openPath,
                             openPath.IndexOf("?", StringComparison.InvariantCulture) > -1 ? "&" : "?", id, toolTip);
                     else if (!string.IsNullOrEmpty(openFunc))
                         w.Write("<a href=\"#\" onclick='{0}' {1}>",

@@ -43,6 +43,19 @@ namespace Kesco.Lib.Web.Controls.V4
         public int HeightRow { get; set; }
         public int MarginLeftLabel { get; set; }
 
+
+        /// <summary>
+        ///      Текст элемента, выбранного в контроле
+        /// </summary>
+        public string ValueText
+        {
+            get
+            {
+                return Items.SingleOrDefault(x => x.Code == Value)?.Name;
+            }
+        }
+
+
         /// <summary>
         ///     Проверка выделен ли элемент в коллекции radio
         /// </summary>
@@ -110,7 +123,7 @@ namespace Kesco.Lib.Web.Controls.V4
                     if (TabIndex.HasValue)
                         w.Write(" TabIndex={0} ", TabIndex);
                     w.Write(
-                        " onkeydown='v4cb_keyDown(event)' /><label for=\"{0}{1}_0\" style=\"margin-right: 15px;\">{2}</label>",
+                        " onkeydown='v4cb_keyDown(event)' /><label id =\"label_{0}{1}\" for=\"{0}{1}_0\" style=\"margin-right: 15px;\">{2}</label>",
                         HtmlID, item.Code, HttpUtility.HtmlEncode(item.Name));
                 }
 
@@ -132,7 +145,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 if (TabIndex.HasValue)
                     w.Write(" TabIndex={0} ", TabIndex);
                 w.Write(
-                    " onkeydown='v4cb_keyDown(event)' /><label for=\"{0}{1}_0\" style=\"margin-left:{2}px;\">{3}</label>",
+                    " onkeydown='v4cb_keyDown(event)' /><label id =\"label_{0}{1}\" for=\"{0}{1}_0\" style=\"margin-left:{2}px;\">{3}</label>",
                     HtmlID, item.Code, MarginLeftLabel,
                     HttpUtility.HtmlEncode(item.Name));
                 w.Write("</td></tr>");

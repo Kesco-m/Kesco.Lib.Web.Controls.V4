@@ -10,7 +10,10 @@
         Double = 32,
         Float = 64,
         Person = 128,
-        Document = 256
+        Document = 256,
+        Short = 512,
+        Long = 1024,
+        List = 2048
     }
 
     public enum GridColumnFilterEqualEnum
@@ -47,6 +50,12 @@
 
         [GridColumnUserFilter("lblEndsWith", "", "")]
         ЗаканчиваетсяНа = 21,
+
+        [GridColumnUserFilter("lblNoBeginWith", "", "")]
+        НеНачинаетсяС = 22,
+
+        [GridColumnUserFilter("lblNoEndsWith", "", "")]
+        НеЗаканчиваетсяНа = 23,
 
         [GridColumnUserFilter("lblContains", "", "")]
         Содержит = 30,

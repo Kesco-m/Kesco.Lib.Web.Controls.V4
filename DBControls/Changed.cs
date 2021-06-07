@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using Kesco.Lib.BaseExtention.Enums.Controls;
 using Kesco.Lib.DALC;
 using Kesco.Lib.Entities;
 using Kesco.Lib.Web.Settings;
@@ -72,9 +73,16 @@ namespace Kesco.Lib.Web.Controls.V4
                 w.Write("<div id='{0}' style='display:{1}; float: right; padding-right: 5px;'>", HtmlID,
                     !Visible ? "none" : "");
                 w.Write("<label id='{0}'>{1}</label>", HtmlID + "_word", ChangeWord);
+
                 w.Write(
-                    "<a id='{0}' class='v4_callerControl' data-id='{1}' caller-type='2' onclick=\"v4_windowOpen('{3}');\" style='margin-left: 5px; margin-right: 5px;' >{2}</a>",
-                    HtmlID + "_link", ChangedByID, ChangedName, Config.user_form + "?id=" + ChangedByID);
+                    "<a id='{0}' class='v4_callerControl' data-id='{1}' caller-type='{2}' onclick=\"Kesco.windowOpen('{3}', null, null, this);\" style='margin-left: 5px; margin-right: 5px; cursor:pointer;' >{4}</a>",
+                    HtmlID + "_link", 
+                    ChangedByID,
+                    (int)CallerTypeEnum.Employee,
+                    Config.user_form + "?id=" + ChangedByID,
+                    ChangedName                   
+                    );
+
                 w.Write("<label id='{0}'></label>", HtmlID + "_date");
                 w.Write("</div>");
                 w.Write("<script>$('#{0}').text(v4_toLocalTime('{1}','dd.mm.yyyy hh:mi:ss'));</script>",
@@ -103,23 +111,34 @@ namespace Kesco.Lib.Web.Controls.V4
             else
             {
                 SetParametrs();
-                JS.Write(@"   
+                JS.Write(@"
+                           
                            $('#{0}')[0].setAttribute('data-id', '{1}');                           
-                           $('#{0}')[0].setAttribute('caller-type', '2');
+                           $('#{0}')[0].setAttribute('caller-type', '{9}');
                            $('#{0}')[0].setAttribute('class', 'v4_callerControl');
-                           $('#{0}')[0].setAttribute('onclick', ""v4_windowOpen('{8}');"");     
-                           v4_setToolTip();                      
+                           $('#{0}')[0].setAttribute('onclick', ""Kesco.windowOpen('{8}', null, null, this);"");     
+                           $('#{0}').initToolTip(v4_tooltipCaller, $(document.body));                     
                            $('#{2}').text('{3}');
                            $('#{4}').text(v4_toLocalTime('{5}','dd.mm.yyyy hh:mi:ss'));
                            $('#{0}').text('{6}');
                            if(gi('{7}')) gi('{7}').style.display='';
-                           ", HtmlID + "_link", ChangedByID, HtmlID + "_word", ChangeWord, HtmlID + "_date", Change,
-                    ChangedName, HtmlID, Config.user_form + "?id=" + ChangedByID);
+                           ", 
+                           HtmlID + "_link", 
+                           ChangedByID, 
+                           HtmlID + "_word", 
+                           ChangeWord, 
+                           HtmlID + "_date", 
+                           Change,
+                           ChangedName, 
+                           HtmlID, 
+                           Config.user_form + "?id=" + ChangedByID, 
+                           (int)CallerTypeEnum.Employee);
             }
 
             if (PropertyChanged.Contains("Visible"))
                 JS.Write("if(gi('{0}')) gi('{0}').style.display='{1}';", HtmlID,
                     Visible && ChangedByID != null ? "" : "none");
+            
         }
 
         /// <summary>

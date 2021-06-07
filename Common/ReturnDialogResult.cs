@@ -44,12 +44,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             }
 
             page.JS.Write("v4_isStopBlur = false; v4_stopAsyncEvent = false;");
-            page.JS.Write("$.v4_windowManager.selectEntity('{0}', '{1}', '{2}', {3}, {4}, {5}, '{6}');",
+            page.JS.Write("$.v4_windowManager.selectEntity('{0}', '{1}', '{2}', {3}, '{4}');",
                 HttpUtility.JavaScriptStringEncode(url),
                 HttpUtility.JavaScriptStringEncode(ctrlId),
-                HttpUtility.JavaScriptStringEncode(page.IDPage),
-                dialogWidth,
-                dialogHeight,
+                HttpUtility.JavaScriptStringEncode(page.IDPage),               
                 callBackFunction,
                 isMultiReturn);
         }

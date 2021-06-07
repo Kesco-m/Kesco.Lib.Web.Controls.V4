@@ -150,6 +150,9 @@ namespace Kesco.Lib.Web.Controls.V4
             if (!string.IsNullOrEmpty(Title))
                 w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
 
+            if (!string.IsNullOrEmpty(NextControl))
+                w.Write(" nc='{0}'", HttpUtility.HtmlEncode(NextControl));
+
             if (TabIndex.HasValue)
                 w.Write(" TabIndex={0} ", TabIndex);
 

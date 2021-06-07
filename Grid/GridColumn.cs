@@ -1,14 +1,21 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Web;
 using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.Enums;
 using Kesco.Lib.BaseExtention.Enums.Controls;
+using Kesco.Lib.Entities.Documents;
 using Kesco.Lib.Web.Controls.V4.Common;
+using System.Text.RegularExpressions;
+using Newtonsoft.Json;
 using Convert = Kesco.Lib.ConvertExtention.Convert;
 
 namespace Kesco.Lib.Web.Controls.V4.Grid
@@ -23,17 +30,27 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
 
         private readonly string _cssClassInterval = "filterType" + (int) GridColumnUserFilterEnum.Между;
 
+        private string _fieldName = "";        
+        private string _sortFieldName = "";
+        private string _filterFieldName = "";
+        
         public Dictionary<object, object> FilterStandartType;
         public Dictionary<object, object> FilterUniqueValues;
 
-        public GridColumnUserFilter FilterUser;
-
+        public GridColumnUserFilter FilterUser { get; set; }
         public Dictionary<GridColumnUserFilterEnum, string> FilterUserClause;
 
         public string FilterUserCtrlBaseName = "v4_ctrlFilterClause";
+        public string FilterUserCtrlCurrentDateName = "v4_ctrlFilterCurrentDate";
+
         public Dictionary<string, Dictionary<string, string>> HrefClauses;
         public Dictionary<object, object> UniqueValues;
         public Dictionary<object, object> UniqueValuesOriginal;
+
+        //public Action<TextWriter, DataRow> RenderColumnAction;
+        public delegate void RenderColumnDelegate(TextWriter w, DataRow dr);
+
+        public RenderColumnDelegate renderColumnDelegate;
 
         /// <summary>
         ///     Конструктор
@@ -50,7 +67,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         public bool IsScaleByValue { get; set; }
         public int MaxScale { get; set; }
         public int DefaultScale { get; set; }
-
+        public bool IsSaveSettings { get; set; } = true;
         public bool IsTimeSecond { get; set; }
 
         /// <summary>
@@ -58,19 +75,35 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// </summary>
         public bool IsLocalTime { get; set; }
 
-
         /// <summary>
         ///     Признак того, что возможна сортировка по данной колонке
         /// </summary>
-        public bool IsSortedColumn => Settings.SortingColumns.Contains(FieldName);
+        public bool IsSortedColumn => Settings.SortingColumns.Contains(SortFieldName);
+
+        /// <summary>
+        ///     Признак того, что возможна фильтрация по данной колонке
+        /// </summary>
+        public bool IsFilteredColumn => Settings.FilteredColumns.Contains(FilterFieldName);
+
+        public bool IsDublicateColumn { get; set; }
 
         public bool IsBit { get; set; }
+        public bool IsCurrentDate { get; set; }
 
+        public bool IsCondition { get; set; }
+
+        public string HrefId { get; set; }
         public string HrefIdFieldName { get; set; }
         public string HrefUri { get; set; }
+        public bool HrefUriFieldName { get; set; }
         public bool HrefIsDocument { get; set; }
+        public bool IsGetDocumentNameByEachRow { get; set; }
         public bool HrefIsEmployee { get; set; }
+        public bool HrefIsPerson { get; set; }
+        public bool HrefIsEquipment { get; set; }
         public bool HrefIsClause { get; set; }
+
+        public Dictionary<string, string> ValueBooleanCaption { get; set; }
 
         public string SumValuesText { get; set; }
         public bool IsSumValues { get; set; }
@@ -79,23 +112,62 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         public string HeaderTitle { get; set; }
         public string Title { get; set; }
 
-        public GridColumnFilterEqualEnum FilterEqual { get; set; }
+        public GridColumnFilterEqualEnum? FilterEqual { get; set; }
+        public bool FilterRequired { get; set; }
         public GridColumnOrderByDirectionEnum OrderByDirection { get; set; }
         public GridColumnTypeEnum ColumnType { get; set; }
 
         public string Id { get; set; }
-        public string FieldName { get; set; }
+        public string FieldName { 
+            get {
+                return _fieldName = Regex.Replace(_fieldName, "@\\d+$", "");
+            } 
+            set {
+                _fieldName = value;
+            } 
+        }
+
         public string Alias { get; set; }
+    
+
+        public string SortFieldName {
+            get
+            {
+                if (string.IsNullOrEmpty(_sortFieldName)) return FieldName;
+                return _sortFieldName;
+            }
+            set { _sortFieldName = value; }
+        }
+        public string FilterFieldName
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_filterFieldName)) return FieldName;
+                return _filterFieldName;
+            }
+            set { _filterFieldName = value; }
+        }
+       
 
         public int? OrderByNumber { get; set; }
         public int DisplayOrder { get; set; }
+        public int DisplayOrderDefault { get; set; }
         public bool DisplayVisible { get; set; }
+        public bool DisplayVisibleDefault { get; set; }
+        public bool SortNullFirst { get; set; } = true;
+        
         public int FilterOrder { get; set; }
 
         public string TextAlign { get; set; }
         public bool IsNoWrap { get; set; }
 
         private GridSettings Settings { get; }
+
+        public string ClickMessageConfirm { get; set; }
+        public string ClickClientFuncName { get; set; }
+        public List<string> ClickPkFieldsName { get; set; }
+        public List<string> ClickMessageFieldsName { get; set; }
+        public string ClickTitle { get; set; }
 
         #region Render
 
@@ -112,6 +184,14 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             string beforeText = "",
             string afterText = "", bool isGroupHeader = false)
         {
+            if (renderColumnDelegate != null)
+            {
+                renderColumnDelegate.Invoke(w, dr);
+                return;
+            }
+            
+            var fieldValue = dr[FieldName];
+
             var sbAdvProp = new StringBuilder();
             var textAlignStyle = !string.IsNullOrEmpty(TextAlign) && !isGroupHeader
                 ? string.Format("text-align:{0} !important;", TextAlign)
@@ -126,20 +206,62 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             if (!string.IsNullOrEmpty(Title))
                 sbAdvProp.AppendFormat(" title=\"{0}\" ", Title);
 
+            var onClickAttr = "";
+            var clickTitle = ClickTitle.IsNullEmptyOrZero()? "" : ClickTitle;
+            if (!string.IsNullOrEmpty(ClickClientFuncName) && ClickClientFuncName.Length > 0)
+            {
+                var messageFields = "";
+                var clientParams = "";
+
+                if (ClickMessageFieldsName != null)
+                { 
+                    ClickMessageFieldsName.ForEach(delegate (string fieldName)
+                    {
+                        messageFields += (messageFields.Length > 0 ? ", " : "") + $"[{HttpUtility.HtmlEncode(dr[fieldName].ToString())}]";
+                    });
+                }
+
+                if (!string.IsNullOrEmpty(ClickClientFuncName))
+                    messageFields = ClickMessageConfirm + " " + messageFields + "?";
+
+                messageFields = HttpUtility.JavaScriptStringEncode(messageFields);
+
+                ClickPkFieldsName.ForEach(delegate (string fieldName)
+                {
+                    clientParams += (clientParams.Length > 0 ? "," : "") + $"{HttpUtility.JavaScriptStringEncode(dr[fieldName].ToString())}";
+                });
+
+                if (!string.IsNullOrEmpty(ClickClientFuncName) && ClickMessageConfirm.Length > 0)
+                {
+                    onClickAttr = string.Format("v4_showConfirm('{0}', '{1}', '{2}', '{3}', '{4}', 300);",
+                        messageFields,
+                        HttpUtility.JavaScriptStringEncode(Settings.V4Page.Resx.GetString("errDoisserWarrning")),
+                        HttpUtility.JavaScriptStringEncode(Settings.V4Page.Resx.GetString("CONFIRM_StdCaptionYes")),
+                        HttpUtility.JavaScriptStringEncode(Settings.V4Page.Resx.GetString("CONFIRM_StdCaptionNo")),
+                    string.Format("{0}({1});", ClickClientFuncName, clientParams)
+                    );
+                }
+                else
+                {
+                    onClickAttr = $"{ClickClientFuncName}({clientParams});";
+                }
+
+                //onClickAttr = "onclick = " + onClickAttr;
+            }
 
             switch (ColumnType)
             {
                 case GridColumnTypeEnum.Date:
-                    if (string.IsNullOrEmpty(dr[FieldName].ToString()) || (DateTime)dr[FieldName] == DateTimeExtensionMethods.MinDateTime) { w.Write("<td>&nbsp;"); break;}
+                    if (string.IsNullOrEmpty(fieldValue.ToString()) || (DateTime)fieldValue == DateTimeExtensionMethods.MinDateTime) { w.Write("<td>&nbsp;"); break;}
                     w.Write("<td {0} {1} {5}>{2}{4}{3}</td>", sbAdvProp, colspan, beforeText, afterText,
                         IsLocalTime
                             ? string.Format("<script>$(\"#{0}_{1}\").html(v4_toLocalTime(\"{2}\",\"{3}\"));</script>",
                                 Id,
                                 rowIndex,
-                                ((DateTime) dr[FieldName]).ToString("yyyy-MM-dd HH:mm:ss"), "dd.mm.yyyy hh:mi:ss")
+                                    ((DateTime)fieldValue).ToString("yyyy-MM-dd HH:mm:ss"), "dd.mm.yyyy hh:mi:ss")
                             : FormatString != ""
-                                ? ((DateTime) dr[FieldName]).ToString(FormatString)
-                                : dr[FieldName].ToString(),
+                                ? ((DateTime)fieldValue).ToString(FormatString)
+                                : fieldValue.ToString(),
                         IsLocalTime ? string.Format("id=\"{0}_{1}\"", Id, rowIndex) : "");
                     break;
                 case GridColumnTypeEnum.Double:
@@ -154,46 +276,83 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                     else if (IsScaleByValue)
                         if (ColumnType == GridColumnTypeEnum.Decimal)
                         {
-                            if (!String.IsNullOrEmpty(dr[FieldName].ToString()))
-                                scale = ((decimal) dr[FieldName]).GetScaleValue(DefaultScale, MaxScale);
+                            if (!String.IsNullOrEmpty(fieldValue.ToString()))
+                                scale = ((decimal)fieldValue).GetScaleValue(DefaultScale, MaxScale);
                         }
 
                     if (ColumnType == GridColumnTypeEnum.Decimal)
                     {
-                        if (!String.IsNullOrEmpty(dr[FieldName].ToString()))
-                            w.Write(((decimal) dr[FieldName]).ToString(FormatString + scale));
+                        if (!String.IsNullOrEmpty(fieldValue.ToString()))
+                            w.Write(((decimal)fieldValue).ToString(FormatString + scale));
                         else
                             w.Write("");
                     }
                     else
-                        w.Write(((double) dr[FieldName]).ToString(FormatString + scale));
+                        w.Write(((double)fieldValue).ToString(FormatString + scale));
 
                     w.Write("{0}</td>", afterText);
                     break;
 
                 case GridColumnTypeEnum.Int:
-                    if (IsTimeSecond)
+                case GridColumnTypeEnum.Short:
+                case GridColumnTypeEnum.Long:
+
+                    if (ColumnType== GridColumnTypeEnum.Int && IsTimeSecond)
                         w.Write("<td {0} {1} class=\"v4NumberTextAlign\">{2}{4}{3}</td>", sbAdvProp, colspan,
                             beforeText, afterText,
-                            Convert.Second2TimeFormat((int) dr[FieldName]));
+                            Convert.Second2TimeFormat((int)fieldValue));
                     else
                         w.Write("<td {0} {1} class=\"v4NumberTextAlign\">{2}{4}{3}</td>", sbAdvProp, colspan,
-                            beforeText, afterText, dr[FieldName]);
+                            beforeText, afterText, fieldValue);
                     break;
                 case GridColumnTypeEnum.Boolean:
+
                     if (IsBit)
-                        w.Write("<td {0} {1}>{2}{4}{3}</td>", sbAdvProp, colspan, beforeText, afterText,
-                            isGroupHeader ? dr[FieldName].ToString() == "1"
-                                ? "[" + Settings.V4Page.Resx.GetString("lblGridColumnValueBooleanTrue") + "]"
-                                : "[" + Settings.V4Page.Resx.GetString("lblGridColumnValueBooleanFalse") + "]" :
-                            dr[FieldName].ToString() == "1" ? "<img src='/styles/ok.gif' border='0' />" : "&nbsp;");
+                    {
+                        if (isGroupHeader)
+                        {
+                            w.Write("<td {0} {1}>{2}{4}{3}</td>", sbAdvProp, colspan, beforeText, afterText,
+                                fieldValue.ToString() == "1"
+                                    ? "[" + Settings.V4Page.Resx.GetString("lblGridColumnValueBooleanTrue") + "]"
+                                    : "[" + Settings.V4Page.Resx.GetString("lblGridColumnValueBooleanFalse") + "]"
+                                );
+                        }
+                        else
+                        {
+                            var isChecked = "";
+
+                            if (FormatString != "" && fieldValue.ToString() != "" && fieldValue.ToString() != "0") isChecked = "Checked";
+                            else if (fieldValue.ToString() == "1") isChecked = "Checked";
+
+                            w.Write("<td {0} {1}>{2}<img src=\"/styles/CheckBox{4}.gif\" border=\"0\" {5}{6}{7}/>{3}</td>", sbAdvProp, colspan, beforeText, afterText,
+                                isChecked, 
+                                clickTitle.Length > 0 ? " title=\"" + ClickTitle + "\"" : "",
+                                onClickAttr.Length > 0 ? " onclick=\""+ onClickAttr + "\"" : "",
+                                onClickAttr.Length > 0 ? " style='cursor: pointer;'" : "");
+                        }
+                    }
                     else
-                        w.Write("<td {0} {1}>{2}{4}{3}</td>", sbAdvProp, colspan, beforeText, afterText, dr[FieldName]);
+                        w.Write("<td {0} {1}>{2}{4}{3}</td>", sbAdvProp, colspan, beforeText, afterText, fieldValue);
+                    break;
+                case GridColumnTypeEnum.List:
+                    w.Write("<td {0} {1}>{2}", sbAdvProp, colspan, beforeText);
+
+                    if (fieldValue.Equals(DBNull.Value) || fieldValue.ToString() == "")
+                    {
+                        w.Write("&nbsp;");
+                    }
+                    else
+                    {
+                        var listTypeFieldList = JsonConvert.DeserializeObject<List<KeyValuePair<int, string>>>(FormatString);
+                        var fv = listTypeFieldList.Find(k => k.Key == System.Convert.ToInt32(fieldValue));
+                        w.Write(fv.Value);
+                    }
+                    w.Write("{0}</td>", afterText);
                     break;
                 default:
                     w.Write("<td {0} {1}>{2}", sbAdvProp, colspan, beforeText);
 
-                    if (dr[FieldName].Equals(DBNull.Value) || dr[FieldName].ToString() == "")
+                    if (fieldValue.Equals(DBNull.Value) || fieldValue.ToString() == "")
                     {
                         w.Write(isGroupHeader
                             ? string.Format("<span style=\"color:dimgray;\">[{0}]</span>",
@@ -207,21 +366,36 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                         {
                             if (HrefIsDocument)
                             {
-                                Settings.V4Page.RenderLinkDocument(w, int.Parse(dr[HrefIdFieldName].ToString()));
-                                w.Write(dr[FieldName]);
-                                Settings.V4Page.RenderLinkEnd(w);
+                                if (IsGetDocumentNameByEachRow)
+                                {
+                                    var doc = new Document(dr[HrefIdFieldName].ToString());
+                                    Settings.V4Page.RenderLinkDocument(w, int.Parse(dr[HrefIdFieldName].ToString()), doc, false, NtfStatus.Empty,"", HrefIdFieldName);
+                                }
+                                else
+                                {
+                                    Settings.V4Page.RenderLinkDocument(w, int.Parse(dr[HrefIdFieldName].ToString()), fieldValue.ToString(), null, false, NtfStatus.Empty, "", HrefIdFieldName);
+                                }
                             }
                             else if (HrefIsEmployee)
                             {
                                 var htmlId = Guid.NewGuid().ToString();
-                                Settings.V4Page.RenderLinkEmployee(w, htmlId, dr[HrefIdFieldName].ToString(),
-                                    dr[FieldName].ToString(), NtfStatus.Empty);
+                                Settings.V4Page.RenderLinkEmployee(w, htmlId, dr[HrefIdFieldName].ToString(), fieldValue.ToString(), NtfStatus.Empty, false, HrefIdFieldName);
+                            }
+                            else if (HrefIsPerson)
+                            {
+                                var htmlId = Guid.NewGuid().ToString();
+                                Settings.V4Page.RenderLinkPerson(w, htmlId, dr[HrefIdFieldName].ToString(), fieldValue.ToString(), NtfStatus.Empty, true, true, HrefIdFieldName);
+                            }
+                            else if (HrefIsEquipment)
+                            {
+                                var htmlId = Guid.NewGuid().ToString();
+                                Settings.V4Page.RenderLinkEquipment(w, htmlId, dr[HrefIdFieldName].ToString(), fieldValue.ToString(), NtfStatus.Empty, "", "", HrefIdFieldName);
                             }
                             else if (HrefIsClause)
                             {
                                 if (HrefClauses.Count == 0)
                                 {
-                                    w.Write(dr[FieldName]);
+                                    w.Write(fieldValue);
                                 }
                                 else
                                 {
@@ -237,22 +411,22 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                                     }
 
                                     if (string.IsNullOrEmpty(fieldWithid))
-                                        w.Write(dr[FieldName]);
+                                        w.Write(fieldValue);
                                     else
-                                        Settings.V4Page.RenderLink(w, dr[FieldName].ToString(),
-                                            hrefByField + (hrefByField.Contains("?") ? "&" : "?") + "id=" +
-                                            dr[fieldWithid], "200");
+                                        Settings.V4Page.RenderLink(w, fieldValue.ToString(), hrefByField + (hrefByField.Contains("?") ? "&" : "?") + HrefId + "=" +dr[fieldWithid], "", "200", HrefIdFieldName);
                                 }
                             }
                             else
                             {
-                                Settings.V4Page.RenderLink(w, dr[FieldName].ToString(),
-                                    HrefUri + (HrefUri.Contains("?") ? "&" : "?") + "id=" + dr[HrefIdFieldName], "200");
+                                if (HrefUriFieldName)                               
+                                    Settings.V4Page.RenderLink(w, fieldValue.ToString(), fieldValue.ToString().Contains("http") ? fieldValue.ToString() : "http://" + fieldValue, "", "200", HrefIdFieldName);                               
+                                else                                
+                                    Settings.V4Page.RenderLink(w, fieldValue.ToString(), HrefUri + (HrefUri.Contains("?") ? "&" : "?") + HrefId + "=" + dr[HrefIdFieldName], "", "200", HrefIdFieldName);
                             }
                         }
                         else
                         {
-                            w.Write(dr[FieldName]);
+                            w.Write(fieldValue);
                         }
                     }
 
@@ -290,8 +464,11 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                             ? ((decimal) value).ToString(FormatString + DefaultScale)
                             : value.ToString());
                     break;
+
+                case GridColumnTypeEnum.Short:
                 case GridColumnTypeEnum.Int:
-                    if (IsTimeSecond)
+                case GridColumnTypeEnum.Long:
+                    if (ColumnType== GridColumnTypeEnum.Int && IsTimeSecond)
                         w.Write("<td class=\"v4NumberTextAlign v4Bold\">{0}</td>",
                             Convert.Second2TimeFormat((int) value));
                     else
@@ -305,24 +482,126 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
 
         #region Render User Filter
 
+        private GridColumnUserFilterEnum DefaultUserFilterId
+        {
+            get
+            {
+                switch (ColumnType)
+                {
+                    case GridColumnTypeEnum.String:
+                        return GridColumnUserFilterEnum.Содержит;
+                    default:
+                        return GridColumnUserFilterEnum.Равно; 
+                }
+            }
+        }
+
+        public void RefreshColumnUserFilterForm(Page page, string filterId, string setValue, bool changeFilter, string isCurrentDate)
+        {
+            var w = new StringWriter();
+
+            if (filterId == "-1")
+            {
+                if (FilterUser != null)
+                {
+                    filterId = ((int)FilterUser.FilterType).ToString();
+                    setValue = "1";
+                }
+                else
+                    filterId = ((int)DefaultUserFilterId).ToString();
+            }
+
+            IsCurrentDate = isCurrentDate == "true";
+
+            RenderColumnUserFilterForm_CurrentDate(w, page, false, changeFilter);
+            RenderColumnUserFilterForm_Clause(w, page, filterId, false);
+
+            if (Settings.IsFilterEnable && IsFilteredColumn && changeFilter)
+            {
+                if (FilterUniqueValues != null && FilterUniqueValues.Count > 0 || FilterUser != null)
+                {
+                    w.Write("<br/>");
+                    RenderClearFilterBlock(w);
+                }
+            }
+
+            page.JS.Write("$('#divColumnSettingsUserFilterForm_Body_{0}').html('{1}');",
+                Settings.GridId,
+                HttpUtility.JavaScriptStringEncode(w.ToString()));
+
+            page.JS.Write(
+                "$('#v4_selectFilterUserClause_{2}').selectmenu({{width : 'auto', change: function() {{v4_grid.changeFilterUserClause(\"{2}\", this, {0}, \"{1}\");}}}}); ",
+                (int)GridColumnUserFilterEnum.Между, _cssClassInterval, Settings.GridId);
+            page.JS.Write("v4_grid.changeFilterUserClause(\"{2}\", null, {0}, \"{1}\");",
+                (int)GridColumnUserFilterEnum.Между, _cssClassInterval, Settings.GridId);
+            page.JS.Write("setTimeout(function(){{$(\"#{0}_{1}_1_0\").focus();}},10);", FilterUserCtrlBaseName,
+                Settings.GridId);
+            if (ColumnType == GridColumnTypeEnum.Int || ColumnType == GridColumnTypeEnum.Date && IsCurrentDate)
+                page.JS.Write("setTimeout(function(){{$(\"#{0}_{1}_1_0\").select();}},10);", FilterUserCtrlBaseName,
+                    Settings.GridId);
+
+        }
+
         /// <summary>
         ///     Формирование формы пользовательских фильтров
         /// </summary>
         /// <param name="page"></param>
         /// <param name="filterId"></param>
         /// <param name="setValue"></param>
-        public void RenderColumnUserFilterForm(Page page, string filterId, string setValue)
+        public void RenderColumnUserFilterForm(Page page, string filterId, string setValue, bool changeFilter)
         {
             var w = new StringWriter();
+            
+            if (filterId == "-1")
+            {
+                if (FilterUser != null)
+                {
+                    filterId = ((int)FilterUser.FilterType).ToString();
+                    setValue = "1";
+                }
+                else
+                {
+                    filterId = ((int) DefaultUserFilterId).ToString();
+                }
+            }
+
+            if (FilterUser != null)
+            {
+                if (ColumnType == GridColumnTypeEnum.Date)
+                {
+                    IsCurrentDate = ((GridColumnUserFilterDate)FilterUser).IsCurrentDate;
+                }
+                else
+                {
+                    IsCurrentDate = false;
+                }
+            }
+
+            if (ColumnType == GridColumnTypeEnum.Date)
+            {
+                RenderColumnUserFilterForm_CurrentDate(w, page, true, changeFilter);
+            }
+
             RenderColumnUserFilterForm_Clause(w, page, filterId, setValue.Equals("1"));
 
-            page.JS.Write("v4_columnSettingsUserFilterForm(\"{0}\",\"{1}\",\"{2}\",\"{3}\",\"{4}\");",
+            if (Settings.IsFilterEnable && IsFilteredColumn && changeFilter)
+            {
+                if (FilterUniqueValues != null && FilterUniqueValues.Count > 0 || FilterUser != null)
+                {
+                    w.Write("<br/>");
+                    RenderClearFilterBlock(w);
+                }
+            }
+
+            page.JS.Write("v4_grid.columnSettingsUserFilterForm(\"{0}\",\"{1}\",\"{2}\",\"{3}\",\"{4}\",\"{5}\");",
                 Settings.GridId,
                 Settings.GridCmdListnerIndex,
                 filterId,
                 Id,
                 HttpUtility.JavaScriptStringEncode(string.Format("{0}",
-                    Settings.V4Page.Resx.GetString("lblSettingFilter"))));
+                    Settings.V4Page.Resx.GetString("lblSettingFilter"))),
+                changeFilter
+                );
 
             page.JS.Write("$('#divColumnSettingsUserFilterForm_Header_{0}').html('{1}');",
                 Settings.GridId,
@@ -333,12 +612,15 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 HttpUtility.JavaScriptStringEncode(w.ToString()));
 
             page.JS.Write(
-                "$('#v4_selectFilterUserClause_{2}').selectmenu({{width : 'auto', change: function() {{v4_selectFilterUserClause_OnChange(\"{2}\", this, {0}, \"{1}\");}}}}); ",
+                "$('#v4_selectFilterUserClause_{2}').selectmenu({{width : 'auto', change: function() {{v4_grid.changeFilterUserClause(\"{2}\", this, {0}, \"{1}\");}}}}); ",
                 (int) GridColumnUserFilterEnum.Между, _cssClassInterval, Settings.GridId);
-            page.JS.Write("v4_selectFilterUserClause_OnChange(\"{2}\", null, {0}, \"{1}\");",
+            page.JS.Write("v4_grid.changeFilterUserClause(\"{2}\", null, {0}, \"{1}\");",
                 (int) GridColumnUserFilterEnum.Между, _cssClassInterval, Settings.GridId);
             page.JS.Write("setTimeout(function(){{$(\"#{0}_{1}_1_0\").focus();}},10);", FilterUserCtrlBaseName,
                 Settings.GridId);
+            if(ColumnType==GridColumnTypeEnum.Int || ColumnType == GridColumnTypeEnum.Date && IsCurrentDate)
+                page.JS.Write("setTimeout(function(){{$(\"#{0}_{1}_1_0\").select();}},10);", FilterUserCtrlBaseName,
+                    Settings.GridId);
         }
 
         /// <summary>
@@ -381,6 +663,49 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             w.Write("</div>");
             w.Write("</div>");
             w.Write("</div>");
+        }
+
+        /// <summary>
+        ///     Формирование чекбокса 'относительно текущей даты'
+        /// </summary>
+        /// <param name="w"></param>
+        private void RenderColumnUserFilterForm_CurrentDate(TextWriter w, Page page, bool setValue, bool changeFilter)
+        {
+            
+            w.Write("<div class=\"v4DivTable\">");
+            w.Write("<div class=\"v4DivTableRow\">");
+            w.Write("<div class=\"v4DivTableCell v4PaddingCell\">");
+
+            var ctrlId = FilterUserCtrlCurrentDateName + "_" + Settings.GridId;
+
+            var checkedStatus = "";
+            if (setValue)
+            {
+                if ((FilterUser != null && ((GridColumnUserFilterDate) FilterUser).IsCurrentDate))
+                    checkedStatus = "checked";
+                else
+                    if (IsCurrentDate) checkedStatus = "checked";
+            }
+            else
+            {
+                if (IsCurrentDate) checkedStatus = "checked";
+            }
+
+            w.Write("<td><input type='checkbox' id='{0}' {1} onclick='{2}'></td>", 
+                ctrlId,
+                checkedStatus,
+                $"v4_grid.changeDataFiterCurrentDate(\"{Settings.GridCmdListnerIndex}\", \"{Id}\", \"{(FilterUser!=null ? (int)FilterUser.FilterType : -1)}\", \"{(setValue?1:0)}\", this.checked, \"{changeFilter}\");"
+                );
+
+            w.Write("</div>");
+            w.Write("<div class=\"v4DivTableCell v4PaddingCell\" style=\"text-align:left; white-space: nowrap;\">");
+            w.Write(" {0}", Settings.V4Page.Resx.GetString("lblGridSetDateFilterByCurrent"));
+            w.Write("</div>");
+
+            w.Write("</div>");
+            w.Write("</div>");
+
+            w.Write("<hr class=\"v4HrPopup\">");
         }
 
         /// <summary>
@@ -435,9 +760,10 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                     {
                         if (ColumnType != GridColumnTypeEnum.Date)
                             ctrlValue = FilterUser.FilterValue2.ToString();
-
                         else
-                            ctrlValue = ((DateTime) FilterUser.FilterValue2).ToString("dd.MM.yyyy");
+                            ctrlValue = IsCurrentDate
+                                ? System.Convert.ToInt32(FilterUser.FilterValue2).ToString()
+                                : ((DateTime)FilterUser.ComputeFilterValue2).ToString("dd.MM.yyyy");
                     }
                 }
                 else
@@ -447,7 +773,12 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                         if (ColumnType != GridColumnTypeEnum.Date)
                             ctrlValue = FilterUser.FilterValue1.ToString();
                         else
-                            ctrlValue = ((DateTime) FilterUser.FilterValue1).ToString("dd.MM.yyyy");
+                        {
+                            ctrlValue = IsCurrentDate 
+                                ? System.Convert.ToInt32(FilterUser.FilterValue1).ToString() 
+                                : ((DateTime)FilterUser.ComputeFilterValue1).ToString("dd.MM.yyyy");
+                        }
+
                     }
                 }
             }
@@ -457,7 +788,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 case GridColumnTypeEnum.Decimal:
                 case GridColumnTypeEnum.Double:
                 case GridColumnTypeEnum.Float:
+                case GridColumnTypeEnum.Short:
                 case GridColumnTypeEnum.Int:
+                case GridColumnTypeEnum.Long:
                     var ctrlN = new Number
                     {
                         HtmlID = ctrlId,
@@ -471,16 +804,36 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                     ctrlN.RenderControl(w);
                     break;
                 case GridColumnTypeEnum.Date:
-                    var ctrlD = new DatePicker
+                    if (
+                            (setValue && FilterUser != null && ((GridColumnUserFilterDate)FilterUser).IsCurrentDate)
+                            || (!setValue && IsCurrentDate)
+                        )
                     {
-                        HtmlID = ctrlId,
-                        ID = ctrlId,
-                        V4Page = page,
-                        Value = ctrlValue,
-                        NextControl = nextCtrl
-                    };
-                    page.V4Controls.Add(ctrlD);
-                    ctrlD.RenderControl(w);
+                        var ctrlD = new Number()
+                        {
+                            HtmlID = ctrlId,
+                            ID = ctrlId,
+                            V4Page = page,
+                            Value = string.IsNullOrEmpty(ctrlValue)?"0": ctrlValue,
+                            NextControl = nextCtrl,
+                            Width = 70
+                        };
+                        page.V4Controls.Add(ctrlD);
+                        ctrlD.RenderControl(w);
+                    }
+                    else
+                    {
+                        var ctrlD = new DatePicker
+                        {
+                            HtmlID = ctrlId,
+                            ID = ctrlId,
+                            V4Page = page,
+                            Value = ctrlValue,
+                            NextControl = nextCtrl
+                        };
+                        page.V4Controls.Add(ctrlD);
+                        ctrlD.RenderControl(w);
+                    }
                     break;
                 default:
                     var ctrlT = new TextBox
@@ -522,7 +875,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// </summary>
         /// <param name="w"></param>
         /// <param name="isHtml"></param>
-        private void RenderTextUserFilterBlock(TextWriter w, bool isHtml = true)
+        public void RenderTextUserFilterBlock(TextWriter w, bool isHtml = true, bool writeLabel = true)
         {
             if (FilterUser == null)
             {
@@ -539,8 +892,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 w.Write("</div>");
                 w.Write("<div class=\"v4DivTableCell\" style=\"text-align:left;\">");
             }
-
-            w.Write(Settings.V4Page.Resx.GetString("lblSetFilter") + ": ");
+            if (writeLabel) w.Write(Settings.V4Page.Resx.GetString("lblSetFilter") + ": ");
             if (isHtml)
             {
                 w.Write("</div>");
@@ -552,8 +904,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 w.Write("<div class=\"v4DivTableRow\">");
                 w.Write("<div class=\"v4DivTableCell v4PaddingCell\">");
                 w.Write(
-                    "<span class=\"ui-icon ui-icon-pencil\"  style=\"display:inline-block; cursor:pointer\" onclick=\"v4_OpenUserFilterFormCmd({1}, '{2}', {3}, 1);\"></span>",
-//                    "<img src=\"/styles/EditGray.gif\" style=\"cursor:pointer\" title=\"{0}\" onclick=\"v4_OpenUserFilterFormCmd({1}, '{2}', {3}, 1);\" />&nbsp;",
+                    "<span class=\"ui-icon ui-icon-pencil\"  style=\"display:inline-block; cursor:pointer\" onclick=\"v4_grid.openUserFilterFormCmd({1}, '{2}', {3}, 1);\"></span>",
                     Settings.V4Page.Resx.GetString("lblEditFilter"),
                     Settings.GridCmdListnerIndex,
                     Id,
@@ -562,7 +913,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 w.Write("<div class=\"v4DivTableCell\" style=\"text-align:left;\">");
             }
 
-            w.Write("{0} [{1}] ", Settings.V4Page.Resx.GetString("lblFieldValue"), Alias);
+            if (writeLabel)
+                w.Write("{0} ", Settings.V4Page.Resx.GetString("lblFieldValue"));
+            w.Write("{0} ", Alias);
             switch (ColumnType)
             {
                 case GridColumnTypeEnum.Date:
@@ -572,7 +925,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 case GridColumnTypeEnum.Decimal:
                 case GridColumnTypeEnum.Double:
                 case GridColumnTypeEnum.Float:
+                case GridColumnTypeEnum.Short:
                 case GridColumnTypeEnum.Int:
+                case GridColumnTypeEnum.Long:
 
                     w.Write(Settings.V4Page.Resx.GetString(FilterUser.FilterType
                         .GetAttribute<GridColumnUserFilterAttribute>().AliasNumber));
@@ -593,9 +948,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                     if (ColumnType == GridColumnTypeEnum.Date)
                     {
                         w.Write(" {0} [{1}]", Settings.V4Page.Resx.GetString("lFrom"),
-                            ((DateTime) FilterUser.FilterValue1).ToString("dd.MM.yyyy"));
+                            ((DateTime)((GridColumnUserFilterDate)FilterUser).ComputeFilterValue1).ToString("dd.MM.yyyy"));
                         w.Write(" {0} [{1}]", Settings.V4Page.Resx.GetString("lTo"),
-                            ((DateTime) FilterUser.FilterValue2).ToString("dd.MM.yyyy"));
+                            ((DateTime)((GridColumnUserFilterDate)FilterUser).ComputeFilterValue2).ToString("dd.MM.yyyy"));
                     }
                     else
                     {
@@ -606,9 +961,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 else
                 {
                     if (ColumnType == GridColumnTypeEnum.Date)
-                        w.Write("[{0}]", ((DateTime) FilterUser.FilterValue1).ToString("dd.MM.yyyy"));
+                        w.Write("[{0}]", ((DateTime) ((GridColumnUserFilterDate)FilterUser).ComputeFilterValue1).ToString("dd.MM.yyyy"));
                     else
-                        w.Write("[{0}]", FilterUser.FilterValue1);
+                        w.Write("[<span class='gridFilterValue'>{0}</span>]", FilterUser.FilterValue1);
                 }
             }
 
@@ -636,7 +991,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             w.Write("<div class=\"v4DivTableRow\">");
             w.Write("<div class=\"v4DivTableCell v4PaddingCell\">");
             w.Write(
-                "<input type='checkbox' id=\"cfAllValues\" {0} {1} onclick =\"v4_columnValuesChecked(this.checked, 'classValueCheckBox');\">",
+                "<input type='checkbox' id=\"cfAllValues\" {0} {1} onclick =\"v4_grid.columnValuesChecked(this.checked, 'classValueCheckBox');\">",
                 disabled ? "" : "checked", disabled ? "disabled" : "");
             w.Write("</div>");
 
@@ -656,6 +1011,8 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         {
             if (UniqueValues == null)
             {
+                if (!Settings.IsFilterUniqueEnable && ColumnType != GridColumnTypeEnum.Boolean) return;
+
                 w.Write("<div class=\"v4GridFilterText\">{0}</div>",
                     Settings.V4Page.Resx.GetString("msgGridUniqError"));
                 w.Write("<div class=\"v4GridFilterText\">{0}<div>",
@@ -663,14 +1020,14 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 return;
             }
 
+            var existFilter = FilterUniqueValues != null && FilterUniqueValues.Count > 0;
+
             var disabled = FilterUser != null;
             w.Write("<div class=\"v4DivTable\" >");
             var existEmpty = false;
             var existValues = false;
-            var existFilter = FilterUniqueValues != null && FilterUniqueValues.Count > 0;
             var valueInFilter = false;
             var checkState = "";
-
 
             foreach (var item in UniqueValues)
             {
@@ -684,11 +1041,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
 
                 if (existFilter)
                 {
-                    var r =
-                        FilterUniqueValues.Where(x => x.Key.Equals(item.Key))
-                            .Select(x => (KeyValuePair<object, object>?) x)
-                            .FirstOrDefault();
-                    valueInFilter = r != null;
+                    valueInFilter = FilterUniqueValues.ToList().Exists(x => x.Value.ToString() == item.Value.ToString());
                 }
 
                 if (!existFilter || valueInFilter && FilterEqual == GridColumnFilterEqualEnum.In
@@ -700,10 +1053,10 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 w.Write("<div class=\"v4DivTableRow\">");
                 w.Write("<div class=\"v4DivTableCell v4PaddingCell\">");
                 w.Write(
-                    "<input type='checkbox' class=\"classValueCheckBox\" {0} {2} data-id=\"{1}\" onclick=\"v4_setStateCheckAllValues('cfAllValues', 'classValueCheckBox');\">",
+                    "<input type='checkbox' class=\"classValueCheckBox\" {0} {2} data-id=\"{1}\" onclick=\"v4_grid.setStateCheckAllValues('{3}','cfAllValues', 'classValueCheckBox');\">",
                     disabled ? "" : checkState,
                     item.Key,
-                    disabled ? "disabled" : "");
+                    disabled ? "disabled" : "", Settings.GridId);
                 w.Write("</div>");
 
                 w.Write("<div class=\"v4DivTableCell v4PaddingCell\" style=\"text-align:left; white-space: nowrap;\">");
@@ -725,9 +1078,27 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                                 ? ((double) item.Value).ToString(FormatString + DefaultScale)
                                 : item.Value.ToString());
                         break;
+                    case GridColumnTypeEnum.Short:
                     case GridColumnTypeEnum.Int:
-                        if (IsTimeSecond)
+                    case GridColumnTypeEnum.Long:
+                        if (ColumnType == GridColumnTypeEnum.Int && IsTimeSecond)
                             w.Write(Convert.Second2TimeFormat((int) item.Value));
+                        else
+                            w.Write(item.Value);
+                        break;
+                    case GridColumnTypeEnum.Boolean:
+                        if (ValueBooleanCaption != null)
+                            w.Write(item.Value.ToString() == "0"
+                                ? "[" + (ValueBooleanCaption.ContainsKey("0") ? ValueBooleanCaption["0"] : item.Value) +
+                                  "]"
+                                : "[" + (ValueBooleanCaption.ContainsKey("1") ? ValueBooleanCaption["1"] : item.Value) +
+                                  "]");
+                        else
+                            w.Write(item.Value);
+                        break;
+                    case GridColumnTypeEnum.List:
+                        if (ValueBooleanCaption != null)
+                            w.Write("[" + ValueBooleanCaption[item.Key.ToString()] + "]");
                         else
                             w.Write(item.Value);
                         break;
@@ -750,7 +1121,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 if (existFilter)
                 {
                     var r =
-                        FilterUniqueValues.Where(x => x.Key.Equals(0))
+                        FilterUniqueValues.Where(x => x.Key.ToString().Equals("0"))
                             .Select(x => (KeyValuePair<object, object>?) x)
                             .FirstOrDefault();
                     valueInFilter = r != null;
@@ -763,9 +1134,10 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 }
 
                 w.Write(
-                    "<input type='checkbox' class=\"classValueCheckBox\" {0} {1} data-id=\"0\" onclick=\"v4_setStateCheckAllValues('cfAllValues', 'classValueCheckBox');\">",
-                    checkState,
-                    disabled ? "disabled" : ""
+                    "<input type='checkbox' class=\"classValueCheckBox\" {0} {1} data-id=\"0\" onclick=\"v4_grid.setStateCheckAllValues('{2}', 'cfAllValues', 'classValueCheckBox');\">",
+                    disabled ? "" : checkState,
+                    disabled ? "disabled" : "",
+                    Settings.GridId
                 );
                 w.Write("</div>");
 
@@ -781,11 +1153,13 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
 
         #endregion
 
+       
+
         /// <summary>
         ///     Формирование заголовков
         /// </summary>
         /// <param name="w"></param>
-        public void RenderColumnSettingsHeader(TextWriter w)
+        public void RenderColumnSettingsHeader(TextWriter w, bool alwaysLoadDataFromDataBase, Grid grid)
         {
             if (Settings.IsPrintVersion)
             {
@@ -793,77 +1167,60 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 return;
             }
 
-            var titleFilter = "";
-            var filterClick = "";
-
-            if (FilterUser != null)
-            {
-                var wr = new StringWriter();
-                RenderTextUserFilterBlock(wr, false);
-                titleFilter = wr.ToString();
-
-                filterClick = string.Join(" ", "style=\"cursor:pointer\"", " ",
-                    string.Format("onclick=\"v4_OpenUserFilterFormCmd({0}, '{1}', {2}, 1);\"",
-                        Settings.GridCmdListnerIndex,
-                        Id,
-                        (int) FilterUser.FilterType
-                    ));
-            }
-            else if (FilterUniqueValues != null && FilterUniqueValues.Count > 0)
-            {
-                var wr = new StringWriter();
-                RenderTextValuesFilterBlock(wr);
-                titleFilter = wr.ToString();
-
-                filterClick = string.Join(" ", "style=\"cursor:pointer\"", " ",
-                    string.Format(
-                        "onclick=\"cmdasync('cmd', 'Listener', 'ctrlId', {0}, 'cmdName', 'RenderColumnSettings','ColumnId','{1}');\"",
-                        Settings.GridCmdListnerIndex, FieldName));
-            }
-
+            RenderTextFilter(out var titleFilter, out var filterClick, out var deleteSpan, out var filterRequired, false);
+            
             w.Write(@"
-<th {1} >
-    <div class=""v4DivBlock"" column-id=""{6}"">
+<th column-id=""{8}"" {1}>
+    <div class=""v4DivBlock"" >
 	    <div class=""v4DivBlock"">
 		    {5}
             <div class=""v4DivInline v4PaddingCell"">{2}</div>
             <div class=""v4DivInline v4PaddingCell"">{0}</div>
-		    <div class=""v4DivInline v4PaddingCell""><nobr>{3}{4}</nobr></div>    
-            {7} 
-            {8}      
+		    {3}
+		    {4}
+            {6} 
+            {7}      
 	    </div>
     </div>
 </th>
 ",
                 IsSortedColumn
                     ? "<span style =\"cursor:pointer\""
+                      + " tabindex =\"0\" onkeydown=\"v4_grid.keydown(event, this);\""
+
+                      +  (!grid.HideFilterText && grid.ShowFilterPanel ? string.Format(" draggable=\"true\" ondragstart=\"v4_grid.columnDragDrop('{0}',{1},'{2}');\"", Settings.GridId, Settings.GridCmdListnerIndex, Id):"")
+                      +  (!grid.HideFilterText && grid.ShowFilterPanel ? $" column-id=\"{Id}\"":"")
+
                       + " onmouseover=\"this.style.textDecoration='underline';\""
-                      + " onmouseout=\"this.style.textDecoration='none';\""
-                      + string.Format(" onclick=\"v4_setOrderByColumnValues({0}, '{1}',{2});\"",
+                      + " onmouseout=\"this.style.textDecoration='none';\"" 
+                      + string.Format(" id=\"imgOrders{3}_{0}\" onclick=\"v4_grid.setOrderByColumnValues({0}, '{1}',{2});\"",
                           Settings.GridCmdListnerIndex,
                           Id,
-                          OrderByNumber == null ? 0 : OrderByDirection == GridColumnOrderByDirectionEnum.Asc ? 1 : 0)
+                          OrderByNumber == null ? 0 : OrderByDirection == GridColumnOrderByDirectionEnum.Asc ? 1 : 0, DisplayOrder)
                       + ">" + Alias + "</span>"
                     : "<span>" + Alias + "</span>",
+               
                 !string.IsNullOrEmpty(HeaderTitle) ? string.Format("title=\"{0}\"", HeaderTitle) : "",
-                Settings.IsFilterEnable
+                
+                Settings.IsFilterEnable && IsFilteredColumn && !alwaysLoadDataFromDataBase
                     ? string.Format(
-                        //                        "<img src=\"/styles/DownGrayed.gif\" id=\"imgSettings{1}_{3}\" style=\"cursor:pointer\" onclick=\" cmdasync('cmd', 'Listener', 'ctrlId', '{3}', 'cmdName', 'RenderColumnSettings','ColumnId','{0}');\" border=0 title=\"{2}\"/>",
-                        "<span class=\"ui-icon ui-icon-wrench\" style=\"display: inline-block;cursor:pointer\" id=\"imgSettings{1}_{3}\" onclick=\"cmdasync('cmd', 'Listener', 'ctrlId', '{3}', 'cmdName', 'RenderColumnSettings','ColumnId','{0}');\" border=0 title=\"{2}\"></span>",
+                        "<span class=\"ui-icon ui-icon-wrench\" tabindex=\"0\" onkeydown=\"v4_grid.keydown(event, this);\" style=\"display: inline-block;cursor:pointer\" id=\"imgSettings{1}_{3}\" onclick=\"cmdasync('cmd', 'Listener', 'ctrlId', '{3}', 'cmdName', 'RenderColumnSettings','ColumnId','{0}');\" border=0 title=\"{2}\"></span>",
                         FieldName, DisplayOrder, Settings.V4Page.Resx.GetString("msgOpenSettingFilter"),
                         Settings.GridCmdListnerIndex)
                     : "",
-                FilterUniqueValues != null && FilterUniqueValues.Count > 0 || FilterUser != null
-                    ? string.Format("<img src=\"/styles/FilterApply.gif\" border=\"0\" title=\"{0}\" {1}/>",
+               
+                ((FilterUniqueValues != null && FilterUniqueValues.Count > 0) || FilterUser != null) && !alwaysLoadDataFromDataBase
+                    ? string.Format("<div class=\"v4DivInline v4PaddingCell\"><nobr><span class=\"ui-icon ui-icon-volume-off\" style=\"display: inline-block;cursor:pointer;\" border=\"0\" title=\"{0}\" {1}></span></div>",
                         titleFilter,
                         filterClick)
                     : "",
-                IsSortedColumn && OrderByNumber != null
-                    ? "<img src=\"/styles/" +
+               
+                IsSortedColumn && OrderByNumber != null 
+                    ? "<div class=\"v4DivInline v4PaddingCell\"><img src=\"/styles/" +
                       (OrderByDirection == GridColumnOrderByDirectionEnum.Asc ? "sort-asc.png" : "sort-desc.png")
                       +
                       string.Format(
-                          "\" border=\"0\" title=\"{0} {1}. {2}\" style=\"cursor:pointer; display:inline-block\" onclick=\"v4_setOrderByColumnValues({3}, '{4}',{5});\"></span>",
+                          "\" border=\"0\" title=\"{0} {1}. {2}\" style=\"cursor:pointer; display:inline-block\" onclick=\"v4_grid.setOrderByColumnValues({3}, '{4}',{5});\">",
                           Settings.V4Page.Resx.GetString("lblSortedBy"),
                           OrderByDirection == GridColumnOrderByDirectionEnum.Asc
                               ? Settings.V4Page.Resx.GetString("lblAscendingSort")
@@ -873,40 +1230,89 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                           Id,
                           OrderByDirection == GridColumnOrderByDirectionEnum.Asc ? 1 : 0)
                       +
-                      string.Format("<span style=\"font-size:5pt\" title=\"{1}\">{0}</span>", OrderByNumber,
+                      string.Format("<span style=\"font-size:5pt\" title=\"{1}\">{0}</span></div>", OrderByNumber,
                           Settings.V4Page.Resx.GetString("lblColumnSortOrder"))
                     : "",
+                
                 !Settings.IsGroupEnable
                     ? ""
                     : @"<div class=""v4DivInline v4PaddingCell""><span class=""v4GroupToggle ui-icon ui-icon-arrow-4""></span></div>",
-                Id,
+                
                 !Settings.IsGroupEnable
                     ? ""
                     : string.Format(
-                        "<div class=\"v4DivInline v4PaddingCell v4ExpandColumn\" style=\"display:none;\"><img src=\"/styles/GroupTree.gif\" onclick=\"v4_gridGroupingExpandColumn('{0}','{1}','{2}');\" style=\"cursor:pointer;\" border=0 title=\"{3}\"/></div>",
+                        "<div class=\"v4DivInline v4PaddingCell v4ExpandColumn\" style=\"display:none;\"><img src=\"/styles/GroupTree.gif\" onclick=\"v4_grid.groupingExpandColumn('{0}','{1}','{2}');\" style=\"cursor:pointer;\" border=0 title=\"{3}\"/></div>",
                         Settings.GridId,
                         Settings.GridCmdListnerIndex,
                         Id,
                         Settings.Resx.GetString("lblGridGroupExpand")),
+               
                 !Settings.IsGroupEnable
                     ? ""
                     : string.Format(
-                        "<div class=\"v4DivInline v4PaddingCell v4DeleteColumn\" style=\"display:none;\"><img src=\"/styles/RemoveFromList.gif\" onclick=\"v4_gridGroupingRemoveColumn('{0}','{1}','{2}');\" style=\"cursor:pointer;\" border=0 title=\"{3}\"/></div>",
+                        "<div class=\"v4DivInline v4PaddingCell v4DeleteColumn\" style=\"display:none;\"><img src=\"/styles/RemoveFromList.gif\" onclick=\"v4_grid.groupingRemoveColumn('{0}','{1}','{2}');\" style=\"cursor:pointer;\" border=0 title=\"{3}\"/></div>",
                         Settings.GridId,
                         Settings.GridCmdListnerIndex,
                         Id,
-                        Settings.Resx.GetString("lblGridDeleteCulumnGrouping"))
+                        Settings.Resx.GetString("lblGridDeleteCulumnGrouping")),
+                
+                Id
             );
+        }
+
+        public void RenderTextFilter(out string titleFilter, out string filterClick, out string deleteSpan, out bool filterRequired, bool fl)
+        {
+            titleFilter = "";
+            filterClick = "";
+            deleteSpan = "";
+            filterRequired = false;
+
+            if (FilterUser != null)
+            {
+                filterRequired = FilterRequired;
+
+                var w = new StringWriter();
+                RenderClearFilterBlock(w, false);
+                deleteSpan = w.ToString();
+
+                var wr = new StringWriter();
+                RenderTextUserFilterBlock(wr, false, false);
+                titleFilter = wr.ToString();
+                
+                filterClick = string.Join(" ", "style=\"cursor:pointer\"", " ",
+                    string.Format("onclick=\"v4_grid.openUserFilterFormCmd({0}, '{1}', {2}, 1);\"",
+                        Settings.GridCmdListnerIndex,
+                        Id,
+                        (int)FilterUser.FilterType
+                    ));
+            }
+            else if (FilterUniqueValues != null && FilterUniqueValues.Count > 0)
+            {
+                filterRequired = FilterRequired;
+
+                var w = new StringWriter();
+                RenderClearFilterBlock(w, false);
+                deleteSpan = w.ToString();
+
+                var wr = new StringWriter();
+                RenderTextValuesFilterBlock(wr, false);
+                titleFilter = wr.ToString();
+
+                filterClick = string.Join(" ", "style=\"cursor:pointer\"", " ",
+                    string.Format(
+                        "onclick=\"cmdasync('cmd', 'Listener', 'ctrlId', {0}, 'cmdName', 'RenderColumnSettings','ColumnId','{1}');\"",
+                        Settings.GridCmdListnerIndex, FieldName));
+            }
         }
 
         /// <summary>
         /// </summary>
         /// <param name="page"></param>
-        public void RenderColumnSettings(Page page)
+        public void RenderColumnSettings(Page page, bool changeFilter, bool alwaysLoadDataFromDataBase)
         {
             var w = new StringWriter();
 
-            if (IsSortedColumn)
+            if (IsSortedColumn && changeFilter)
             {
                 RenderSortBlock(w);
                 page.JS.Write("$('#divColumnSettingsForm_Sort_{0}').html('{1}');",
@@ -914,7 +1320,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                     HttpUtility.JavaScriptStringEncode(w.ToString()));
             }
 
-            if (Settings.IsFilterEnable)
+            if (Settings.IsFilterEnable && changeFilter)
             {
                 if (FilterUniqueValues != null && FilterUniqueValues.Count > 0 || FilterUser != null)
                 {
@@ -933,7 +1339,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 }
 
 
-                if (ColumnType != GridColumnTypeEnum.Boolean)
+                if (ColumnType != GridColumnTypeEnum.Boolean && ColumnType != GridColumnTypeEnum.List)
                 {
                     w = new StringWriter();
                     if (FilterUser == null) RenderUserFilterBlock(w);
@@ -943,7 +1349,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                         Settings.GridId,
                         HttpUtility.JavaScriptStringEncode(w.ToString()));
                     page.JS.Write(
-                        "$('#v4_userFilterMenu_{0}').menu({{select: function(event, ui) {{v4_openUserFilterForm(ui.item.children(), {1});}}}});",
+                        "$('#v4_userFilterMenu_{0}').menu({{select: function(event, ui) {{v4_grid.openUserFilterForm(ui.item.children(), {1});}}}});",
                         Settings.GridId, Settings.GridCmdListnerIndex);
                 }
                 else
@@ -954,9 +1360,9 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 }
             }
 
-            FillUniqueValues();
+            FillUniqueValues(alwaysLoadDataFromDataBase);
 
-            if (Settings.IsFilterEnable)
+            if (Settings.IsFilterEnable && IsFilteredColumn)
             {
                 w = new StringWriter();
                 RenderAllValuesBlock(w);
@@ -970,17 +1376,20 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                     Settings.GridId,
                     HttpUtility.JavaScriptStringEncode(w.ToString()));
 
-                page.JS.Write("v4_setStateCheckAllValues('cfAllValues', 'classValueCheckBox');");
+                page.JS.Write("v4_grid.setStateCheckAllValues('{0}', 'cfAllValues', 'classValueCheckBox');", Settings.GridId);
             }
 
             page.JS.Write(
-                "v4_columnSettingsForm('{0}', {1}, 'imgSettings{2}_{1}', 'classValueCheckBox', '{3}', '{4}');",
+                "v4_grid.columnSettingsForm('{0}', {1}, 'imgSettings{2}_{1}', 'classValueCheckBox', '{3}', '{4}', {5}, '{6}');",
                 Settings.GridId,
                 Settings.GridCmdListnerIndex,
                 DisplayOrder,
                 Id,
                 HttpUtility.JavaScriptStringEncode(string.Format("{0} [{1}]",
-                    Settings.V4Page.Resx.GetString(Settings.IsFilterEnable ? "lblFilterAndSort" : "lblSort"), Alias)));
+                    Settings.V4Page.Resx.GetString(Settings.IsFilterEnable && IsFilteredColumn ? "lblFilterAndSort" : "lblSort"), Alias)),
+                !Settings.IsFilterUniqueEnable?"150":"null",
+                changeFilter
+                );
         }
 
         private void RenderSortBlock(TextWriter w)
@@ -991,7 +1400,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             var classSortDesc = "";
 
 
-            if (ColumnType.Equals(GridColumnTypeEnum.Int) || ColumnType.Equals(GridColumnTypeEnum.Double) ||
+            if (ColumnType.Equals(GridColumnTypeEnum.Short) || ColumnType.Equals(GridColumnTypeEnum.Int) || ColumnType.Equals(GridColumnTypeEnum.Long) || ColumnType.Equals(GridColumnTypeEnum.Double) ||
                 ColumnType.Equals(GridColumnTypeEnum.Decimal) || ColumnType.Equals(GridColumnTypeEnum.Boolean))
             {
                 asc = Settings.V4Page.Resx.GetString("msgSortOrderMinMax");
@@ -1004,7 +1413,7 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 w.Write("<div class=\"v4DivTableRow\">");
 
                 w.Write(
-                    "<div class=\"v4DivTableCell v4PaddingCell\"><span style=\"cursor:pointer; display:inline-block;\" class=\"ui-icon ui-icon-closethick\" onclick=\"v4_clearOrderByColumnValues({0}, '{1}');\"></span></div><div class=\"v4DivTableCell\" style=\"text-align:left;\"><a href=\"javascript:void(0);\" onclick=\"v4_clearOrderByColumnValues({0}, '{1}');\"><nobr>{2}</nobr></a></div>",
+                    "<div class=\"v4DivTableCell v4PaddingCell\"><span style=\"cursor:pointer; display:inline-block;\" class=\"ui-icon ui-icon-closethick\" onclick=\"v4_grid.clearOrderByColumnValues({0}, '{1}');\"></span></div><div class=\"v4DivTableCell\" style=\"text-align:left;\"><a onclick=\"v4_grid.clearOrderByColumnValues({0}, '{1}');\"><nobr>{2}</nobr></a></div>",
                     Settings.GridCmdListnerIndex, Id, Settings.V4Page.Resx.GetString("msgGrigNoSort"));
                 w.Write("</div>");
 
@@ -1020,13 +1429,13 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
             w.Write("<div class=\"v4DivTable {0}\">", OrderByNumber != null ? "v4PaddingTop" : "");
             w.Write("<div class=\"v4DivTableRow\">");
             w.Write(
-                "<div class=\"v4DivTableCell v4PaddingCell\">{0}<span style=\"cursor:pointer;display:inline-block;\" src=\"/styles/sort-asc.png\" onclick=\"v4_setOrderByColumnValues({1}, '{2}', 0);\" ></span></div><div class=\"v4DivTableCell v4PaddingCell\" style=\"margin-left:15px\"><a href=\"javascript:void(0);\" onclick=\"v4_setOrderByColumnValues({1}, '{2}', 0);\"><nobr>{3}</nobr></a></div>",
-                classSortAsc, Settings.GridCmdListnerIndex, Id, asc);
+                "<div class=\"v4DivTableCell v4PaddingCell\">{0}<span style=\"cursor:pointer;display:inline-block;\" src=\"/styles/sort-asc.png\" onclick=\"v4_grid.getColumnValuesFilter('{4}', {1}, 'classValueCheckBox', '{2}', 0, 'True');\" ></span></div><div class=\"v4DivTableCell v4PaddingCell\" style=\"margin-left:15px\"><a onclick=\"v4_grid.getColumnValuesFilter('{4}', {1}, 'classValueCheckBox', '{2}', 0);\"><nobr>{3}</nobr></a></div>",
+                classSortAsc, Settings.GridCmdListnerIndex, Id, asc, Settings.GridId);
             w.Write("</div>");
             w.Write("<div class=\"v4DivTableRow\" style=\"margin-top:50px;\">");
             w.Write(
-                "<div class=\"v4DivTableCell v4PaddingCell\">{0}<span style=\"cursor:pointer;display:inline-block;\" src=\"/styles/sort-desc.png\" onclick =\"v4_setOrderByColumnValues({1}, '{2}', 1);\" ></span></div><div class=\"v4DivTableCell v4PaddingCell\" style=\"margin-left:15px\"><a href=\"javascript:void(0);\" onclick=\"v4_setOrderByColumnValues({1}, '{2}', 1);\"><nobr>{3}</nobr></a></div>",
-                classSortDesc, Settings.GridCmdListnerIndex, Id, desc);
+                "<div class=\"v4DivTableCell v4PaddingCell\">{0}<span style=\"cursor:pointer;display:inline-block;\" src=\"/styles/sort-desc.png\" onclick =\"v4_grid.getColumnValuesFilter('{4}', {1}, 'classValueCheckBox', '{2}', 1, 'True');\" ></span></div><div class=\"v4DivTableCell v4PaddingCell\" style=\"margin-left:15px\"><a onclick=\"v4_grid.getColumnValuesFilter('{4}', {1}, 'classValueCheckBox', '{2}', 1);\"><nobr>{3}</nobr></a></div>",
+                classSortDesc, Settings.GridCmdListnerIndex, Id, desc, Settings.GridId);
             w.Write("</div>");
 
             w.Write("</div>");
@@ -1036,55 +1445,147 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         ///     Отрисовка кнопки отмены сортировки
         /// </summary>
         /// <param name="w"></param>
-        private void RenderClearFilterBlock(TextWriter w)
+        private void RenderClearFilterBlock(TextWriter w, bool isHtml = true)
         {
-            w.Write("<div class=\"v4DivTable\">");
-
-            w.Write("<div class=\"v4DivTableRow\">");
-
-            w.Write(
-                "<div class=\"v4DivTableCell v4PaddingCell\">");
-
-            //w.Write("<img  style=\"cursor:pointer;\" src=\"/styles/delete.gif\" onclick=\"v4_clearFilterColumnValues({0}, '{1}');\"/>");
-            w.Write(
-                "<span class=\"ui-icon ui-icon-closethick\" style=\"display: inline-block;cursor:pointer\" onclick=\"v4_clearFilterColumnValues({0}, '{1}');\"></span>",
-                Settings.GridCmdListnerIndex, Id);
+            if (isHtml)
+            {
+                w.Write("<div class=\"v4DivTable\">");
+                w.Write("<div class=\"v4DivTableRow\">");
+                w.Write("<div class=\"v4DivTableCell v4PaddingCell\">");
+            }
 
             w.Write(
-                "</div><div class=\"v4DivTableCell\" style=\"text-align:left;\"><a href=\"javascript:void(0);\" onclick=\"v4_clearFilterColumnValues({0},'{1}');\"><nobr>{2}</nobr></a></div>",
+                "<span title=\"{2}\" class=\"ui-icon ui-icon-delete\" style=\"display: inline-block;cursor:pointer\" onclick=\"v4_grid.clearFilterColumnValues({0}, '{1}');\"></span>",
                 Settings.GridCmdListnerIndex, Id, Settings.V4Page.Resx.GetString("msgGrigNoFilter"));
-            w.Write("</div>");
-            w.Write("</div>");
-            w.Write("</div>");
+
+            if (isHtml)
+            { 
+                w.Write(
+                    "</div><div class=\"v4DivTableCell\" style=\"text-align:left;\"><a onclick=\"v4_grid.clearFilterColumnValues({0},'{1}');\"><nobr>{2}</nobr></a></div>",
+                    Settings.GridCmdListnerIndex, Id, Settings.V4Page.Resx.GetString("msgGrigNoFilter"));
+
+                w.Write("</div>");
+                w.Write("</div>");
+                w.Write("</div>");
+            }
         }
 
         /// <summary>
         ///     Отрисовка значения установленного фильтра
         /// </summary>
         /// <param name="w"></param>
-        private void RenderTextValuesFilterBlock(TextWriter w)
+        public void RenderTextValuesFilterBlock(TextWriter w, bool writeLabel = true)
         {
             if (FilterUniqueValues == null || FilterUniqueValues.Count == 0) return;
 
-            var textValues =
-                string.Join(
-                    FilterEqual == GridColumnFilterEqualEnum.NotIn
-                        ? string.Format(" {0} ", Settings.V4Page.Resx.GetString("lANDUp"))
-                        : string.Format(" {0} ", Settings.V4Page.Resx.GetString("lORUp")),
-                    FilterUniqueValues.Select(x => "[" + x.Value + "]").ToArray());
+            var textValues = "";
 
-            w.Write(Settings.V4Page.Resx.GetString("lblSetFilter") + ": "
-                                                                   + string.Format("{0} [{1}] ",
-                                                                       Settings.V4Page.Resx.GetString("lblFieldValue"),
-                                                                       Alias)
-                                                                   +
-                                                                   (FilterEqual == GridColumnFilterEqualEnum.NotIn
-                                                                       ? Settings.V4Page.Resx.GetString("lNo") + " "
-                                                                       : "")
-                                                                   + Settings.V4Page.Resx.GetString("lblEqually") + " "
-                                                                   + (textValues.Length > 201
-                                                                       ? textValues.Left(200) + "..."
-                                                                       : textValues));
+            if (ColumnType == GridColumnTypeEnum.List)
+            {
+                var listTypeFieldList = JsonConvert.DeserializeObject<List<KeyValuePair<int, string>>>(FormatString);
+                textValues =
+                    string.Join(
+                            FilterEqual == GridColumnFilterEqualEnum.NotIn
+                            ? string.Format(" {0} ", Settings.V4Page.Resx.GetString("lANDUp"))
+                            : string.Format(" {0} ", Settings.V4Page.Resx.GetString("lORUp")),
+                        FilterUniqueValues.Select(x => "[<span class='gridFilterValue'>" + listTypeFieldList.Find(k => k.Key == System.Convert.ToInt32(x.Value)).Value + "</span>]").ToArray());
+            }
+            else
+            {
+                textValues =
+                    string.Join(
+                        FilterEqual == GridColumnFilterEqualEnum.NotIn
+                            ? string.Format(" {0} ", Settings.V4Page.Resx.GetString("lANDUp"))
+                            : string.Format(" {0} ", Settings.V4Page.Resx.GetString("lORUp")),
+                        FilterUniqueValues.Select(x => "[<span class='gridFilterValue'>" + x.Value + "</span>]").ToArray());
+
+            }
+
+            if (writeLabel)
+            {
+                w.Write(Settings.V4Page.Resx.GetString("lblSetFilter") + ": ");
+                w.Write("{0} ", Settings.V4Page.Resx.GetString("lblFieldValue"));
+            }
+
+            if (ColumnType == GridColumnTypeEnum.Boolean)
+            {
+                if (ValueBooleanCaption["0"] == "Нет")
+                    w.Write($"{Alias}=[" + (FilterUniqueValues.Values.First().ToString() == "0" ? ValueBooleanCaption["0"] : ValueBooleanCaption["1"]) + "] ");
+                else
+                    w.Write($"[" + (textValues == "[0]" ? ValueBooleanCaption["0"] : ValueBooleanCaption["1"]) + "] ");
+            }
+            else
+            {
+                w.Write($"{Alias} "
+                        +
+                        (FilterEqual == GridColumnFilterEqualEnum.NotIn
+                            ? Settings.V4Page.Resx.GetString("lNo") + " "
+                            : "")
+                        + Settings.V4Page.Resx.GetString("lblEqually") + " "
+                        + (textValues.Length > 201
+                            ? textValues.Left(200) + "..."
+                            : textValues));
+            }
+        }
+
+        /// <summary>
+        ///     Отрисовка значения установленного фильтра
+        /// </summary>
+        /// <param name="w"></param>
+        public void RenderFilterBlockTextValues(TextWriter w)
+        {
+            if (FilterUniqueValues == null || FilterUniqueValues.Count == 0) return;
+
+            var textValues = "";
+
+            if (ColumnType == GridColumnTypeEnum.List)
+            {
+                var listTypeFieldList = JsonConvert.DeserializeObject<List<KeyValuePair<int, string>>>(FormatString);
+                textValues =
+                    string.Join(
+                            FilterEqual == GridColumnFilterEqualEnum.NotIn
+                            ? string.Format(" {0} ", Settings.V4Page.Resx.GetString("lANDUp"))
+                            : string.Format(" {0} ", Settings.V4Page.Resx.GetString("lORUp")),
+                        FilterUniqueValues.Select(x => "[<span class='gridFilterValue'>" + listTypeFieldList.Find(k => k.Key == System.Convert.ToInt32(x.Value)).Value + "</span>]").ToArray());
+            }
+            else
+            {
+                textValues =
+                    string.Join(
+                        FilterEqual == GridColumnFilterEqualEnum.NotIn
+                            ? string.Format(" {0} ", Settings.V4Page.Resx.GetString("lANDUp"))
+                            : string.Format(" {0} ", Settings.V4Page.Resx.GetString("lORUp")),
+                        FilterUniqueValues.Select(x => "[<span class='gridFilterValue'>" + x.Value + "</span>]").ToArray());
+
+            }
+
+            if (ColumnType == GridColumnTypeEnum.Boolean)
+            {
+                if (ValueBooleanCaption["0"] == "Нет")
+                    w.Write($"{Alias}=[" + (FilterUniqueValues.Values.First().ToString() == "0" ? ValueBooleanCaption["0"] : ValueBooleanCaption["1"]) + "] ");
+                else
+                    w.Write($"[" + (textValues == "[0]" ? ValueBooleanCaption["0"] : ValueBooleanCaption["1"]) + "] ");
+            }
+            else
+            {
+                w.Write($"{Alias} "
+                        +
+                        (FilterEqual == GridColumnFilterEqualEnum.NotIn
+                            ? Settings.V4Page.Resx.GetString("lNo") + " "
+                            : "")
+                        + Settings.V4Page.Resx.GetString("lblEqually") + " "
+                        + (textValues.Length > 201
+                            ? textValues.Left(200) + "..."
+                            : textValues));
+            }
+        }
+
+        /// <summary>
+        ///     Создает новый объект, являющийся копией текущего экземпляра.
+        /// </summary>
+        public GridColumn Clone()
+        {
+            return (GridColumn)MemberwiseClone();
         }
 
         #endregion
@@ -1105,6 +1606,8 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 case GridColumnTypeEnum.Float:
                 case GridColumnTypeEnum.Double:
                 case GridColumnTypeEnum.Int:
+                case GridColumnTypeEnum.Short:
+                case GridColumnTypeEnum.Long:
                     filterName = Settings.V4Page.Resx.GetString("lblGridSetNumericFilter");
                     FillUserFilterClauseInt();
                     break;
@@ -1173,9 +1676,18 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                 Settings.V4Page.Resx.GetString(
                     GridColumnUserFilterEnum.НачинаетсяС.GetAttribute<GridColumnUserFilterAttribute>().AliasString) +
                 "...");
+            FilterUserClause.Add(GridColumnUserFilterEnum.НеНачинаетсяС,
+                Settings.V4Page.Resx.GetString(
+                    GridColumnUserFilterEnum.НеНачинаетсяС.GetAttribute<GridColumnUserFilterAttribute>().AliasString) +
+                "...");
             FilterUserClause.Add(GridColumnUserFilterEnum.ЗаканчиваетсяНа,
                 Settings.V4Page.Resx.GetString(
                     GridColumnUserFilterEnum.ЗаканчиваетсяНа.GetAttribute<GridColumnUserFilterAttribute>()
+                        .AliasString) +
+                "...");
+            FilterUserClause.Add(GridColumnUserFilterEnum.НеЗаканчиваетсяНа,
+                Settings.V4Page.Resx.GetString(
+                    GridColumnUserFilterEnum.НеЗаканчиваетсяНа.GetAttribute<GridColumnUserFilterAttribute>()
                         .AliasString) +
                 "...");
             FilterUserClause.Add(GridColumnUserFilterEnum.Содержит,
@@ -1234,13 +1746,13 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         /// <summary>
         ///     Получение списка уникальных значений колонки
         /// </summary>
-        public void FillUniqueValues()
+        public void FillUniqueValues(bool alwaysLoadDataFromDataBase)
         {
             var columnWithFilter =
                 Settings.TableColumns.Where(
                     x => x.Id != Id && x.FilterUniqueValues != null && x.FilterUniqueValues.Count > 0).ToList();
 
-            if (columnWithFilter.Count > 0)
+            if (!alwaysLoadDataFromDataBase && columnWithFilter.Count > 0)
             {
                 var results = from r in Settings.DT.AsEnumerable()
                     where
@@ -1258,13 +1770,14 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
                     select new {myGroup.Key.MyValue};
 
                 if (UniqueValuesOriginal != null)
-                    UniqueValues =
+
+                UniqueValues =
                         UniqueValuesOriginal.Where(
                                 x =>
                                     results.Any(
                                         y =>
                                             y.MyValue != null && y.MyValue.Equals(x.Value) ||
-                                            y.MyValue == null && x.Value == null))
+                                            (y.MyValue == null || y.MyValue.ToString() == "") && x.Value.ToString() == ""))
                             .ToDictionary(v => v.Key, v => v.Value);
             }
             else

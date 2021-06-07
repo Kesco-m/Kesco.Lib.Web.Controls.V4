@@ -28,14 +28,14 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             w.Write(Environment.NewLine);
             w.Write("<meta http-equiv='X-UA-Compatible' content='IE=edge'/>");
             w.Write(Environment.NewLine);
-            w.Write("<link href='/Styles/Kesco.V4/CSS/Kesco.V4.css' rel='stylesheet' type='text/css'/>");
+            w.Write($"<link href='{Config.styles_css}Kesco.css' rel='stylesheet' type='text/css'/>");
             w.Write(Environment.NewLine);
-            w.Write($"<script src='/Styles/Kesco.V4/JS{Config.versionV4js}/jquery-1.12.4.min.js' type ='text/javascript'></script>");
+            w.Write($"<script src='{Config.styles_js}jquery-1.12.4.min.js' type ='text/javascript'></script>");
             w.Write(Environment.NewLine);
             w.Write(
-                $"<script src='/Styles/Kesco.V4/JS{Config.versionV4js}/jquery.signalR-2.4.1.min.js' type ='text/javascript'></script>");
+                $"<script src='{Config.styles_js}jquery.signalR-2.4.1.min.js' type ='text/javascript'></script>");
             w.Write(Environment.NewLine);
-            w.Write($"<script src='/Styles/Kesco.V4/JS{Config.versionV4js}/Kesco.LocalTime.js' type ='text/javascript'></script>");
+            w.Write($"<script src='{Config.styles_js}kesco.js' type ='text/javascript'></script>");
 
             w.Write(Environment.NewLine);
             w.Write($"<script src='{appRoot}/signalr/hubs' type ='text/javascript'></script>");
@@ -157,7 +157,7 @@ function v4_refreshListActivePages(pages){
             tblConnections +=""<td>"" + this.ItemName + ""</td>"";
             tblConnections +=""<td>"" + this.EntityId + ""</td>"";
             tblConnections +=""<td>"" + (this.IsEditable?""Редактирует"":""Просматривает"") + ""</td>"";
-            tblConnections +=""<td>"" + Kesco_toLocalTime(this.StartTimeFormat) + ""</td>"";
+            tblConnections +=""<td>"" + Kesco.toLocalTime(this.StartTimeFormat) + ""</td>"";
 
             tblConnections +=""</tr>"";             
 
@@ -171,6 +171,15 @@ function v4_refreshListActivePages(pages){
 
         $('#divConnections').html(tblConnections);
         
+}
+
+function v4_brokenConnection() {
+    if (window.status == v4_signalStatus)
+    {
+        v4_tryingToReconnect = true;
+        $.connection.hub.stop();
+        v4_hubImpossibleConnect();
+    }
 }
 ");
             w.Write(Environment.NewLine);

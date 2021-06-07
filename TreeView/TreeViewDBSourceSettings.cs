@@ -12,6 +12,10 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         /// </summary>
         public Dictionary<string, object> AddSqlParams;
 
+        public Dictionary<string, List<string>> AdditionalTable;
+
+        public Dictionary<string, Dictionary<string, string>> FieldValuesList;
+
         /// <summary>
         ///     Строка подключения
         /// </summary>

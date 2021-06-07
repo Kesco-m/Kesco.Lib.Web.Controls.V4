@@ -1,4 +1,8 @@
-﻿using System;
+﻿using Kesco.Lib.BaseExtention;
+using Kesco.Lib.BaseExtention.Enums.Controls;
+using Kesco.Lib.Entities;
+using Kesco.Lib.Entities.Corporate;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -7,9 +11,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Web;
-using Kesco.Lib.BaseExtention;
-using Kesco.Lib.BaseExtention.Enums.Controls;
-using Kesco.Lib.Entities.Corporate;
 
 namespace Kesco.Lib.Web.Controls.V4
 {
@@ -188,6 +189,11 @@ namespace Kesco.Lib.Web.Controls.V4
         ///     Признак отображения в тултипе списка компаний, к которым принадлежит сущность (для множественного выбора)
         /// </summary>
         public bool IsItemCompany { get; set; }
+
+        /// <summary>
+        ///     разбивать по словам при readonly = true
+        /// </summary>
+        public bool IsNoWrap = true;
 
         /// <summary>
         ///     Перечисление через "," колонок в заголовке выпадающего списка
@@ -384,20 +390,26 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="w">Поток</param>
         private void RenderButton(TextWriter w, string disabled_attribute)
         {
-            w.Write("<button id='{0}_1' {1}", HtmlID, disabled_attribute);
+            w.Write("<button id='{0}_1' {1} {2} {3}", HtmlID, disabled_attribute,
+            IsCaller || IsItemCompany ? "data-id='" + HttpUtility.HtmlEncode(Value) + "'" : "",
+            IsCaller && CallerType != CallerTypeEnum.Empty ? "caller-type='" + (int)CallerType + "'" : ""
+            );
+
+            w.Write(" class='");
+            if (IsCaller) w.Write("v4_callerControl ");
 
             if (Value.Length > 0 && URLShowEntity.Length > 0)
-                w.Write(" class='v4s_btnDetail' onclick=\"v4_windowOpen('{0}', '');\"",
-                    URLShowEntity + (URLShowEntity.IndexOf("?") > 0 ? "&" : "?") + "id=" + Value);
+                w.Write("v4s_btnDetail' onclick=\"Kesco.windowOpen('{0}', '_blank', '{1}', this);\"",
+                    URLShowEntity + (URLShowEntity.IndexOf("?") > 0 ? "&" : "?") + "id=" + Value, EntityWindowParams);
             else if (Value.Length > 0 && FuncShowEntity.Length > 0)
-                w.Write(" class='v4s_btnDetail' onclick='{0}'", string.Format(FuncShowEntity, Value, HtmlID));
+                w.Write("v4s_btnDetail' onclick='{0}'", string.Format(FuncShowEntity, Value, HtmlID));
             else
-                w.Write(" class='v4s_btn' onclick=\"v4s_btnClick('{0}');\"", HtmlID);
+                w.Write("v4s_btn' onclick=\"v4s_btnClick('{0}');\"", HtmlID);
 
             if (TabIndex.HasValue) w.Write(" TabIndex={0} ", TabIndex);
 
             if (URLShowEntity.Length > 0)
-                w.Write(" urlShowEntity='{0}' ", HttpUtility.JavaScriptStringEncode(URLShowEntity));
+                w.Write(" urlShowEntity='{0}' ", HttpUtility.HtmlEncode(URLShowEntity));
 
             if (FuncShowEntity.Length > 0)
                 w.Write(" funcShowEntity='{0}' ", FuncShowEntity);
@@ -442,18 +454,27 @@ namespace Kesco.Lib.Web.Controls.V4
                 #region INPUT
 
                 w.Write("<input title='{1}' type='text' value='{1}' id='{0}_0' {2} {3} {4}", HtmlID,
-                    HttpUtility.HtmlEncode(ValueText),
+                    HttpUtility.HtmlEncode(ValueText),"","",
+                    /*
                     IsCaller || IsItemCompany ? "data-id='" + HttpUtility.HtmlEncode(Value) + "'" : "",
                     IsCaller && CallerType != CallerTypeEnum.Empty ? "caller-type='" + (int) CallerType + "'" : "",
+                    */
                     disabled_attribute);
 
-                w.Write(" style=\"width: {0}\"", Width.IsEmpty ? "100%" : Width.ToString(CultureInfo.InvariantCulture));
+                if (isDropDownList) w.Write("onclick=\"v4s_btnClick('{0}');\"", HtmlID);
+
+                w.Write(" style=\"width: {0}; {1}\"", Width.IsEmpty ? "100%" : Width.ToString(CultureInfo.InvariantCulture), isDropDownList? "" : "");
                 w.Write(" isRequired={0}", IsRequired ? 1 : 0);
                 w.Write(" t='{0}'", HttpUtility.HtmlEncode(ValueText));
                 w.Write(" v='{0}'", HttpUtility.HtmlEncode(Value));
                 w.Write(" ov='{0}'", HttpUtility.HtmlEncode(OriginalValue));
                 w.Write(" nv='{0}'", IsShowEditingStatus ? "1" : "");
                 w.Write(" stxt=''");
+
+                if (isDropDownList)
+                {
+                    w.Write(" readonly ");
+                }
 
                 if (IsCustomRecordInPopup)
                     w.Write(" crp='{0}'", HttpUtility.HtmlEncode(CustomRecordId));
@@ -478,8 +499,8 @@ namespace Kesco.Lib.Web.Controls.V4
                     cssSelectClass += " v4s_required";
                 else if (!string.IsNullOrEmpty(ClassFieldset))
                     cssSelectClass += " " + ClassFieldset;
-                else if (IsCaller)
-                    cssSelectClass += " v4_callerControl";
+                //else if (IsCaller)
+                //    cssSelectClass += " v4_callerControl";
                 else if (IsItemCompany && !string.IsNullOrEmpty(ValueText))
                     cssSelectClass += " v4_itemCompanyControl";
 
@@ -508,92 +529,13 @@ namespace Kesco.Lib.Web.Controls.V4
                 w.Write("</div>");
                 w.Write("</div>");
 
-                //#####################################################################
-
-                //w.Write("<table class='v4s' style='align:left' cellpadding=\"0\" cellspacing=\"0\">");
-                //w.Write("<tr>");
-                //w.Write("<td>");
-
-                //w.Write("<nobr>");
-                //w.Write("<div class='v4DivInline' id=\"v3il_{0}\"></div>", HtmlID);
-
-                //w.Write("<input type='text' value='{1}' id='{0}_0' {2} {3} {4}", HtmlID, HttpUtility.HtmlEncode(ValueText),
-                //    (IsCaller || IsItemCompany ? "data-id='" + HttpUtility.HtmlEncode(Value) + "'" : ""),
-                //    (IsCaller && CallerType != CallerTypeEnum.Empty ? "caller-type='" + (int)CallerType + "'" : ""), disabled_attribute);
-
-                //w.Write(" style=\"width: {0}\"", Width.IsEmpty ? "100%" : Width.ToString(CultureInfo.InvariantCulture));
-                //w.Write(" isRequired={0}", IsRequired ? 1 : 0);
-                //w.Write(" t='{0}'", HttpUtility.HtmlEncode(ValueText));
-                //w.Write(" v='{0}'", HttpUtility.HtmlEncode(Value));
-                //w.Write(" ov='{0}'", HttpUtility.HtmlEncode(OriginalValue));
-                //w.Write(" stxt=''");
-
-                //if (IsCustomRecordInPopup)
-                //    w.Write(" crp='{0}'", HttpUtility.HtmlEncode(CustomRecordId));
-
-                //w.Write(" help='{0}'", HttpUtility.HtmlEncode(Help));
-
-                //if (Title.Length > 0)
-                //{
-                //    w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
-                //}
-
-                //if (!string.IsNullOrEmpty(NextControl))
-                //{
-                //    if (NextControl == HtmlID)
-                //        w.Write(" nc='{0}'", NextControl + "_0");
-                //    else
-                //        w.Write(" nc='{0}'", GetHtmlIdNextControl());
-                //}
-
-                //var cssSelectClass = "v4si";
-
-                //if (IsRequired && Value.Length == 0)
-                //{
-                //    cssSelectClass += " v4s_required";
-
-                //}
-                //else if (!String.IsNullOrEmpty(ClassFieldset))
-                //{
-                //    cssSelectClass += " " + ClassFieldset;                    
-                //}
-                //else if (IsCaller)
-                //{
-                //    cssSelectClass += " v4_callerControl";                    
-                //}
-                //else if (IsItemCompany && !String.IsNullOrEmpty(ValueText))
-                //{
-                //    cssSelectClass += " v4_itemCompanyControl";                                  
-                //}
-
-                //if (isDropDownList)
-                //    cssSelectClass += " v4sd";
-
-                //w.Write(" class='{0}' ", cssSelectClass);
-
-                //if (TabIndex.HasValue)
-                //{
-                //    w.Write(" TabIndex={0} ", TabIndex);
-                //}
-
-                //w.Write("/>");
-
-                //w.Write("</nobr>");
-
-                //w.Write("</td>");
-
-                //w.Write("<td id='v3sb_{0}' style='width:100%'>", HtmlID);
-                //RenderButton(w, disabled_attribute);
-                //w.Write("</td>");
-
-                //w.Write("</tr>");
-                //w.Write("</table>");
             }
             else
             {
-                w.Write("<nobr><div class='v4DivInline' id=\"v3il_{0}\"></div>", HtmlID);
+                if (IsNoWrap) w.Write("<nobr>");
+                w.Write("<div class='v4DivInline' id=\"v3il_{0}\"></div>", HtmlID);
                 if (URLShowEntity.Length > 0)
-                    w.Write("<a href=\"javascript:void(0);\" onclick=\"javascript:cmd('ctrl', '{1}', 'cmd', 'btn')\" "
+                    w.Write("<a onclick=\"javascript:cmd('ctrl', '{1}', 'cmd', 'btn')\" "
                             +
                             (IsCaller && !IsItemCompany
                                 ? string.Format("class='v4_callerControl' data-id='{0}' caller-type='{1}'",
@@ -603,11 +545,11 @@ namespace Kesco.Lib.Web.Controls.V4
                         HttpUtility.HtmlEncode(ValueText), HtmlID);
                 else if (FuncShowEntity.Length > 0 && !string.IsNullOrEmpty(Value))
                     w.Write(
-                        "<a href=\"javascript:void(0);\" onclick=\"javascript:cmd('ctrl', '{1}', 'cmd', 'OpenDocument', 'id', {2});\">{0}</a>",
+                        "<a onclick=\"javascript:cmd('ctrl', '{1}', 'cmd', 'OpenDocument', 'id', {2});\">{0}</a>",
                         HttpUtility.HtmlEncode(ValueText), HtmlID, Value);
                 else
                     w.Write(HttpUtility.HtmlEncode(ValueText));
-                w.Write("</nobr>");
+                if (IsNoWrap) w.Write("</nobr>");
             }
         }
 
@@ -618,7 +560,7 @@ namespace Kesco.Lib.Web.Controls.V4
         /// <param name="htmlElementId">Идентификатор html-элемента куда надо вывести описание фильтр</param>
         public void RenderFilterText(string htmlElementId)
         {
-            JS.Write("gi('{0}').innerHTML = '{1}';", HttpUtility.JavaScriptStringEncode(htmlElementId),
+            JS.Write("if(gi('{0}')) gi('{0}').innerHTML = '{1}';", HttpUtility.JavaScriptStringEncode(htmlElementId),
                 V4Page.GetFilterText());
         }
 
@@ -762,7 +704,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 if (IsRequired) V4Page.JS.Write("v4_replaceStyleRequired(gi('{0}_0'));", HtmlID);
 
                 if (URLShowEntity.Length > 0 || FuncShowEntity.Length > 0)
-                    V4Page.JS.Write("v4s_btnStyle('{0}');", HtmlID);
+                    V4Page.JS.Write("v4s_btnStyle('{0}', '{1}');", HtmlID, EntityWindowParams);
             }
 
             if (PropertyChanged.Contains("IsRequired") || RefreshRequired && !IsReadOnly)
@@ -775,7 +717,7 @@ namespace Kesco.Lib.Web.Controls.V4
             {
                 var item = _clauseItems.Find(x => x.Code == ValueSelectEnum);
                 if (null != item)
-                    JS.Write("gi('" + ID + "HeadControl').innerHTML = '{0}';", item.Name);
+                    JS.Write("if(gi('" + ID + "HeadControl')) gi('" + ID + "HeadControl').innerHTML = '{0}';", item.Name);
 
                 if (HasCheckbox && !Checked
                     || ValueSelectEnum == ((int) SelectEnum.NoValue).ToString(CultureInfo.InvariantCulture)
@@ -1091,6 +1033,23 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         /// </summary>
         protected List<URICreateEntity> URIsCreateEntity;
 
+
+        /// <summary>
+        ///     Параметры открываемого окна сущности
+        /// </summary>
+        protected string EntityWindowParams
+        {
+            get
+            {
+                string param = "status=no,toolbar=no,menubar=no,location=no,resizable=yes,scrollbars=yes";
+                if (EntityWindowWidth > 0)
+                    param += string.Format(",width={0}", EntityWindowWidth);
+                if (EntityWindowHeight > 0)
+                    param += string.Format(",height={0}", EntityWindowHeight);
+                return param;
+            }
+        }
+
         /// <summary>
         ///     Путь к сущности
         /// </summary>
@@ -1101,6 +1060,15 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
         /// </summary>
         public string FuncShowEntity { get; set; }
 
+        /// <summary>
+        ///     Ширина открываемого окна сущности
+        /// </summary>
+        public int EntityWindowWidth;
+
+        /// <summary>
+        ///     Высота открываемого окна сущности
+        /// </summary>
+        public int EntityWindowHeight;
 
         /// <summary>
         ///     Путь к расширенному поиску сущности
@@ -1484,7 +1452,14 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                         string.Equals(x.ValueField, currentField,
                             StringComparison.InvariantCultureIgnoreCase)) == null)
             {
-                val = t.GetProperty(currentField).GetValue(obj, null).ToString();
+                try
+                {
+                    val = t.GetProperty(currentField).GetValue(obj, null).ToString();
+                }
+                catch (Exception)
+                {
+                    val = "";
+                }
             }
             else
             {

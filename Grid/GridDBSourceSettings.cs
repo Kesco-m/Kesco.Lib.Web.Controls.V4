@@ -19,6 +19,11 @@ namespace Kesco.Lib.Web.Controls.V4.Grid
         public string SqlQuery { get; set; }
 
         /// <summary>
+        ///     SQL-запрос или выражение измененный с помощью настроек грида
+        /// </summary>
+        public string SqlQueryCurrent { get; set; }
+
+        /// <summary>
         ///     Тип запроса или выражения
         /// </summary>
         public CommandType SqlCommandType { get; set; }

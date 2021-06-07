@@ -171,6 +171,7 @@ namespace Kesco.Lib.Web.Controls.V4
         {
             get
             {
+                if (Value == null) return null;
                 decimal rez;
                 if (decimal.TryParse(Value.Replace(".", ","), out rez))
                     return rez;
@@ -203,6 +204,48 @@ namespace Kesco.Lib.Web.Controls.V4
             {
                 int rez;
                 if (int.TryParse(Regex.Replace(Value.Replace(",", "").Replace(".", ""), @"\s+", ""), out rez))
+                    return rez;
+                return null;
+            }
+            set
+            {
+                if (Precision == 0)
+                    Value = value.HasValue ? value.Value.ToString(CultureInfo.InvariantCulture) : "";
+                else
+                    ValueDecimal = value;
+            }
+        }
+
+        /// <summary>
+        ///     Значение Short
+        /// </summary>
+        public short? ValueShort
+        {
+            get
+            {
+                short rez;
+                if (short.TryParse(Regex.Replace(Value.Replace(",", "").Replace(".", ""), @"\s+", ""), out rez))
+                    return rez;
+                return null;
+            }
+            set
+            {
+                if (Precision == 0)
+                    Value = value.HasValue ? value.Value.ToString(CultureInfo.InvariantCulture) : "";
+                else
+                    ValueDecimal = value;
+            }
+        }
+
+        /// <summary>
+        ///     Значение Short
+        /// </summary>
+        public long? ValueLong
+        {
+            get
+            {
+                long rez;
+                if (long.TryParse(Regex.Replace(Value.Replace(",", "").Replace(".", ""), @"\s+", ""), out rez))
                     return rez;
                 return null;
             }
@@ -398,10 +441,16 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
 
                     if (!string.IsNullOrEmpty(NextControl)) w.Write(" nc='{0}'", NextControl);
                     w.Write(" isRequired={0}", IsRequired ? 1 : 0);
-                    w.Write(" onkeydown=\"return v4t_keyDown(event);");
+                  
                     if (IsRequired)
+                    {
+                        w.Write(" onkeydown=\"v4t_keyDown(event);");
                         w.Write("v4_replaceStyleRequired(this);");
+                    }
+                    else
+                        w.Write(" onkeydown=\"return v4t_keyDown(event);");
                     w.Write("\"");
+                    w.Write(" onkeyup=\"return v4t_keyUp(event);\"");
                     w.Write(" onchange=\"v4_ctrlChanged('{0}',true);\"", HtmlID);
 
                     if (IsRequired && Value.Length == 0)
@@ -463,7 +512,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                 JS.Write("if(gi('{0}_0')) gi('{0}_0').disabled={1};", HtmlID, IsDisabled ? "1" : "null");
             if (PropertyChanged.Contains("ListChanged"))
             {
-                JS.Write("gi('" + ID + "HeadControl').innerHTML = '{0}';",
+                JS.Write("if(gi('" + ID + "HeadControl')) gi('" + ID + "HeadControl').innerHTML = '{0}';",
                     _list.Find(x => x.Code == ValueNumbersEnum).Name);
                 if (ValueNumbersEnum == ((int) NumbersEnum.Interval).ToString(CultureInfo.InvariantCulture))
                 {

@@ -169,7 +169,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 var htw = new HtmlTextWriter(inner_writer);
                 RenderChildren(htw);
 
-                JS.Write("gi('{0}_1').innerHTML = '{1}';", HtmlID, FilterOptions[Value.ToInt()]);
+                JS.Write("if(gi('{0}_1')) gi('{0}_1').innerHTML = '{1}';", HtmlID, FilterOptions[Value.ToInt()]);
             }
         }
 

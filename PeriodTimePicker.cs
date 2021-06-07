@@ -218,7 +218,7 @@ namespace Kesco.Lib.Web.Controls.V4
                     w.Write("<table cellspacing=\"0\" cellpadding=\"0\" class='{0}'>", CSSClass);
                     w.Write("<tr>");
                     w.Write("<td style=\"padding-bottom:3px\">");
-                    w.Write(Resx.GetString("lPeriod") + ":&nbsp;</td><td Width={0}px>", period.Width.Value);
+                    w.Write(Resx.GetString("lPeriod") + ":&nbsp;</td><td Width='{0}px' style=\"padding-top:2px\">", period.Width.Value);
                     period.RenderControl(w);
 
                     w.Write("</td><td>");

@@ -6,12 +6,14 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Resources;
+using System.Runtime.Serialization;
 using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.BindModels;
 using Kesco.Lib.BaseExtention.Enums.Controls;
+using Kesco.Lib.DALC;
 using Kesco.Lib.Entities;
 using Kesco.Lib.Entities.Documents;
 using Kesco.Lib.Localization;
@@ -138,10 +140,6 @@ namespace Kesco.Lib.Web.Controls.V4
     /// </summary>
     public abstract class V4Control : Control
     {
-        /// <summary>
-        ///     Путь к картинкам (папка STYLES) из web.config
-        /// </summary>
-        public static string PathPic = "/Styles/";
 
         /// <summary>
         ///     Наименование стиля вывода на экран контрола V4, по-умолчанию "inline-block"
@@ -502,6 +500,7 @@ namespace Kesco.Lib.Web.Controls.V4
         public virtual string GetFocusControl()
         {
             if (IsComposite) return HtmlID;
+            if (HtmlID.StartsWith("btn")) return HtmlID;
             return HtmlID + "_0";
         }
 
@@ -572,15 +571,15 @@ namespace Kesco.Lib.Web.Controls.V4
 
             if (V4Page is EntityPage)
             {
-                if (e.NewValue != e.OriginalValue && IsShowEditingStatus)
+                if (e.NewValue != e.OriginalValue)
                 {
-                    JS.Write("$('#{0}_0').addClass('v4_modified');", HtmlID);
-                    JS.Write("$(function() { v4_SetSaveButtonDisabled(false); });");
+                    if(IsShowEditingStatus) JS.Write("$('#{0}_0').addClass('v4_modified');", HtmlID);
+                    if (!IsNoModifying) JS.Write("v4_SetSaveButtonDisabled(false);");
                 }
                 else
                 {
-                    JS.Write("$('#{0}_0').removeClass('v4_modified');", HtmlID);
-                    JS.Write("$(function() {{ v4_SetSaveButtonDisabled(!v4t_CheckChange('{0}_0')); }});", HtmlID);
+                    if (IsShowEditingStatus) JS.Write("$('#{0}_0').removeClass('v4_modified');", HtmlID);
+                    if (!IsNoModifying) JS.Write("v4_SetSaveButtonDisabled(!v4t_CheckChange('{0}_0'));", HtmlID);
                 }
 
 
@@ -588,11 +587,7 @@ namespace Kesco.Lib.Web.Controls.V4
                 if (!IsNoModifying && entity != null && !entity.IsModified && e.NewValue != e.OriginalValue)
                 {
                     var page = (EntityPage) V4Page;
-                    page.Entity.IsModified = true;
-
-                    //var client = SignalServer.Connections.FirstOrDefault(u =>
-                    //    u.Id.ToString() == page.EntityId && u.Name == page.EntityName && u.ClientGuid == page.IDPage);
-                    //if (client != null) client.IsModified = true;
+                    page.Entity.IsModified = true;                   
                 }
             }
         }
@@ -739,7 +734,7 @@ namespace Kesco.Lib.Web.Controls.V4
             if (OnRenderNtf != null && PropertyChanged.Contains("Ntf"))
                 V4Page.RefreshHtmlBlock(HtmlID + "_ntf", RenderNtf);
 
-            if (PropertyChanged.Contains("Caption")) JS.Write("gi('{0}_cptn').innerHTML='{1}';", HtmlID, Caption);
+            if (PropertyChanged.Contains("Caption")) JS.Write("if(gi('{0}_cptn')) gi('{0}_cptn').innerHTML='{1}';", HtmlID, Caption);
         }
 
         /// <summary>
@@ -1049,6 +1044,31 @@ namespace Kesco.Lib.Web.Controls.V4
                 RenderNtf();
 
             return changed;
+        }
+
+        /// <summary>
+        ///     Получить BinderValue, помеченного атрибутом BinderDBFieldAttribute
+        /// </summary>
+        /// <param name="valueSource">Название поля в БД</param>
+        /// <returns></returns>
+        public BinderValue GetBinderValue(string valueSource)
+        {
+            var entity = ((EntityPage)V4Page).Entity;
+            var entityType = entity.GetType();
+
+            var fields = entityType
+                .GetFields()
+                .Where(f => f.FieldType == typeof(BinderValue));
+
+            foreach (var f in fields)
+            {
+                var attributes = f.GetCustomAttributes(typeof(BinderDBFieldAttribute), true);
+
+                if (attributes.Any(x => ((BinderDBFieldAttribute)x).FieldName == valueSource))
+                    return (BinderValue)f.GetValue(entity);
+            }
+
+            return null;
         }
 
         #endregion

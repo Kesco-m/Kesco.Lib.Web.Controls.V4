@@ -301,7 +301,7 @@ namespace Kesco.Lib.Web.Controls.V4.PagingBar
             _rowsPerPageCtrl.ID = "rowsPerPage" + ID;
             _rowsPerPageCtrl.HtmlID = "rowsPerPage" + ID;
             _rowsPerPageCtrl.TabIndex = TabIndex;
-            _rowsPerPageCtrl.NextControl = string.IsNullOrEmpty(NextControl) ? "currentPage" + ID : NextControl;
+            _rowsPerPageCtrl.NextControl = "currentPage" + ID;
             V4Page.V4Controls.Add(_rowsPerPageCtrl);
             _rowsPerPageCtrl.V4OnInit();
 
@@ -354,15 +354,9 @@ namespace Kesco.Lib.Web.Controls.V4.PagingBar
         {
             if (RowsPerPage < 1) RowsPerPage = 1;
 
-            //if (RowsPerPage > 400)
-            //{
-            //    RowsPerPage = 400;
-            //}
-
             CurrentPageNumber = 1;
-            SetButtonsDisabledState();
-
             if (RowsPerPageChanged != null) RowsPerPageChanged(sender, e);
+            SetButtonsDisabledState();
         }
 
         #endregion

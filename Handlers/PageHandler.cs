@@ -213,16 +213,11 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             var sb = new StringBuilder();
             sb.Append("<f><js>");
 
-/*
-            sb.AppendFormat(
-                @"v4_isConfirmDelete = true; ConfirmReload.render('{0}', '{1}', '{2}', '{3}', 'false');",
-                Resx.GetString("msgOsnAttention0"), Resx.GetString("lSession"), Resx.GetString("lCont"),
-                Resx.GetString("lEnd"));
-*/
-            var dex = new LogicalException(Resx.GetString("lSession"),
-                Resx.GetString("lSession"),
-                Assembly.GetExecutingAssembly().GetName(), Priority.ExternalError);
-            Logger.WriteEx(dex);
+
+            //var dex = new LogicalException(Resx.GetString("lSession"),
+            //    Resx.GetString("lSession"),
+            //    Assembly.GetExecutingAssembly().GetName(), Priority.ExternalError);
+            //Logger.WriteEx(dex);
 
             sb.AppendFormat(
                 @"v4_isConfirmDelete = false; location.href = location.href;");
@@ -242,13 +237,9 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             sb0.Append("<title>");
             sb0.Append("Ошибка!");
             sb0.Append("</title>");
-            sb0.Append(string.Format(
-                "<script src='/Styles/Kesco.V4/JS{0}/jquery-1.12.4.min.js' type='text/javascript'></script>",
-                Config.versionV4js));
-            sb0.Append(string.Format(
-                "<script src='/Styles/Kesco.V4/JS{0}/jquery-ui.js' type='text/javascript'></script>",
-                Config.versionV4js));
-            sb0.Append("<link href='/Styles/Kesco.V4/CSS/Kesco.V4.css' rel='stylesheet' type='text/css'/>");
+            sb0.Append($"<script src='{Config.styles_js}jquery-1.12.4.min.js' type='text/javascript'></script>");
+            sb0.Append($"<script src='{Config.styles_js}jquery-ui.js' type='text/javascript'></script>");
+            sb0.AppendFormat($"<link href='{Config.styles_css}Kesco.css' rel='stylesheet' type='text/css'/>");
             sb0.Append("</head>");
             sb0.Append("<body>");
 
@@ -275,7 +266,7 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
             sb.Append("<table style='width:499px'>");
 
             sb.Append("<tr id='v4TrErrorTitle'>");
-            sb.Append("<td style='width:1px;cursor:move''>");
+            sb.Append("<td style='width:1px;cursor:move'>");
             sb.Append("<b>Ошибка!</b>");
             sb.Append("</td>");
             sb.Append("<td style='text-align:right;cursor:move'>");

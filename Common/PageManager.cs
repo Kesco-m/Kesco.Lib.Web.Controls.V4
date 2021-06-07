@@ -19,7 +19,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         public static void Start()
         {
-            Debug.WriteLine("Таймер очистки запущен");
+            //Debug.WriteLine("Таймер очистки запущен");
 
             _timer?.Dispose();
 

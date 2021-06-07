@@ -7,6 +7,7 @@ using System.Web;
 using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.BindModels;
 using Kesco.Lib.Entities;
+using Kesco.Lib.Web.Controls.V4.Common.DocumentPage;
 using Kesco.Lib.Web.SignalR;
 
 namespace Kesco.Lib.Web.Controls.V4.Common
@@ -51,18 +52,14 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             IsEditable = true;
         }
 
-        /// <summary>
-        ///     URL страницы
-        /// </summary>
-        protected string CurrentUrl { get; set; }
 
         /// <summary>
         ///     Id сущности (если нужно int значение используй ItemId)
         /// </summary>
         public string EntityId
         {
-            get { return ItemId.ToString(); }
-            set { ItemId = value.ToInt(); }
+            get => ItemId.ToString();
+            set => ItemId = value.ToInt();
         }
 
         /// <summary>
@@ -70,23 +67,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         public string EntityPageName
         {
-            get { return ItemName; }
-            set { ItemName = value; }
+            get => ItemName;
+            set => ItemName = value;
         }
-        
 
-        protected void SetCurrentUrlParams(Dictionary<string, object> parameters)
-        {
-            if (parameters.Count == 0) return;
-            var ub = new UriBuilder(CurrentUrl);
-            var qs = HttpUtility.ParseQueryString(ub.Query);
-            foreach (var p in parameters)
-                qs.Set(p.Key, p.Value.ToString());
-
-            ub.Query = string.Join("&",
-                qs.AllKeys.Select(a => a + "=" + HttpUtility.UrlEncode(qs[a])));
-            CurrentUrl = ub.Uri.AbsoluteUri;
-        }
 
         /// <summary>
         ///     Инициализация формы
@@ -96,25 +80,27 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             if (RedirectPageByCondition()) return;
 
-            CurrentUrl = Request.Url.AbsoluteUri;
-
             base.OnInit(e);
 
-            if (!V4IsPostBack) id = Request.QueryString["id"];
-
-            if (!V4IsPostBack) EntitySyncModifiedData();
+            if (!V4IsPostBack)
+            {
+                id = Request.QueryString["id"];
+                EntitySyncModifiedData();
+            }
 
             EntityInitialization();
+            
+            if (!(this is DocPage) && (Entity == null || string.IsNullOrEmpty(Entity.Id) && !string.IsNullOrEmpty(id))) EntityLoadData(id);
             EntityFieldInit();
         }
 
         /// <summary>
         ///     Синхронизация несохраненных изменений, сделанных другими пользователями в текущей сущности
         /// </summary>
-        public void EntitySyncModifiedData()
+        private void EntitySyncModifiedData()
         {
-            if (Entity==null || Entity.IsNew) return;
-            
+            if (string.IsNullOrEmpty(EntityId)) return;
+
             var pages = KescoHub.GetAllPages().ToList();
             pages.ForEach(x =>
             {
@@ -122,11 +108,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                 var ep = (EntityPage) x;
                 if (ep.Entity == null) return;
 
-                if (ep.EntityId == EntityId && ep.EntityPageName == EntityPageName && ep.IDPage != IDPage &&
-                    ep.Entity.IsModified) 
+                if (ep.EntityId == EntityId && ep.EntityPageName == EntityPageName && ep.IDPage != IDPage && ep.Entity.IsModified)
                 {
                     Entity = ep.Entity;
                     OriginalEntity = ep.OriginalEntity;
+                    return;
                 }
             });
         }
@@ -142,6 +128,18 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         /// </summary>
         protected virtual void EntityLoadData(string idEntity)
         {
+            if (string.IsNullOrEmpty(idEntity) || idEntity == "0") return;
+            if (Entity == null || Entity.IsMultiId) return;
+
+            Entity.Id = idEntity;
+            Entity.Load();
+        }
+
+        /// <summary>
+        ///     Процедура перепроверки введенных данных
+        /// </summary>
+        protected virtual void RefreshNotification()
+        {
         }
 
         /// <summary>
@@ -153,15 +151,52 @@ namespace Kesco.Lib.Web.Controls.V4.Common
         {
             switch (cmd)
             {
+                case "RefreshNotification":
+                    RefreshNotification();
+                    break;
+                case "Cancel":
+                    if (Entity != null && (Entity.IsModified))
+                    {
+                        ShowConfirm(Resx.GetString("Confirm_msgCancel"),
+                            Resx.GetString("errDoisserWarrning"),
+                            Resx.GetString("QSBtnYes"),
+                            Resx.GetString("QSBtnNo"),
+                            "cmdasync('cmd', 'CancelYes');",
+                            null, null);
+                    }
+                    else
+                    {
+                        V4DropWindow();
+                    }
+                    break;
+                case "CancelYes":
+                    V4DropWindow();
+                    break;
                 case "Refresh":
-                    if (Entity.IsModified)
+
+                    //если экземпляр сущности новый, перепроверяем данные
+                    if (Entity != null && Entity.IsNew)
+                    {
+                        RefreshNotification();
+                        break;
+                    }
+
+                    // если объект изменили, то спрашиваем
+                    if (Entity != null && Entity.IsModified)
+                    {
                         ShowConfirm(Resx.GetString("Confirm_msgRefreshNoSave"),
                             Resx.GetString("errDoisserWarrning"),
-                            Resx.GetString("CONFIRM_StdCaptionYes"),
-                            Resx.GetString("CONFIRM_StdCaptionNo"),
-                            "cmdasync('cmd', 'RefreshNoSave');", null, null);
-                    else
-                        RefreshPage();
+                            Resx.GetString("Confirm_msgRefresh_captionYes"),
+                            Resx.GetString("Confirm_msgRefresh_captionNo"),
+                            "cmdasync('cmd', 'RefreshNoSave');",
+                            "cmdasync('cmd', 'RefreshNotification');",
+                            null, null, null, 407, null, false, false,
+                            Resx.GetString("Confirm_msgRefresh_captionCancel"), "");
+
+                        break;
+                    }
+
+                    RefreshPage();
                     break;
                 case "RefreshNoSave":
                     var userList = new List<string>();
@@ -171,18 +206,15 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                     {
                         if (p == null) return;
                         if (!(p is EntityPage)) return;
-                        var ep = (EntityPage)p;
+                        var ep = (EntityPage) p;
                         var epCuId = ep.CurrentUser.Id;
                         //todo: Добавить проверку на наличие изменений в объекте
-                        if (cuId == epCuId ||  ep.ItemId == 0 || ep.ItemId != ItemId || ep.ItemName != ItemName || ep.IDPage == IDPage) return;
+                        if (cuId == epCuId || ep.ItemId == 0 || ep.ItemId != ItemId || ep.ItemName != ItemName ||
+                            ep.IDPage == IDPage) return;
                         userList.Add(ep.CurrentUser.FIO);
                     });
 
                     if (userList.Count > 0)
-                    {
-                        // Данную форму сейчас редактируют сотрудники: {0}.
-                        // В результате повторной загрузки данных все изменения сделанные ими на своих формах будут отменены.
-                        // Выполнить обновление данных формы?
                         ShowConfirm(
                             string.Format(Resx.GetString("Confirm_msgRefreshNoSaveUsers"),
                                 string.Join(",", userList.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct())),
@@ -190,11 +222,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                             Resx.GetString("CONFIRM_StdCaptionYes"),
                             Resx.GetString("CONFIRM_StdCaptionNo"),
                             "cmdasync('cmd', 'RefreshNoUsersSave');", null, null);
-                    }
                     else
-                    {
                         RefreshPage();
-                    }
 
                     break;
                 case "RefreshNoUsersSave":
@@ -240,15 +269,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             SendCmdAsyncMessage();
         }
 
-        /// <summary>
-        ///     Обновление страницы с повторной загрузкой данных из БД
-        /// </summary>
-        /// <returns></returns>
-        protected void RefreshPage()
-        {
-            TranslatePageEvent(new NameValueCollection {{"cmd", "RefreshForce"}});
-            V4Navigate(CurrentUrl);
-        }
 
         ///// <summary>
         ///// Событие изменения сатуса страницы
@@ -263,7 +283,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             EntityName = Entity?.GetType().Name;
 
             if (Entity != null)
-            { 
+            {
                 foreach (var field in Entity.GetType().GetFields())
                 {
                     if (field.FieldType.Name != "BinderValue") continue;
@@ -273,14 +293,16 @@ namespace Kesco.Lib.Web.Controls.V4.Common
                         method.Invoke((BinderValue) field.GetValue(Entity),
                             new object[] {((BinderValue) field.GetValue(Entity)).Value, ""});
                 }
-
-                //var saveButton = MenuButtons?.Find(mb => mb.ID == "btnSave");
-                //if (saveButton != null && Entity != null)
-                //{
-                //    saveButton.IsDisabled = !Entity.IsModified;
-                //}
+                               
                 var applyButton = MenuButtons.Find(mb => mb.ID == "btnApply");
                 if (applyButton != null && Entity != null) applyButton.IsDisabled = !Entity.IsModified;
+
+                var saveButton = MenuButtons.Find(mb => mb.ID == "btnSave");
+                if (saveButton != null && Entity != null) saveButton.IsDisabled = !Entity.IsModified;
+
+                var recheckButton = MenuButtons.Find(mb => mb.ID == "btnReCheck");
+                if (recheckButton != null && Entity != null) recheckButton.IsDisabled = !Entity.IsModified;
+
             }
         }
 
@@ -377,14 +399,14 @@ namespace Kesco.Lib.Web.Controls.V4.Common
             base.ProcessRequest();
 
             if (MenuButtons != null)
-            {
-                //var saveButton = MenuButtons.Find(mb => mb.ID == "btnSave");
-                //if (saveButton != null && Entity != null)
-                //{
-                //    saveButton.IsDisabled = !Entity.IsModified;
-                //}
+            {               
                 var applyButton = MenuButtons.Find(mb => mb.ID == "btnApply");
                 if (applyButton != null && Entity != null) applyButton.IsDisabled = !Entity.IsModified;
+
+                
+                var recheckButton = MenuButtons.Find(mb => mb.ID == "btnReCheck");
+                if (recheckButton != null && Entity != null) recheckButton.IsDisabled = !Entity.IsModified;
+
             }
 
             if (V4Request.Params.Count == 0) return;

@@ -1,8 +1,21 @@
-﻿<div id="divGroupingPanel_[CID]" class="v4GroupingPanel_[CID] v4DropPanel_[CID]" style="display: none; min-height: 30px; vert-align: middle;">
-    <div id="spanGroupingPanelEmpty_[CID]" style="padding-top: 5px;">[GROUPINGPANELEMPTYTEXT]</div>
+﻿<div class="v4pageTitle v4DropPanel_[CID]" id="divTitle_[CID]" style="display: none;"></div>
+
+<div id="divSettingPanel_[CID]" class="v4DivTable"  style="padding-bottom: 2px;">
+    <div class="v4DivTableRow" >
+        <div id="divSettingTools_[CID]" class="v4DivTableCellT  v4SortablePanel_[CID] v4DropPanel_[CID]" style="display: none; padding-left: 3px; padding-right: 3px; white-space:nowrap;">
+            <img id="imgSettingTools_[CID]" border="0" src="/styles/Tariffing.gif" style="cursor:pointer" tabindex="0"/>
+            <img id="imgFilterTools_[CID]" border="0" src="/styles/FilterApply.gif" style="cursor:pointer" tabindex="0"/>
+        </div>
+        <div id="divFilteringPanel_[CID]" class="v4DivTableCell  v4SortablePanel_[CID] v4DropPanel_[CID]" style="display: none; padding-left: 5px;  text-align: left !important;">
+        </div>
+    </div>
 </div>
-<div id="[CID]" style="overflow: auto" class="v4Grid"></div>
-<div class="v4DivTable" style="margin-left: 10px; margin-top: 10px;">
+
+<div id="divGroupingPanel_[CID]" class="v4SortablePanel_[CID] v4DropPanel_[CID]" style="display: none; min-height: 30px; vert-align: middle;">
+    <div id="spanGroupingPanelEmpty_[CID]" style="padding-top: 5px;" class="v4Information">[GROUPINGPANELEMPTYTEXT]</div>
+</div>
+<div id="[CID]" style="overflow-x: auto; overflow-y: auto;" class="v4Grid"></div>
+<div id="Table_[CID]" class="v4DivTable" style="margin-left: 10px; margin-top: 10px;">
     <div class="v4DivTableRow" id="divPageBar_[CID]" style="display: none;">
         <div class="v4DivTableCell">
             [C_PAGINGBAR]
@@ -20,42 +33,77 @@
     <hr class="v4HrPopup"/>
     <div id="divColumnSettingsForm_ClearUserFilter_[CID]" style="margin-bottom: 5px;"></div>
     <div id="divColumnSettingsForm_UserFilter_[CID]" style="margin-bottom: 10px;"></div>
-
     <div id="divColumnSettingsForm_AllValues_[CID]"></div>
-    <div id="divColumnSettingsForm_Values_[CID]" style="height: 170px; overflow: auto;"></div>
+    <div id="divColumnSettingsForm_Values_[CID]" style="max-height: 170px; overflow: auto;"></div>
+    <div id="divColumnSettingsForm_UniqueClause_[CID]" style="max-height: 170px; overflow: auto;"></div>
 </div>
 
 <div id="divColumnSettingsUserFilterForm_[CID]" style="display: none;">
     <div id="divColumnSettingsUserFilterForm_Header_[CID]"></div>
     <hr class="v4HrPopup"/>
-
     <div id="divColumnSettingsUserFilterForm_Body_[CID]" style="margin-bottom: 10px;"></div>
 </div>
 
-<script>
-    $(document).ready(function() {
-        if ([GRID_AUTOSIZE] == false) return;
+<!-- Диалог настройки видимости, порядка отображения колонок-->
+<div id="divColumnsFieldForm_[CID]" class="v4SortableColumnPanel_[CID]" style="display: none; padding: 1px;">
+    <div id="divColumnsFieldForm_Values_[CID]" style="max-height: 250px; width:300px; overflow: auto;"></div>
+    <div id="divColumnsFieldForm_ClearSort_[CID]"></div>
+    <div id="divColumnsFieldForm_ClearOrder_[CID]"></div>
+</div>
+
+<!-- Диалог настройки фильтра-->
+<div id="divColumnsFilterForm_[CID]" class="v4SortableColumnPanel_[CID]" style="display: none; padding: 1px;">
+    <div id="divColumnsFilterForm_Fields_[CID]" style="max-height: 250px; width:300px; overflow: auto;"></div>
+    <hr class="v4HrPopup" />
+    <div id="divColumnsFilterForm_Values_[CID]" style="max-height: 150px; min-height: 150px; width:300px; overflow: auto;"></div>
+</div>
+
+    <script>
+    $(document).ready(function () {
+
+        if ([GRID_AUTOSIZE] == false) {
+            return;
+        }
+
+        
         var objFrom_ListData = gi("[CID]");
+        
         var h = [GRID_HEIGHT];
         if (h != 0) {
-            if (objFrom_ListData) $("#[CID]").height(h);
-        } else {
-            h = $(window).height() - [MARGIN_BOTTOM];
-
-            if ([GROUPING]) {
-                h = h - 50;
+            if (objFrom_ListData) {
+                $("#[CID]").height(h);
             }
+        } else {
+            if ([GRID_AUTOSIZE] == true) {
+                h = $(window).height() - [MARGIN_BOTTOM];
 
-            if (objFrom_ListData) $("#[CID]").height(h);
-
-            $(window).resize(function() {
-                if (objFrom_ListData) {
-                    var hr = $(window).height() - [MARGIN_BOTTOM];
-                    if ([GROUPING]) hr = hr - 50;
-                    $("#[CID]").height(hr);
+                if ([GROUPING]) {
+                    h = h - 50;
                 }
-            });
+
+                if ([FILTERING]) {
+                    h = h - 50;
+                }
+
+                if (objFrom_ListData) {                
+                    $("#[CID]").height(h);
+                }
+
+                $(window).resize(function() {
+                    if (objFrom_ListData) {
+                        var hr = $(window).height() - [MARGIN_BOTTOM];
+                        if ([GROUPING]) hr = hr - 50;
+                        if ([FILTERING]) hr = hr - 50;
+                        $("#[CID]").height(hr);                        
+                        if (window.dialogWidth) {
+                            var dw = parseInt(("" + window.dialogWidth).replace("px", ""));
+                            $("#[CID]").width(dw - 5);
+                        }
+                    }
+                });
+
+            }
         }
 
     });
-</script>
+    </script>

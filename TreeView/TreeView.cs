@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Data;
+using System.Data.SqlTypes;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Web;
 using System.Web.UI;
@@ -10,9 +12,11 @@ using System.Web.UI.WebControls;
 using Kesco.Lib.BaseExtention;
 using Kesco.Lib.BaseExtention.Enums.Controls;
 using Kesco.Lib.DALC;
-using Kesco.Lib.Entities;
 using Kesco.Lib.Web.Controls.V4.Common;
+using Kesco.Lib.Web.Settings;
+using Kesco.Lib.Web.SignalR;
 using Page = Kesco.Lib.Web.Controls.V4.Common.Page;
+using SQLQueries = Kesco.Lib.Entities.SQLQueries;
 
 namespace Kesco.Lib.Web.Controls.V4.TreeView
 {
@@ -26,6 +30,8 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
     public class TreeView : V4Control, IClientCommandProcessor
     {
         public delegate void LoadDataDelegate(string id);
+
+        public delegate void ChangeTreeViewItemParentDelegate(string id, string newParent);
 
         public enum CheckBoxBehavior
         {
@@ -45,6 +51,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         private LikeDislike _currentBtnLike;
         private Button _currentBtnSave;
         private Button _currentBtnSearch;
+        private Button _currentBtnExtSearch;
         private Button _currentBtnSortAlphabet;
 
         private Button _currentBtnSortTreeLocation;
@@ -60,12 +67,16 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         protected int ItemId;
         protected string ItemName;
         public LoadDataDelegate LoadData;
+        public ChangeTreeViewItemParentDelegate ChangeTreeViewItemParent;
+        public DataTable _dtLocal;
+        public List<TreeViewAddUserFilter> AddFilterUser;
 
         /// <summary>
         ///     Коллекция кнопок меню
         /// </summary>
         public List<Button> MenuButtons;
 
+        private string SearchText;
         private string SearchParam;
 
         protected int TreeViewCmdListnerIndex;
@@ -87,7 +98,12 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             IsEditableInDialog = true;
             AddFormTitle = Resx.GetString("lblAddition");
             EditFormTitle = Resx.GetString("lblEdit");
+            ChangeOrderMessage = Resx.GetString("Inv_msgChangeOrderTreeView");
+            MoveItemMessage1 = Resx.GetString("Inv_msgMoveItemTreeView1");
+            MoveItemMessage2 = Resx.GetString("Inv_msgMoveItemTreeView2");
             MenuButtons = new List<Button>();
+            IsAllowReturn = true;
+            IsAllowReturnValue = true;
         }
 
         /// <summary>
@@ -120,14 +136,34 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         public int LoadById { get; set; }
 
         /// <summary>
+        ///     Дополнительный html-контент
+        /// </summary>
+        public string AdditionalContentText { get; set; }
+
+        /// <summary>
         ///     Параметр в таблице Настройки
         /// </summary>
         public string ParamName { get; set; }
 
         /// <summary>
+        ///     Показывать результаты поиска в отдельном окне
+        /// </summary>
+        public bool IsSearchResultInOtherWindow { get; set; }
+
+        /// <summary>
+        ///     Параметр в таблице Настройки
+        /// </summary>
+        public string NodeName { get; set; }
+
+        /// <summary>
         ///     Сохранять состояние дерева
         /// </summary>
         public bool IsSaveState { get; set; }
+
+        /// <summary>
+        ///     Возмоджность возврата значений
+        /// </summary>
+        public bool IsAllowReturn { get; set; }
 
         /// <summary>
         ///     Включить DND
@@ -138,6 +174,11 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         ///     Загружать данные при выборе узла дерева
         /// </summary>
         public bool IsLoadData { get; set; }
+
+        /// <summary>
+        ///     Строка запроса для фильтра
+        /// </summary>
+        public string DataSourceFilter { get; set; }
 
         /// <summary>
         ///     Состояние TreeView
@@ -153,6 +194,11 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         ///     Возможность добавления из контекстного меню
         /// </summary>
         public bool ContextMenuAdd { get; set; }
+
+        /// <summary>
+        ///     Пользовательское контекстное меню
+        /// </summary>
+        public bool ContextMenuCustom { get; set; }
 
         /// <summary>
         ///     Возможность переименования из контекстного меню
@@ -200,14 +246,34 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         public bool RootVisible { get; set; }
 
         /// <summary>
+        ///     Связь полей с условиями "выключенного" узла
+        /// </summary>
+        public TreeViewOffCondition OffTreeNodeFieldMap { get; set; }
+        
+        /// <summary>
         ///     Показывать галочку у корневого узла
         /// </summary>
         public bool RootCheckVisible { get; set; }
 
         /// <summary>
+        ///     Может возвращать значения (по умолчанию = true)
+        /// </summary>
+        public bool IsAllowReturnValue { get; set; }
+
+        /// <summary>
+        ///     Удалять фильтр по умолчанию при очистке фильтра
+        /// </summary>
+        public bool IsDeleteDefaultFilter { get; set; }
+
+        /// <summary>
         ///     Возможность поиска
         /// </summary>
         public bool IsSearchMenu { get; set; }
+
+        /// <summary>
+        ///     Возможность расширенного поиска
+        /// </summary>
+        public bool ShowFilterOptions { get; set; }
 
         /// <summary>
         ///     Количество найденных записей
@@ -260,9 +326,25 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         public string NodeNameHeader { get; set; }
 
         /// <summary>
+        ///     Текст сообщения при изменении порядка следования узлов
+        /// </summary>
+        public string ChangeOrderMessage { get; set; }
+
+        /// <summary>
+        ///     Первая часть текста сообщения при изменении подчинения узлов
+        /// </summary>
+        public string MoveItemMessage1 { get; set; }
+
+        /// <summary>
+        ///     Вторая часть текста сообщения при изменении подчинения узлов
+        /// </summary>
+        public string MoveItemMessage2 { get; set; }
+
+        /// <summary>
         ///     Отображать в результатах поиска все узлы, родителем которых является корень, независимо от наличия в них совпадений
         /// </summary>
         public bool ShowTopNodesInSearchResult { get; set; }
+
 
         /// <summary>
         ///     Показывать кнопку вызова справки
@@ -274,6 +356,42 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         /// </summary>
         public bool LikeButtonVisible { get; set; }
 
+        /// <summary>
+        ///     Показывать дополнительный контент
+        /// </summary>
+        public bool AddContentVisible { get; set; }
+
+        /// <summary>
+        ///     Список колонок, исключающихся для расширенного поиска
+        /// </summary>
+        public List<string> ColumnAdvSearchList { get; set; }
+
+        /// <summary>
+        ///     Список колонок, исключающих пустые значения
+        /// </summary>
+        public List<string> ColumnNotNullSearchList { get; set; }
+
+        /// <summary>
+        ///     Список колонок, исключающих поиск по нескольким словам
+        /// </summary>
+        public List<string> ColumnNotSplitWhenFilter { get; set; }
+
+        /// <summary>
+        ///     Настройки
+        /// </summary>
+        public TreeViewSettings Settings { get; private set; }
+
+        /// <summary>
+        ///     Наименование условий для поиска
+        /// </summary>
+        public string ConditionName { get; set; }
+
+        public Dictionary<string, string> ColumnsHeaderAlias { get; set; }
+
+        public Dictionary<string, object> ColumnsDefaultValues { get; set; }
+
+        public Dictionary<string, TypeCode> ColumnsType { get; set; }
+        
         /// <summary>
         ///     Обработка клиентских команд
         /// </summary>
@@ -407,6 +525,12 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                     var oldPosition = param["old_position"];
                     var newPosition = param["new_position"];
 
+                    if (newParent != oldParent && ChangeTreeViewItemParent != null)
+                    {
+                        ChangeTreeViewItemParent(id, newParent);
+                        break;
+                    }
+
                     var sqlParams = new Dictionary<string, object>
                     {
                         {"@Id", id},
@@ -429,11 +553,19 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                             DbSourceSettings.PkField);
                     }
 
-                    DBManager.ExecuteNonQuery(sql, CommandType.Text, DbSourceSettings.ConnectionString, sqlParams);
+                    try
+                    {
+                        DBManager.ExecuteNonQuery(sql, CommandType.Text, DbSourceSettings.ConnectionString, sqlParams);
+                    }
+                        catch (Exception ex)
+                    {
+                        V4Page.ShowMessage(ex.Message, Resx.GetString("alertError"), MessageStatus.Error);
+                    }
                     JS.Write("v4_reloadParentNode('{0}', '{1}');", ID, id);
                 }
                     break;
                 case "ReLoadTreeView":
+                {
                     var orderByField = param["OrderByField"];
 
                     var orderByDirection = TreeViewOrderByDirectionEnum.None;
@@ -479,26 +611,263 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                         orderByDirection == TreeViewOrderByDirectionEnum.Asc ? "ASC" : "DESC");
                     JS.Write("$('#btnSortTreeLocation_{0}').find('img').attr('src', '{1}');", ID, imgPathSortLocation);
                     JS.Write("$('#btnSortAlphabet_{0}').find('img').attr('src', '{1}');", ID, imgPathSortAlphabet);
+                }
                     break;
                 case "DeselectAllTreeView":
                     JS.Write("v4_treeViewDeselectAllNodes('{0}');", ID);
                     V4Page.V4DropWindow();
                     break;
                 case "Search":
+                    SearchText = param["SearchText"];
+                    var clmn = Settings.TableColumns.FirstOrDefault(d => d.FieldName == "text");
+                    if (clmn != null)
+                    {
+                        var filterId = SearchParam == "1" ? ((int)TreeViewColumnUserFilterEnum.НачинаетсяС).ToString(): (
+                            (int) TreeViewColumnUserFilterEnum.Содержит).ToString();
+
+                        clmn.FilterUser = new TreeViewColumnUserFilter
+                        {
+                            FilterType = (TreeViewColumnUserFilterEnum)int.Parse(filterId),
+                            FilterValue1 = param["SearchText"],
+                            FilterValue2 = SearchParam
+                        };
+
+                        RenderAdvancedSearchSettings(true);
+                        Settings.SaveOriginalFilter();
+                        SetFilterByColumnValues(SearchText, SearchParam);
+                    }
+
+                    JS.Write("$('#divSearchCount_{0}').attr('style', 'margin-left: 4px;');", ID);
+
+                    /*
                     var searchText = param["SearchText"];
                     JS.Write("v4_reloadSearchNode('{0}','{1}','{2}');", ID, searchText, SearchParam);
+                    */
                     break;
                 case "ChangeSearchParamTreeView":
                     SearchParam = param["SearchParam"];
                     break;
-                case "SetSearchCount":
-                    var searchCountText = SearchResultCount > 100
-                        ? string.Format(Resx.GetString("lblOver100"), 100)
-                        : string.Format(Resx.GetString("lTotalFound"), SearchResultCount);
-                    JS.Write("v4_SetSearchResult('{0}', '{1}', '{2}');", ID, searchCountText,
-                        Resx.GetString("lblEmptySearchString"));
-                    JS.Write("$('.found').first().focus();");
+                case "ChangeAddFilterUser":
+                    var _filterId = param["FilterId"];
+                    if (!Settings.FilterClause.IsNullEmptyOrZero())
+                    {
+                        var filterClauseVal = Settings.FilterClause.Split(',');
+                        if (filterClauseVal.Contains(_filterId))
+                        {
+                            filterClauseVal = filterClauseVal.Where(v => v != _filterId).ToArray();
+                            Settings.FilterClause = string.Join(", ", filterClauseVal.ToArray());
+                        }
+                        else
+                        {
+                            Settings.FilterClause = Settings.FilterClause + "," + _filterId;
+                        }
+                    }
+                    else
+                    {
+                        Settings.FilterClause = _filterId;
+                    }
+
+                    RenderAdvancedSearchSettings();
                     break;
+                case "SetSearchCount":
+                    if (Settings.FilterClause == "" && !Settings.TableColumns.Exists(x => x.FilterUser != null) && (Settings.AddTableColumns != null && !Settings.AddTableColumns.Exists(x => x.FilterUser != null)))
+                    {
+                        var searchCountText = SearchResultCount > 100
+                            ? string.Format(Resx.GetString("lblOver100"), 100)
+                            : string.Format(Resx.GetString("lTotalFound2"), SearchResultCount);
+                        JS.Write("v4_SetSearchResult('{0}', '{1}', '{2}', 0);", ID, searchCountText,
+                            Resx.GetString("lblEmptySearchString"));
+                    }
+                    else
+                    {
+                        var searchCountText = SearchResultCount > 100
+                            ? string.Format(Resx.GetString("lblOver100"), 100)
+                            : string.Format(Resx.GetString("lTotalFound2"), SearchResultCount);
+                        JS.Write("v4_SetSearchResult('{0}', '{1}', '{2}', 1);", ID, searchCountText,
+                            Resx.GetString("lblEmptySearchString"));
+                    }
+
+                    JS.Write("$('.found').first().focus();");
+                    if (IsLoadData) LoadData("0");
+                    break;
+                case "RenderAdvancedSearchSettings":
+                {
+                    Settings.RestoreOriginalFilter();
+                    RenderAdvancedSearchSettings();
+                }
+                    break;
+                case "OpenUserFilterForm":
+                    var p0 = Settings.TableColumns.FirstOrDefault(x => x.Id == param["ColumnId"]);
+
+                    if (p0 == null && Settings.AddTableColumns != null)
+                        p0 = Settings.AddTableColumns.FirstOrDefault(x => x.Id == param["ColumnId"]);
+
+                    if (p0 != null)
+                    {
+                        if (DbSourceSettings.FieldValuesList != null && DbSourceSettings.FieldValuesList.ContainsKey(p0.FieldName))
+                        {
+                            p0.RenderColumnUserFilterForm(V4Page, param["FilterId"], param["SetValue"], DbSourceSettings.FieldValuesList[p0.FieldName]);
+                        }
+                        else
+                        {
+                            p0.RenderColumnUserFilterForm(V4Page, param["FilterId"], param["SetValue"]);
+                        }
+                    }
+                    else
+                        V4Page.ShowMessage(Resx.GetString("msgErrorIdColumn"), Resx.GetString("alertError"),
+                            MessageStatus.Error);
+                    break;
+                case "SetFilterColumnByUser":
+                    if (!param["FilterId"].IsNullEmptyOrZero())
+                        SetFilterColumnByUser(param["ColumnId"], param["FilterId"]);
+                    RenderAdvancedSearchSettings();
+                    break;
+                case "ClearFilterColumnValues":
+                    ClearFilterColumnValues(param["ColumnId"]);
+                    RenderAdvancedSearchSettings();
+                    break;
+                case "ClearAllFilterColumnValuesAndRefresh":
+                    JS.Write("isDefaultFilter = 'true';");
+                    ClearAllFilterColumnValuesAndRefresh();
+                    JS.Write("v4_FullReloadTreeView('{0}');", ID);
+                    break;
+                case "ClearAllFilterColumnValues":
+                    ClearAllFilterColumnValues();
+                    RenderAdvancedSearchSettings();
+                    break;
+                //Фильтр по выбранным значениям
+                case "SetFilterByColumnValues":
+                    if (IsSearchResultInOtherWindow)
+                    {
+                        RefreshSearchResultRows();
+                    }
+
+                    if (IsOnlyDefaultFilter())
+                    {
+                        JS.Write("isDefaultFilter = 'true';");
+
+                        JS.Write("$('#divExtFilter_{0}').attr('style', 'display: none; vertical-align: middle; white-space:nowrap;');", ID);
+                        JS.Write("$('#divSearchCount_{0}').attr('style', 'display: none; margin-left: 4px;');", ID);
+                        ClearAllFilterColumnValuesAndRefresh();
+                        JS.Write("v4_FullReloadTreeView('{0}');", ID);
+                    }
+                    else
+                    {
+                        JS.Write("isDefaultFilter = 'false';");
+                        Settings.FilterClause = param["Data"];
+
+                        if (Settings.FilterClause == "" && !Settings.TableColumns.Exists(x => x.FilterUser != null) && (Settings.AddTableColumns != null && !Settings.AddTableColumns.Exists(x => x.FilterUser != null)))
+                        {
+                            ClearAllFilterColumnValues(false);
+                            JS.Write("$('#divExtFilter_{0}').attr('style', 'display: none; vertical-align: middle; white-space:nowrap;');", ID);
+                            JS.Write("$('#divSearchCount_{0}').attr('style', 'display: none; margin-left: 4px;');", ID);
+                            Settings.SaveOriginalFilter();
+                            SetFilterByColumnValues("", "clearfilter");
+                        }
+                        else
+                        {
+                            Settings.SaveOriginalFilter();
+                            SetFilterByColumnValues("", "filter");
+                        }
+                    }
+
+                    break;
+
+            }
+        }
+
+        /// <summary>
+        /// Возвращает признак, что установлены только фильтры по умолчанию
+        /// </summary>
+        /// <returns></returns>
+        private bool IsOnlyDefaultFilter()
+        {
+            if (Settings.TableColumns.Exists(x => x.DefaultValue == null && x.FilterUser != null || x.DefaultValue != null && x.FilterUser == null))
+                return false;
+
+            if (Settings.AddTableColumns != null && 
+                Settings.AddTableColumns.Exists(x => x.DefaultValue == null && x.FilterUser != null || x.DefaultValue != null && x.FilterUser == null))
+                return false;
+
+            if (ColumnsDefaultValues != null)
+            {
+                foreach (var defaultValue in ColumnsDefaultValues)
+                {
+                    var clmn = Settings.TableColumns.FirstOrDefault(x => x.FieldName == defaultValue.Key);
+                    if (clmn == null && Settings.AddTableColumns != null)
+                        clmn = Settings.AddTableColumns.FirstOrDefault(x => x.FieldName == defaultValue.Key);
+                    if (clmn != null)
+                    {
+                        if (clmn.ColumnType == TreeViewColumnTypeEnum.Boolean)
+                        {
+                            if (clmn.FilterUser.FilterType == TreeViewColumnUserFilterEnum.Нет &&
+                                (int) defaultValue.Value == 1 ||
+                                clmn.FilterUser.FilterType == TreeViewColumnUserFilterEnum.Да &&
+                                (int) defaultValue.Value == 0)
+                                return false;
+                        }
+                        else
+                        {
+                            if (clmn.FilterUser.FilterValue1 != defaultValue.Value)
+                                return false;
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        protected void RefreshSearchResultRows()
+        {
+            using (var w = new StringWriter())
+            {
+                RenderSearchResultRows(w);
+                JS.Write("document.getElementById('divSearchResult_{0}').innerHTML={1};", ID, HttpUtility.JavaScriptStringEncode(w.ToString(), true));
+            }
+        }
+
+        /// <summary>
+        /// Отрисовка списка найденных значений
+        /// </summary>
+        /// <param name="w"></param>
+        public void RenderSearchResultRows(TextWriter w)
+        {
+            var tvHandler = new TreeViewDataHandler();
+            var addQuery = tvHandler.GetAddQuery(this);
+
+            var sql = DataSourceFilter.Replace("@ADDWHERE", addQuery[0]).Replace("@ADDFIELD", addQuery[2]).Replace("@ADDTABLE", addQuery[1]);
+
+            var dt = DBManager.GetData(sql, Config.DS_user);
+            if (dt.Rows.Count != 0)
+            {
+                w.Write("<br/>");
+                w.Write("<table id='searchResult' width='100%' class='grid' style='border-collapse:collapse; background-color: white; padding: 2px 2px 2px 2px;'>");
+                w.Write("<tr class='gridHeader'>");
+                foreach (DataColumn c in dt.Columns)
+                {
+                    if (c.ColumnName != "Id")
+                        w.Write("<td>{0}</td>", HttpUtility.HtmlEncode(c.ColumnName));
+                }
+                w.Write("</tr>");
+
+                foreach (DataRow r in dt.Rows)
+                {
+                    w.Write("<tr>");
+
+                    foreach (DataColumn c in dt.Columns)
+                    {
+                        if (c.ColumnName != "Id")
+                            w.Write("<td><a href='{1}'>{0}</a></td>", HttpUtility.HtmlEncode(r[c.ColumnName].ToString()), V4Page.V4Request.Url.AbsolutePath + "?id="+r["Id"]);
+                    }
+                    w.Write("</tr>");
+                }
+
+                w.Write("</table>");
+            }
+            else
+            {
+                w.Write("Данные по установленным параметрам не найдены");
             }
         }
 
@@ -586,8 +955,19 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                 Text = Resx.GetString("lblSearch"),
                 IconJQueryUI = ButtonIconsEnum.Search,
                 OnClick = string.Format("{0}; v4_ShowSearchTreeView('{1}');", menu, ID)
+                ,CSSClass = "button_disabled"
             };
             //V4Page.V4Controls.Add(_currentBtnSearch);
+
+            _currentBtnExtSearch = new Button
+            {
+                V4Page = V4Page,
+                ID = "btnExtSearch_" + ID,
+                Text = Resx.GetString("lblFilter"),
+                IconJQueryUI = ButtonIconsEnum.Search,
+                OnClick = string.Format("v4_ShowExtSearchTreeView('{0}');", TreeViewCmdListnerIndex)
+                ,CSSClass = "button_disabled"
+            };
 
             _currentBtnSave = new Button
             {
@@ -625,18 +1005,21 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             };
             //V4Page.V4Controls.Add(_currentBtnHelp);
 
-            _currentBtnLike = new LikeDislike
+            if (LikeButtonVisible)
             {
-                ID = "btnLike_" + ID,
-                V4Page = V4Page,
-                LikeId = V4Page.LikeId,
-                Style = "float: right; margin-right: 11px; margin-top: 3px; cursor: pointer;"
-            };
-            V4Page.V4Controls.Add(_currentBtnLike);
+                _currentBtnLike = new LikeDislike
+                {
+                    ID = "btnLike_" + ID,
+                    V4Page = V4Page,
+                    LikeId = V4Page.LikeId,
+                    Style = "float: right; margin-right: 11px; margin-top: 3px; cursor: pointer;"
+                };
+                V4Page.V4Controls.Add(_currentBtnLike);
+            }
 
             var returnData = V4Page.Request.QueryString["return"];
             var returnId = 0;
-            if (int.TryParse(returnData, out returnId))
+            if (IsAllowReturn && int.TryParse(returnData, out returnId))
                 Checkable = returnId == 2 ? CheckBoxBehavior.MultipleSelect : CheckBoxBehavior.Disabled;
 
             _currentSearchRadioCtrl = new Radio
@@ -666,14 +1049,16 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                     @"cmdasync('cmd', 'Listener', 'ctrlId', {0}, 'cmdName', 'Search', 'SearchText', $('#divSearchTreeView_{1}').find('input[type=text]').val());",
                     TreeViewCmdListnerIndex, ID)
             };
-
+            
             var searchRequest = V4Page.Request["search"] ?? string.Empty;
+            /*
             _currentSearchTextBoxCtrl.Value = searchRequest;
             var isSearchRequest = !string.IsNullOrEmpty(searchRequest);
             if (isSearchRequest)
                 JS.Write("v4_ShowSearchTreeView('{0}');" +
-                         "var input = $('#tbSearchText_{0}_0'); var len = input.val().length; input[0].setSelectionRange(len, len);" +
+                         "var input = $('#tbSearchText_{0}_0');$('#divMenuTreeView_{0}').hide(); var len = input.val().length; input[0].setSelectionRange(len, len);" +
                          _currentBtnFind.OnClick, ID);
+            */
         }
 
         /// <summary>
@@ -712,7 +1097,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         }
 
         /// <summary>
-        ///     Установка клиентских функций для добавления,редатирования,удаления записи
+        ///     Установка клиентских функций для добавления,редактирования,удаления записи
         /// </summary>
         /// <param name="addCmdFuncName">Название клиентской функции, вызываемой при добавлении</param>
         /// <param name="editCmdFuncName">Название клиентской функции, вызываемой при редактировании</param>
@@ -722,6 +1107,17 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             _addCmdFuncName = addCmdFuncName;
             _editCmdFuncName = editCmdFuncName;
             _deleteCmdFuncName = deleteCmdFuncName;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="customCmdFunc">Название клиентской функции, вызываемой при нажатии на пункт меню</param>
+        /// <param name="onClient">Команда обрабатывается на клиенте</param>
+        public void SetServiceCustom(List<List<string>> customCmdFunc, bool onClient = false)
+        {
+            _customCmdFunc = customCmdFunc;
+            _customCmdFuncOnClient = onClient;
         }
 
         /// <summary>
@@ -862,9 +1258,9 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             sourceContent = sourceContent.Replace(_constReturnCondition, ReturnCondition);
             sourceContent = sourceContent.Replace(_constListenerIndex, TreeViewCmdListnerIndex.ToString());
 
-            sourceContent = sourceContent.Replace("[MSG1]", Resx.GetString("Inv_msgChangeOrderTreeView"));
-            sourceContent = sourceContent.Replace("[MSG2]", Resx.GetString("Inv_msgMoveItemTreeView1"));
-            sourceContent = sourceContent.Replace("[MSG3]", Resx.GetString("Inv_msgMoveItemTreeView2"));
+            sourceContent = sourceContent.Replace("[MSG1]", ChangeOrderMessage);
+            sourceContent = sourceContent.Replace("[MSG2]", MoveItemMessage1);
+            sourceContent = sourceContent.Replace("[MSG3]", MoveItemMessage2);
 
             sourceContent = sourceContent.Replace(_constIsSaveState, IsSaveState.ToString().ToLower());
             sourceContent = sourceContent.Replace(_constIsDND, IsDraggable.ToString().ToLower());
@@ -876,7 +1272,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             sourceContent = sourceContent.Replace(_constUrlTreeViewSaveState,
                 JsonData + "?type=save_state&Clid=" + ClId + "&ParamName=" + ParamName);
 
-            var cm = ContextMenuAdd || ContextMenuRename || ContextMenuDelete ? "{ 'items': v4_customMenu }" : "false";
+            var cm = ContextMenuAdd || ContextMenuRename || ContextMenuDelete || ContextMenuCustom ? "{ 'items': v4_customMenu }" : "false";
             sourceContent = sourceContent.Replace(_constContextMenu, cm);
 
             sourceContent = sourceContent.Replace(_constIsLoadData, IsLoadData.ToString().ToLower());
@@ -905,9 +1301,28 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             {
                 if (existItemMenu) cm += ",";
                 cm += @"'item3': {'icon': '/styles/Delete.gif','label': '" + Resx.GetString("cmdDelete") + @"',
-                    'action': function () { cmdasync('cmd', 'Listener', 'ctrlId', " + TreeViewCmdListnerIndex +
-                      @", 'cmdName', 'DeleteTreeViewItem', 'Id', node.id, 'Name', v4_GetTextNode(node.id), 'Type', node.original.type); }
+                        'action': function () { cmdasync('cmd', 'Listener', 'ctrlId', " + TreeViewCmdListnerIndex +
+                        @", 'cmdName', 'DeleteTreeViewItem', 'Id', node.id, 'Name', v4_GetTextNode(node.id), 'Type', node.original.type); }
                 }";
+            }
+
+            if (ContextMenuCustom && HasUpdate)
+            {
+                int itemNum = 4;
+
+                foreach (List<string> customCmd in _customCmdFunc)
+                {
+                    itemNum++;
+                    if (existItemMenu) cm += ",";
+                    {
+                        var actionFuncBody = _customCmdFuncOnClient
+                            ? customCmd[1]
+                            : "cmdasync('cmd', '" + customCmd[1] + "', 'Id', node.id);";
+
+                        cm += "'item"+ itemNum + "': {'icon': '/styles/" + customCmd[2] + "','label': '" + customCmd[0] + "','action': function() {" + actionFuncBody + "}}";
+                        existItemMenu = true;
+                    }
+                }
             }
 
             cm += string.Format(
@@ -936,7 +1351,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
 
             if (IsOrderMenu)
             {
-                sourceContent = sourceContent.Replace(_constCtrlOrderText, Resx.GetString("Cfi_lblSortBy") + ":");
+                sourceContent = sourceContent.Replace(_constCtrlOrderText, "<b>&nbsp;" + Resx.GetString("Cfi_lblSortBy") + ":</b>");
                 using (TextWriter currentSortTextWriter = new StringWriter())
                 {
                     var currentWriter = new HtmlTextWriter(currentSortTextWriter);
@@ -1018,16 +1433,16 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                     : "$('#btnSearch_{0}').show(); $('#divMenuTreeView_{0}').show();", ID);
             sourceContent = sourceContent.Replace(_constCtrlSearchStyle, "display: none;");
             var closebutton = string.Format(@"
-                <div onclick="" {0}; v4_HideSearchTreeView('{1}'); "" style=""display: inline-block; float: left; margin-right: 11px; width: 25px; height: 20px; text-align: center;"" class=""ui-button ui-widget ui-state-default ui-corner-all ui-button-text-icon-primary"">
+                <div onclick="" {0}; v4_HideSearchTreeView('{1}', '{2}'); "" style=""display: inline-block; float: left; margin-right: 11px; width: 25px; height: 20px; text-align: center;"" class=""ui-button ui-widget ui-state-default ui-corner-all ui-button-text-icon-primary"">
                 <span class=""ui-button-icon-primary ui-icon ui-icon-close""></span>
                 <span class=""ui-button-text""></span>
                 </div>
-            ", menu, ID);
+            ", menu, ID, TreeViewCmdListnerIndex);
 
             sourceContent = sourceContent.Replace(_constCtrlSearchCloseButton, closebutton);
 
             sourceContent = sourceContent.Replace(_constFiltered, Resx.GetString("lblFiltered"));
-            sourceContent = sourceContent.Replace(_constFilterHeaderName, Resx.GetString("Cfi_lblName"));
+            sourceContent = sourceContent.Replace(_constFilterHeaderName, NodeName);
 
             sourceContent = sourceContent.Replace(_constPageId, V4Page.IDPage);
 
@@ -1063,6 +1478,18 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
             else
                 sourceContent = sourceContent.Replace(_constCtrlSearchButton, "");
 
+            if (ShowFilterOptions)
+                using (TextWriter currentExtSearchButtonTextWriter = new StringWriter())
+                {
+                    var currentWriter = new HtmlTextWriter(currentExtSearchButtonTextWriter);
+                    _currentBtnExtSearch.RenderControl(currentWriter);
+                    sourceContent = sourceContent.Replace(_constCtrlExtSearchButton, currentExtSearchButtonTextWriter.ToString());
+                }
+            else
+            {
+                sourceContent = sourceContent.Replace(_constCtrlExtSearchButton, "");
+            }
+
             using (TextWriter menuButtonsTextWriter = new StringWriter())
             {
                 var writer = new HtmlTextWriter(menuButtonsTextWriter);
@@ -1095,6 +1522,12 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
                 }
             else
                 sourceContent = sourceContent.Replace(_constCtrlLikeButton, "");
+
+
+            if (AddContentVisible && (HasUpdate || HasInsert || HasDelete))
+                sourceContent = sourceContent.Replace(_constAddContent, AdditionalContentText);
+            else
+                sourceContent = sourceContent.Replace(_constAddContent, "");
 
             sourceContent =
                 sourceContent.Replace(_constCtrlSearchShowTop, ShowTopNodesInSearchResult.ToString().ToLower());
@@ -1145,6 +1578,7 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         private const string _constCtrlSearchRadio = "[C_SEARCHRADIO]";
         private const string _constCtrlSearchTextBox = "[C_SEARCHTEXTBOX]";
         private const string _constCtrlSearchButton = "[C_SEARCHBUTTON]";
+        private const string _constCtrlExtSearchButton = "[C_EXTSEARCHBUTTON]";
         private const string _constCtrlSearchCloseButton = "[C_SEARCHCLOSEBUTTON]";
         private const string _constCtrlSearchShowTop = "[C_SEARCHSHOWTOP]";
         private const string _constFiltered = "[FILTERED]";
@@ -1152,6 +1586,8 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         private const string _constCtrlFindButton = "[C_FINDBUTTON]";
         private const string _constCtrlHelpButton = "[C_HELPBUTTON]";
         private const string _constCtrlLikeButton = "[C_LIKEBUTTON]";
+        private const string _constAddContent = "[C_ADDCONTENT]";
+        
         private const string _constMenuButtons = "[C_MENUBUTTONS]";
         private const string _constPageId = "[PAGEID]";
 
@@ -1166,6 +1602,573 @@ namespace Kesco.Lib.Web.Controls.V4.TreeView
         private string _addCmdFuncName = "";
         private string _editCmdFuncName = "";
         private string _deleteCmdFuncName = "";
+        private List<List<string>> _customCmdFunc = new List<List<string>>();
+        private bool _customCmdFuncOnClient = false;
+        #endregion
+
+        #region AdvSearch
+        /// <summary>
+        ///     Установка источника данных на основании переданных параметров
+        /// </summary>
+        public void SetAdvSearchDataSource(DataTable dt)
+        {
+            Settings = new TreeViewSettings(dt, ID, TreeViewCmdListnerIndex, V4Page)
+            {
+                IsFilterEnable = ShowFilterOptions
+            };
+            SetColumnHeaderAlias();
+        }
+
+        /// <summary>
+        ///     Установка алиасов названий колонок
+        /// </summary>
+        public void SetColumnHeaderAlias()
+        {
+            if (ColumnsHeaderAlias == null) return;
+            foreach (var field in ColumnsHeaderAlias) Settings.SetColumnHeaderAlias(field.Key, field.Value);
+        }
+
+        public void SetColumnAdvSearchName(List<string> fields)
+        {
+            ColumnAdvSearchList = fields;
+        }
+
+        public void SetColumnNotNullSearch(List<string> fields)
+        {
+            ColumnNotNullSearchList = fields;
+        }
+
+        /// <summary>
+        /// Список колонок, по которым не будет осуществляться поиск по нескольким словам 
+        /// </summary>
+        /// <param name="fields"></param>
+        public void SetColumnNotSplitWhenFilter(List<string> fields)
+        {
+            ColumnNotSplitWhenFilter = fields;
+        }
+
+        public void RenderAdvancedSearchSettings(bool isHideFilterDialog = false)
+        {
+            var w = new StringWriter();
+            var m = new StringWriter();
+            var f = new StringWriter();
+            var t = new StringWriter();
+            var s = new StringWriter();
+
+            if (Settings.IsFilterEnable)
+            {
+                V4Page.JS.Write(@"tv_clientLocalization = {{
+                ok_button:""{0}"",
+                cancel_button:""{1}"" ,
+                empty_filter_value:""{2}"" 
+            }};",
+                    Resx.GetString("cmdApply"),
+                    Resx.GetString("cmdCancel"),
+                    Resx.GetString("msgEmptyFilterValue")
+                );
+
+                V4Page.JS.Write(
+                    "$('#divColumnSettingsForm_ClearUserFilter_{0}').html('');$('#divColumnSettingsForm_ClearUserFilter_{0}').hide();",
+                    Settings.TreeViewId);
+            }
+
+            if (Settings.TableColumns.Exists(x => x.FilterUser != null) || !Settings.FilterClause.IsNullEmptyOrZero() || (Settings.AddTableColumns != null && Settings.AddTableColumns.Exists(x => x.FilterUser != null)))
+            {
+                w = new StringWriter();
+                RenderClearFilterBlock(w);
+                V4Page.JS.Write(
+                    "$('#divColumnSettingsForm_ClearUserFilter_{0}').html('{1}');$('#divColumnSettingsForm_ClearUserFilter_{0}').show();",
+                    Settings.TreeViewId,
+                    HttpUtility.JavaScriptStringEncode(w.ToString()));
+            }
+            else
+            {
+                V4Page.JS.Write(
+                    "$('#divColumnSettingsForm_ClearUserFilter_{0}').html('');$('#divColumnSettingsForm_ClearUserFilter_{0}').hide();",
+                    Settings.TreeViewId);
+            }
+
+            var iFilterCount = 0;
+            w = new StringWriter();
+            for (var c = 0; c < Settings.TableColumns.Count; c++)
+            {
+                var col = Settings.TableColumns[c];
+                if (ColumnAdvSearchList == null || !ColumnAdvSearchList.Contains(col.FieldName))
+                {
+                    if (c == 0) col.RenderStartUserFilterBlock(w);
+                    if (DbSourceSettings.FieldValuesList != null && DbSourceSettings.FieldValuesList.ContainsKey(col.FieldName))
+                    {
+                        col.RenderUserFilterBlock(w, DbSourceSettings.FieldValuesList[col.FieldName]);
+                        col.RenderTextUserFilterBlock(f, iFilterCount, DbSourceSettings.FieldValuesList[col.FieldName]);
+                        col.RenderTextUserFilterBlock(t, iFilterCount, DbSourceSettings.FieldValuesList[col.FieldName], false);
+                        if (col.FilterUser != null) iFilterCount++;
+                    }
+                    else
+                    {
+                        col.RenderUserFilterBlock(w);
+                        col.RenderTextUserFilterBlock(f, iFilterCount);
+                        col.RenderTextUserFilterBlock(t, iFilterCount, null, false);
+                        if (col.FilterUser != null) iFilterCount++;
+                    }
+
+                    if (c == Settings.TableColumns.Count - 1 && Settings.AddTableColumns == null) col.RenderEndUserFilterBlock(w);
+                    {
+                        m.Write(
+                            "$('#v4_userFilterMenu_{0}_{2}').menu({{select: function(event, ui) {{v4_openUserAdvSearchFilterForm(ui.item, {1});}}}});",
+                            Settings.TreeViewId, Settings.TreeViewCmdListnerIndex, col.Id);
+                    }
+                }
+            }
+
+            if (Settings.AddTableColumns != null)
+            for (var c = 0; c < Settings.AddTableColumns.Count; c++)
+            {
+                var col = Settings.AddTableColumns[c];
+                if (ColumnAdvSearchList == null || !ColumnAdvSearchList.Contains(col.FieldName))
+                {
+                    if (DbSourceSettings.FieldValuesList != null && DbSourceSettings.FieldValuesList.ContainsKey(col.FieldName))
+                    {
+                        col.RenderUserFilterBlock(w, DbSourceSettings.FieldValuesList[col.FieldName]);
+                        col.RenderTextUserFilterBlock(f, iFilterCount, DbSourceSettings.FieldValuesList[col.FieldName]);
+                        col.RenderTextUserFilterBlock(t, iFilterCount, DbSourceSettings.FieldValuesList[col.FieldName], false);
+                        if (col.FilterUser != null) iFilterCount++;
+                    }
+                    else
+                    {
+                        col.RenderUserFilterBlock(w);
+                        col.RenderTextUserFilterBlock(f, iFilterCount);
+                        col.RenderTextUserFilterBlock(t, iFilterCount, null, false);
+                        if (col.FilterUser != null) iFilterCount++;
+                    }
+
+                    if (c == Settings.AddTableColumns.Count - 1) col.RenderEndUserFilterBlock(w);
+                    {
+                        m.Write(
+                            "$('#v4_userFilterMenu_{0}_{2}').menu({{select: function(event, ui) {{v4_openUserAdvSearchFilterForm(ui.item, {1});}}}});",
+                            Settings.TreeViewId, Settings.TreeViewCmdListnerIndex, col.Id);
+                    }
+                }
+            }
+
+            V4Page.JS.Write("$('#divColumnSettingsForm_UserFilter_{0}').html('{1}'); $('#divColumnSettingsForm_UserFilter_{0}').show();",
+                Settings.TreeViewId,
+                HttpUtility.JavaScriptStringEncode(w.ToString()));
+
+            V4Page.JS.Write(m.ToString());
+
+            if (isHideFilterDialog == false)
+            {
+                V4Page.JS.Write("v4_advancedSearchForm(\"{0}\",\"{1}\", 'btnExtSearch_{0}', \"{2}\");",
+                    ID,
+                    TreeViewCmdListnerIndex,
+                    HttpUtility.JavaScriptStringEncode(string.Format("{0}",
+                        V4Page.Resx.GetString("lblSettingFilter"))));
+
+                FillUniqueClause();
+
+                RenderValuesFilterBlock(f, iFilterCount);
+
+                V4Page.JS.Write("$('#divAdvancedSearchForm_Filter_{0}').html('{1}');", ID,
+                    (f.ToString().IsNullEmptyOrZero())
+                        ? ""
+                        : Resx.GetString("lblSetFilter") + ": " + HttpUtility.JavaScriptStringEncode(f.ToString()));
+
+            }
+
+            if (AddFilterUser != null && Settings.IsFilterEnable)
+            {
+                w = new StringWriter();
+                RenderValuesBlock(w);
+                RenderValuesBlock(s, false);
+                if (isHideFilterDialog == false)
+                    V4Page.JS.Write("$('#divColumnSettingsForm_Values_{0}').html('{1}');", Settings.TreeViewId, HttpUtility.JavaScriptStringEncode(w.ToString()));
+            }
+
+            if (isHideFilterDialog)
+            {
+                var title = t.ToString().IsNullEmptyOrZero() ? "" : Resx.GetString("lblSetFilter") + ": " + t;
+                if (!s.ToString().IsNullEmptyOrZero()) title += s;
+
+                if (!title.IsNullEmptyOrZero())
+                {
+                    V4Page.JS.Write("$('#iconExtFilter_{0}').attr('title', '{1}');", ID, title);
+                }
+
+                V4Page.JS.Write("$('#iconExtFilterOff_{0}').attr('title', '{1}');", ID, Resx.GetString("lblRemoveAllInstalledFilters"));
+                V4Page.JS.Write("$('#iconExtFilterLook_{0}').attr('title', '{1}');", ID, Resx.GetString("lblOpenSearchResultsSeparateWindow"));
+            }
+
+            V4Page.JS.Write("$('#btnUAdvSearch_Apply_{0}').focus();", ID);
+        }
+
+        /// <summary>
+        ///     Получение списка уникальных условий
+        /// </summary>
+        public void FillUniqueClause()
+        {
+            var sqlParams = new Dictionary<string, object> { { "@ТипУсловия", ConditionName } };
+            var dtLocal = DBManager.GetData(SQLQueries.SELECT_ДополнительныеФильтрыПоиска, Config.DS_user, CommandType.Text, sqlParams);
+
+            if (dtLocal.Rows.Count > 0)
+            {
+                AddFilterUser = new List<TreeViewAddUserFilter>();
+
+                AddFilterUser = (from DataRow row in dtLocal.Rows
+                    select new TreeViewAddUserFilter
+                    {
+                        FilterId = row["КодУсловия"].ToString(),
+                        FilterName = row["Условие"].ToString(),
+                        FilterSQL = row["Запрос"].ToString()
+                    }).ToList();
+            }
+        }
+
+        /// <summary>
+        ///     Формирование контролов выбора уникальных значений колонки
+        /// </summary>
+        /// <param name="w"></param>
+        private void RenderValuesBlock(TextWriter w, bool isHtml = true)
+        {
+            if (AddFilterUser.Count == 0) return;
+
+            if (isHtml)
+                w.Write("<div class=\"v4DivTable\" >");
+                      
+            var valueInFilter = false;
+            var checkState = "";
+            var iFilter = 1;
+            foreach (var item in AddFilterUser)
+            {
+                if (Settings.FilterClause != null)
+                    valueInFilter = Settings.FilterClause.Split(',').Contains(item.FilterId);
+
+                if (isHtml)
+                {
+                    checkState = valueInFilter ? "checked" : "";
+                    w.Write("<div class=\"v4DivTableRow\">");
+                    w.Write("<div class=\"v4DivTableCell v4PaddingCell\">");
+                    w.Write(
+                        "<input type='checkbox' class=\"classValueCheckBox\" {0} data-id=\"{1}\" onclick='cmdasync(\"cmd\", \"Listener\", \"ctrlId\", {2} ,\"cmdName\", \"ChangeAddFilterUser\", \"FilterId\", {1} )' >",
+                        checkState,
+                        item.FilterId,
+                        TreeViewCmdListnerIndex
+                        );
+                    w.Write("</div>");
+                    w.Write("<div class=\"v4DivTableCell v4PaddingCell\" style=\"text-align:left; white-space: nowrap;\">");
+
+                    w.Write(item.FilterName);
+
+                    w.Write("</div>");
+                    w.Write("</div>");
+                }
+                else
+                {
+                    if (valueInFilter)
+                    {
+                        if (iFilter > 1) w.Write(" и ");
+                        w.Write("["+item.FilterName+"]");
+                    }
+                }
+
+                iFilter++;
+            }
+
+            if (isHtml) w.Write("</div>");
+        }
+
+        /// <summary>
+        ///     Формирование контролов выбора уникальных значений колонки
+        /// </summary>
+        /// <param name="w"></param>
+        private void RenderValuesFilterBlock(TextWriter w, int filterNum)
+        {
+            if (AddFilterUser == null || AddFilterUser.Count == 0) return;
+
+            var valueInFilter = false;
+            var iFilter = 0;
+            foreach (var item in AddFilterUser)
+            {
+                if (Settings.FilterClause != null)
+                    valueInFilter = Settings.FilterClause.Split(',').Contains(item.FilterId);
+
+                if (valueInFilter)
+                {
+                    if (iFilter == 0) w.Write("<div class=\"v4DivTable\" >");
+
+                    w.Write("<div class=\"v4DivTableRow\">");
+                    w.Write("<div class=\"v4DivTableCell v4PaddingCell\">");
+                    w.Write(filterNum > 0 ? " и" : "");
+                    w.Write("</div>");
+                    w.Write(
+                        "<div class=\"v4DivTableCell v4PaddingCell\" style=\"text-align:left; white-space: nowrap;\">");
+                    w.Write("[" + item.FilterName + "]");
+                    w.Write("</div>");
+                    w.Write("</div>");
+                    iFilter++;
+                    filterNum++;
+                }
+            }
+            if (iFilter > 0) w.Write("</div>");
+        }
+
+        /// <summary>
+        ///     Создание пользовательского фильтра
+        /// </summary>
+        /// <param name="columnId"></param>
+        /// <param name="filterId"></param>
+        private void SetFilterColumnByUser(string columnId, string filterId)
+        {
+            var clmn = Settings.TableColumns.FirstOrDefault(x => x.Id == columnId);
+            if (clmn == null && Settings.AddTableColumns != null)
+                clmn = Settings.AddTableColumns.FirstOrDefault(x => x.Id == columnId);
+
+            if (clmn == null)
+            {
+                V4Page.ShowMessage(Resx.GetString("msgErrorIdColumnFound"), Resx.GetString("alertError"),
+                    MessageStatus.Error);
+                return;
+            }
+
+            if (DbSourceSettings.FieldValuesList != null && DbSourceSettings.FieldValuesList.ContainsKey(clmn.FieldName))
+            {
+                clmn.FilterUser = new TreeViewColumnUserFilter
+                {
+                    FilterType = TreeViewColumnUserFilterEnum.Равно,
+                    FilterValue1 = filterId,
+                    FilterValue2 = null
+                };
+            }
+            else
+            {
+                var filter = (TreeViewColumnUserFilterEnum)int.Parse(filterId);
+                object objField1 = null;
+                object objField2 = null;
+
+                if (filter == TreeViewColumnUserFilterEnum.НеУказано || filter == TreeViewColumnUserFilterEnum.Указано)
+                {
+                    clmn.FilterUser = new TreeViewColumnUserFilter { FilterType = filter };
+                }
+                else
+                {
+                    objField1 = GetFilterUserControlValue(clmn, clmn.FilterUserCtrlBaseName + "_" + ID + "_1");
+                    if (filter == TreeViewColumnUserFilterEnum.Между)
+                        objField2 = GetFilterUserControlValue(clmn, clmn.FilterUserCtrlBaseName + "_" + ID + "_2");
+                }
+
+                clmn.FilterUser = new TreeViewColumnUserFilter
+                {
+                    FilterType = filter,
+                    FilterValue1 = objField1,
+                    FilterValue2 = objField2
+                };
+            }
+
+        }
+
+        /// <summary>
+        ///     Получение значений установленных фильтров
+        /// </summary>
+        /// <param name="clmn"></param>
+        /// <param name="ctrlName"></param>
+        /// <returns></returns>
+        private object GetFilterUserControlValue(TreeViewColumn clmn, string ctrlName)
+        {
+            object value = null;
+            if (!V4Page.V4Controls.ContainsKey(ctrlName)) return value;
+
+            var ctrl = V4Page.V4Controls[ctrlName];
+            if (ctrl is DatePicker)
+            {
+                value = ((DatePicker)ctrl).ValueDate;
+            }
+            else if (ctrl is Number)
+            {
+                if (clmn.ColumnType == TreeViewColumnTypeEnum.Int)
+                {
+                    value = ((Number)ctrl).ValueInt;
+                }
+                else
+                {
+                    if (clmn.ColumnType == TreeViewColumnTypeEnum.Double)
+                    {
+                        var valueDecimal = ((Number)ctrl).ValueDecimal;
+                        if (valueDecimal != null) value = (double)valueDecimal;
+                    }
+                    else
+                    {
+                        value = ((Number)ctrl).ValueDecimal;
+                    }
+                }
+            }
+            else
+            {
+                value = ctrl.Value;
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        ///     Удаление установленных значений фильтров
+        /// </summary>
+        /// <param name="columnId"></param>
+        private void ClearFilterColumnValues(string columnId)
+        {
+            var clmn = Settings.TableColumns.FirstOrDefault(x => x.Id == columnId);
+            if (clmn == null && Settings.AddTableColumns != null)
+                clmn = Settings.AddTableColumns.FirstOrDefault(x => x.Id == columnId);
+
+            if (clmn == null)
+            {
+                V4Page.ShowMessage(Resx.GetString("msgErrorIdColumn"), Resx.GetString("alertError"),
+                    MessageStatus.Error);
+                return;
+            }
+
+            ClearFilterColumnValue(clmn, true);
+        }
+
+        /// <summary>
+        ///     Удаление установленного значения фильтра в соответствии со значением по умолчанию
+        /// </summary>
+        private void ClearFilterColumnValue(TreeViewColumn clmn, bool OnlyOneFilterDelete = false)
+        {
+            if (clmn.DefaultValue == null || IsDeleteDefaultFilter || OnlyOneFilterDelete)
+            {
+                clmn.FilterUser = null;
+            }
+            else
+            {
+                var filterType = TreeViewColumnUserFilterEnum.Равно;
+                var filterValue = clmn.DefaultValue;
+
+                if (clmn.ColumnType == TreeViewColumnTypeEnum.Boolean)
+                {
+                    filterType = (int)filterValue == 0
+                        ? TreeViewColumnUserFilterEnum.Нет
+                        : TreeViewColumnUserFilterEnum.Да;
+                    filterValue = null;
+                }
+
+                clmn.FilterUser = new TreeViewColumnUserFilter
+                {
+                    FilterType = filterType,
+                    FilterValue1 = filterValue,
+                    FilterValue2 = null
+                };
+            }
+        }
+
+        /// <summary>
+        ///     Удаление установленных значений фильтров
+        /// </summary>
+        private void ClearAllFilterColumnValues(bool onlyDefaultFilter = true)
+        {
+            foreach (var clmn in Settings.TableColumns)
+            {
+                ClearFilterColumnValue(clmn, !onlyDefaultFilter);
+            }
+
+            if (Settings.AddTableColumns != null)
+            foreach (var clmn in Settings.AddTableColumns)
+            {
+                ClearFilterColumnValue(clmn, !onlyDefaultFilter);
+            }
+
+            Settings.FilterClause = "";
+        }
+
+        /// <summary>
+        ///     Удаление установленных значений фильтров и оригинальных значений для очистки фильтра
+        /// </summary>
+        private void ClearAllFilterColumnValuesAndRefresh()
+        {
+            ClearAllFilterColumnValues();
+
+            foreach (var clmn in Settings.TableColumns)
+            {
+                clmn.FilterUserOriginal = clmn.FilterUser;
+            }
+
+            if (Settings.AddTableColumns != null)
+                foreach (var clmn in Settings.AddTableColumns)
+                {
+                    clmn.FilterUserOriginal = clmn.FilterUser;
+                }
+
+            Settings.FilterClauseOriginal = "";
+
+        }
+
+        /// <summary>Адрес грузополучателя
+        ///     Установка фильтра по выбранному значению
+        /// </summary>
+        private void SetFilterByColumnValues(string searchText, string searchParam)
+        {
+            if (OffTreeNodeFieldMap != null)
+            {
+                OffTreeNodeFieldMap.Condition = null;
+                var clmn = Settings.TableColumns.FirstOrDefault(d => d.FilterUser != null && d.FieldName == OffTreeNodeFieldMap.FieldName1);
+                if (clmn != null)
+                {
+                    OffTreeNodeFieldMap.Condition = clmn.FilterUser.FilterType == TreeViewColumnUserFilterEnum.Да;
+                }
+            }
+
+            JS.Write("v4_reloadSearchNode('{0}','{1}','{2}');", ID, searchText, searchParam);
+            if (searchParam != "clearfilter")
+            {
+                JS.Write("$('#divExtFilter_{0}').attr('style', 'display: inline-block; vertical-align: middle; white-space:nowrap;');", ID);
+
+                if (!IsSearchResultInOtherWindow)
+                    JS.Write("$('#iconExtFilterLook_{0}').attr('style', 'display: none; cursor: pointer;');", ID);
+
+                JS.Write("$('#iconExtFilter_{0}').attr('onclick', 'v4_ShowExtSearchTreeView({1})');", ID, Settings.TreeViewCmdListnerIndex);
+                JS.Write("$(\"#iconExtFilterOff_{0}\").attr(\"onclick\", \"v4_clearAllAdvSearchColumnValuesAndRefresh({1}, '{0}')\");", ID, Settings.TreeViewCmdListnerIndex);
+                JS.Write("$(\"#iconExtFilterLook_{0}\").attr(\"onclick\", \"tv_dialogShow_{0}()\");", ID);
+            }
+
+            JS.Write("v4_treeViewHandleResize('{0}');", ID);
+            RenderAdvancedSearchSettings(true);
+
+        }
+
+        /// <summary>
+        ///     Отрисовка кнопки отмены фильтрации
+        /// </summary>
+        /// <param name="w"></param>
+        private void RenderClearFilterBlock(TextWriter w)
+        {
+            w.Write("<div class=\"v4DivTable\">");
+
+            w.Write("<div class=\"v4DivTableRow\">");
+
+            w.Write(
+                "<div class=\"v4DivTableCell v4PaddingCell\">");
+
+            w.Write(
+                "<span class=\"ui-icon ui-icon-delete\" tabindex=\"0\" onkeydown=\"v4_element_keydown(event, this);\" style=\"display: inline-block;cursor:pointer\" onclick=\"v4_clearAllAdvSearchColumnValues({0}, '{1}');\"></span>",
+                Settings.TreeViewCmdListnerIndex, ID );
+
+            w.Write(
+                "</div><div class=\"v4DivTableCell\" tabindex=\"0\" onkeydown=\"v4_element_keydown(event, this);\" style=\"text-align:left;\"><a onclick=\"v4_clearAllAdvSearchColumnValues({0}, '{1}');\"><nobr>{2}</nobr></a></div>",
+                Settings.TreeViewCmdListnerIndex, ID, Resx.GetString("lblDeleteAllFilter"));
+            w.Write("</div>");
+            w.Write("</div>");
+            w.Write("</div>");
+        }
+
+        public void CloseDialogForm(string tvDialogId, string tvDialogIdp)
+        {
+            KescoHub.SendMessage(new SignalMessage
+            {
+                PageId = V4Page.IDPage,
+                ItemId = V4Page.ItemId.ToString(),
+                ItemName = V4Page.ItemName,
+                IsV4Script = true,
+                Message = $"<js>v4_tv_Records_Close('{tvDialogId}', '{tvDialogIdp}');</js>"
+            }, SignaRReceiveClientsMessageEnum.Self);
+        }
 
         #endregion
     }

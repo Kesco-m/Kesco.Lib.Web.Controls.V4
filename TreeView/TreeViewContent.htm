@@ -1,24 +1,23 @@
 ﻿<div id="divTreeViewContainer_[CID]" сlass="v4TreeViewContainer">
-    <div id="divTreeViewHeader_[CID]">
-        <div id="divMenuTreeView_[CID]" class="v4divButtonHeader" style="border-left: 0px; border-top: 0px; [MENUSTYLE]; min-width: 300px;">
-            <div class="predicate_menu_block" style="overflow: auto;">
-                <b>&nbsp;[ORDERTEXT]</b> [ORDERBUTTON][C_SEARCHBUTTON][C_MENUBUTTONS][C_HELPBUTTON][C_LIKEBUTTON]
+    <div id="divTreeViewHeader_[CID]" class="v4divButtonHeader" style="border-left: 0px; border-top: 0px;">
+        <div id="divMenuTreeView_[CID]" style="border-left: 0px; border-top: 0px; [MENUSTYLE]; min-width: 300px;">
+            <div class="predicate_menu_block" style="overflow: auto; padding: 1px;">
+                [ORDERTEXT] [ORDERBUTTON]
+                <div style="display: inline-block; margin-top: 1px">
+                    <div style="display: inline-block;">[C_EXTSEARCHBUTTON]</div>
+                    <div style="display: inline-block;">
+                        <div id="divExtFilter_[CID]" style="display: none; vertical-align: middle; white-space:nowrap;">
+                            <span id="iconExtFilter_[CID]" tabindex="0" class="ui-icon ui-icon-volume-off" onkeydown="v4_element_keydown(event, this);" style="display: inline-block; cursor: pointer;" border="0"></span>
+                            <span id="iconExtFilterOff_[CID]" tabindex="0" class="ui-icon ui-icon-delete" onkeydown="v4_element_keydown(event, this);" style="display: inline-block; cursor: pointer;" border="0"></span>
+                            <span id="iconExtFilterLook_[CID]" tabindex="0" class="ui-icon ui-icon-search" onkeydown="v4_element_keydown(event, this);" style="display: inline-block; cursor: pointer;" border="0"></span>
+                        </div>
+                    </div>
+                </div>
+                [C_MENUBUTTONS][C_HELPBUTTON][C_LIKEBUTTON]
             </div>
         </div>
-        <div id="divSearchTreeView_[CID]" class="v4divButtonHeader" style="border-left: 0px; border-top: 0px; min-width: 300px; [SEARCHSTYLE]">
-            <div style="overflow: hidden; padding-top: 0.5px; width: 100%;">
-                [C_SEARCHCLOSEBUTTON]
-                <div style="display: inline-block;">
-                    <b>&nbsp;[C_FILTERNAME]&nbsp;</b>
-                </div>
-                <div style="display: inline-block;">[C_SEARCHRADIO]</div>
-                <div style="display: inline-block;">
-                    <div style="display: inline-block;">&nbsp;[C_SEARCHTEXTBOX]</div>
-                    <div style="display: inline-block;">&nbsp;[C_FINDBUTTON]</div>
-                </div>
-                <div style="margin-left: 4px;" id="divSearchCount_[CID]"></div>
-            </div>
-        </div>
+        <div style="margin-left: 4px;" id="divSearchCount_[CID]"></div>
+        <div id="divMenuAddContentTreeView_[CID]">[C_ADDCONTENT]</div>
     </div>
     <div id="divTreeView_[CID]" class="v4Treeview"></div>
     <div id="divBottomMenuTreeView_[CID]" class="v4divButtonHeader" style="border-left: 0px; border-top: 0px; [BOTTOMMENUSTYLE] min-width: 300px;">
@@ -39,6 +38,51 @@
             <td>[C_NAME]</td>
         </tr>
     </table>
+</div>
+
+<div id="divAdvancedSearchForm_[CID]" style="display: none;">
+    <table border="0" width="100%">
+        <tr>
+            <td valign="top">
+                <div id="divColumnSettingsForm_ClearUserFilter_[CID]" style="margin-bottom: 5px;"></div>
+                <div id="divColumnSettingsForm_UserFilter_[CID]" style="margin-bottom: 10px;"></div>
+                <div id="divAdvancedSearchForm_FieldList_[CID]" style="margin-bottom: 5px;"></div>
+            </td>
+            <td valign="top">
+                <div id="divAdvancedSearchForm_Body_[CID]"></div>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <div id="divColumnSettingsForm_Values_[CID]"></div>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <hr class="v4HrPopup" style="width: 100%" />
+                <div id="divAdvancedSearchForm_Filter_[CID]" style="margin-bottom: 5px;"></div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<div id="divColumnSettingsUserFilterForm_[CID]" style="display: none;">
+    <div id="divColumnSettingsUserFilterForm_Header_[CID]"></div>
+    <hr class="v4HrPopup" />
+    <div id="divColumnSettingsUserFilterForm_Body_[CID]" style="margin-bottom: 10px;"></div>
+</div>
+
+
+<div id="divSearchResultForm_[CID]" style="display: none; padding: 2px 0 0 0;">
+    <div class="v4DivTable" id="divSearchResultProgressBar_[CID]" style="display: none; height: 100%; position: absolute; width: 100%;">
+        <div class="v4DivTableRow">
+            <div class="v4DivTableCell">
+                <img src="/styles/ProgressBar.gif" /><br />Пожалуйста, подождите...
+            </div>
+        </div>
+    </div>
+    <div id="divSearchResult_[CID]" style="overflow: auto; width: 99%; height: 400px;">
+    </div>
 </div>
 
 <script type="text/javascript">
@@ -67,7 +111,7 @@
                 message2: "[MSG2]",
                 message3: "[MSG3]",
                 pluginCheckBox: "[PL_CHECKBOX]",
-                is_Draggable: "[PL_DND]",
+                isDraggable: [PL_DND],
                 behaviorCheckBox: [BH_CHECKBOX],
                 filtered: "[FILTERED]",
                 pageId: "[PAGEID]",
@@ -77,6 +121,7 @@
             };
 
         v4_treeViewInit(ctrlId);
+
     });
 
     $("#tbSearchText_[CID]_0").keydown(function(event) {
@@ -87,5 +132,46 @@
 
     [FUNC_MENU]
         [C_RESIZABLE];
+
+
+    tv_dialogShow_[CID].form = null;
+    function tv_dialogShow_[CID]() {
+        var idContainer = "divSearchResultForm_[CID]";
+        if (null == tv_dialogShow_[CID].form) {
+            var title = "Результаты поиска";
+            var width = 710;
+            var height = 150;
+            var onOpen = function () { v4_openSearchResultForm_[CID](); };
+            var onClose = function () { v4_closeSearchResultForm_[CID](); };
+            var buttons = [
+                {
+                    id: "btn_CancelSearchResultForm_[CID]",
+                    text: "Закрыть",
+                    icons: {
+                        primary: v4_buttonIcons.Cancel
+                    },
+                    width: 75,
+                    click: v4_closeSearchResultForm_[CID]
+                }
+            ];
+            tv_dialogShow_[CID].form = v4_dialog(idContainer, $("#" + idContainer), title, width, height, onOpen, onClose, buttons);
+        }
+
+        $("#divAddress").dialog("option", "title", title);
+        tv_dialogShow_[CID].form.dialog("open");
+    }
+
+    function v4_closeSearchResultForm_[CID]() {
+        if (null != tv_dialogShow_[CID].form) {
+            tv_dialogShow_[CID].form.dialog("close");
+            tv_dialogShow_[CID].form = null;
+        }
+    }
+
+    function v4_openSearchResultForm_[CID]() {
+        if (null != tv_dialogShow_[CID].form) {
+
+        }
+    }
 
 </script>

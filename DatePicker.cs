@@ -466,7 +466,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
 
             if (PropertyChanged.Contains("ListChanged"))
             {
-                JS.Write("gi('" + ID + "HeadControl').innerHTML = '{0}';",
+                JS.Write("if(gi('" + ID + "HeadControl')) gi('" + ID + "HeadControl').innerHTML = '{0}';",
                     _list.Find(x => x.Code == ValueDatePickerEnum).Name);
                 if (ValueDatePickerEnum == ((int) DatePickerEnum.Interval).ToString(CultureInfo.InvariantCulture))
                 {

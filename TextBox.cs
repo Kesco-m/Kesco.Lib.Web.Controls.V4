@@ -226,7 +226,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
             if (IsReadOnly)
             {
                 //Недопустимо устанавливать текст всего элемента, т.к. он может содержать вложенный элемент div _ntf
-                w.Write("<span>" + HttpUtility.HtmlEncode(Value) + "</span>");
+                w.Write("<span style='{0}'>" + HttpUtility.HtmlEncode(Value) + "</span>", Style);
             }
             else
             {
@@ -246,11 +246,13 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
                     w.Write(" nc='{0}'", GetHtmlIdNextControl());
 
                 w.Write(" isRequired={0}", IsRequired ? 1 : 0);
-                w.Write(" onkeydown=\"return v4t_keyDown(event);");
+                w.Write(" onkeydown=\"v4t_keyDown(event);");
                 if (IsRequired)
                     w.Write("v4_replaceStyleRequired(this);");
                 w.Write("\"");
                 w.Write(" onkeyup=\"return v4t_keyUp(event);\"");
+                w.Write(" nm='{0}'", IsNoModifying);
+
                 w.Write(" onchange=\"v4_ctrlChanged('{0}', false);\"", HtmlID);
 
                 w.Write(" t='{0}' help='{1}' ov='{2}' nv='{3}'", HttpUtility.HtmlEncode(Value),
@@ -364,7 +366,7 @@ onkeydown=""var key=v4_getKeyCode(event); if((key == 13 || key == 32) && !v4s_is
 
             if (PropertyChanged.Contains("ListChanged"))
             {
-                JS.Write("gi('" + ID + "HeadControl').innerHTML = '{0}';",
+                JS.Write("if(gi('" + ID + "HeadControl')) gi('" + ID + "HeadControl').innerHTML = '{0}';",
                     _list.Find(x => x.Code == ValueTextBoxEnum).Name);
 
                 if (IsEditable())

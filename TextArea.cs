@@ -46,7 +46,10 @@ namespace Kesco.Lib.Web.Controls.V4
                     Height.IsEmpty ? "" : string.Concat("height:", Height.ToString(), ";"),
                     MaxLength > 0 ? string.Concat("maxlength='", MaxLength, "'") : string.Empty);
 
-                if (IsRequired) w.Write(" onkeyup='v4_replaceStyleRequired(this)'");
+                w.Write(IsRequired
+                    ? " onkeyup='v4_replaceStyleRequired(this); return v4t_keyUp(event);'"
+                    : " onkeyup=\"return v4t_keyUp(event);\"");
+
                 w.Write(" onkeydown='v4t_keyDown(event);'");
                 if (IsDisabled) w.Write(" disabled='true'");
 
@@ -58,12 +61,11 @@ namespace Kesco.Lib.Web.Controls.V4
                     w.Write(" nc='{0}'", GetHtmlIdNextControl());
                 if (TabIndex.HasValue)
                     w.Write(" TabIndex={0} ", TabIndex);
-                w.Write(" onchange=\"v4_ctrlChanged('{0}',true);\"", HtmlID);
-
-                if (IsRequired && Value.Length == 0) w.Write(" class='v4s_required'");
+                w.Write(" onchange=\"v4_ctrlChanged('{0}',false);\"", HtmlID);
+                if (IsRequired && string.IsNullOrEmpty(Value)) w.Write(" class='v4s_required'");
                 if (Title.Length > 0) w.Write(" title='{0}'", HttpUtility.HtmlEncode(Title));
                 if (Rows > 0) w.Write(" rows='{0}'", HttpUtility.HtmlEncode(Rows));
-                w.Write(" >{0}</textarea>", HttpUtility.HtmlEncode(Value));
+                w.Write(" >{0}</textarea>", string.IsNullOrEmpty(Value)?"":HttpUtility.HtmlEncode(Value));
             }
         }
 

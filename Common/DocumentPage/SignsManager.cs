@@ -72,7 +72,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 
             if (!_docPage.V4IsPostBack)
             {
-                RenderControlBeginContainer(w, ContainerSignFormId, false, "display:none;");
+                RenderControlBeginContainer(w, ContainerSignFormId, false, "style=\"display:none;\"");
 
                 RenderControlBeginContainer(w, ContainerSignFormWarning, "v4DivTable");
                 RenderControlBeginContainer(w, $"{ContainerSignFormWarning}_0", "v4DivTableRow");
@@ -95,7 +95,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 RenderControlEndContainer(w);
 
 
-                RenderControlBeginContainer(w, ContainerHtmlId, "");
+                RenderControlBeginContainer(w, ContainerHtmlId, "v4pageDocHeader");
             }
 
             RenderControlBeginContainer(w, $"{ContainerHtmlId}_Signs", "v4DivTable",
@@ -165,7 +165,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 RenderControlBeginContainer(w, $"{ContainerHtmlId}_link_0_1", "v4DivTableCell v4NoWrap",
                     "style=\"padding-left:5px;\"");
                 w.Write(
-                    "<a id=\"sign-final\" style=\"color: #6495ED\" href=\"javascript:void(0);\" onclick=\"v4_prepareSignDocument({0}, 1, {1}, '{2}','{3}','{4}','{5}','{6}','{7}');\">{8}</a>",
+                    "<a id=\"sign-final\" style=\"color: #6495ED\" onclick=\"v4_prepareSignDocument({0}, 1, {1}, '{2}','{3}','{4}','{5}','{6}','{7}');\">{8}</a>",
                     _docPage.CurrentUser.EmployeeId,
                     DocViewParams.SignMessageWorkDone ? 1 : 0,
                     HttpUtility.JavaScriptStringEncode(_docPage.Resx.GetString("msgFinishSign")),
@@ -182,7 +182,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 RenderControlBeginContainer(w, $"{ContainerHtmlId}_link_0_0", "v4DivTableCell v4NoWrap",
                     "style=\"padding-left:15px;\"");
                 w.Write(
-                    "<a id=\"sign-common\" style=\"color: blue\" href=\"javascript:void(0);\" onclick=\"v4_prepareSignDocument({0}, 0, 1,'','{1}','{2}','{3}','{4}','{5}');\">{6}</a>",
+                    "<a id=\"sign-common\" style=\"color: blue\" onclick=\"v4_prepareSignDocument({0}, 0, 1,'','{1}','{2}','{3}','{4}','{5}');\">{6}</a>",
                     _docPage.CurrentUser.EmployeeId,
                     HttpUtility.JavaScriptStringEncode(_docPage.Resx.GetString("msgSendMsg")),
                     HttpUtility.JavaScriptStringEncode(_docPage.Resx.GetString("DOCUMENT_Sign_Title")),
@@ -198,7 +198,14 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 RenderControlEndContainer(w);
             }
 
-            if (!_docPage.V4IsPostBack) RenderControlEndContainer(w);
+            RenderControlBeginContainer(w, "", false, "style=\"clear: both; line-height: 0; height: 0;\"");
+            w.Write("&nbsp;");
+            RenderControlEndContainer(w);
+
+            if (!_docPage.V4IsPostBack)
+            {
+                RenderControlEndContainer(w);
+            }
         }
 
         /// <summary>

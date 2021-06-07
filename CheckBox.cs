@@ -18,6 +18,8 @@ namespace Kesco.Lib.Web.Controls.V4
         /// </summary>
         public bool LabelFor { get; set; } = true;
 
+        public string OnClick { get; set; } = "";
+
         /// <summary>
         ///     Признак выбора чекбокса
         /// </summary>
@@ -48,8 +50,8 @@ namespace Kesco.Lib.Web.Controls.V4
         protected override void RenderControlBody(TextWriter w)
         {
             w.Write(
-                "<input type='checkbox' id='{0}_0' {1} ov='{2}' style='padding-bottom: 3px;' onclick=\"cmd('ctrl','{0}','v',(this.checked?'1':'0'),'ov', '{2}');\"",
-                HtmlID, Checked ? "checked" : "", OriginalValue);
+                "<input type='checkbox' id='{0}_0' {1} ov='{2}' style='padding-bottom: 3px;' onclick=\"{3} cmd('ctrl','{0}','v',(this.checked?'1':'0'),'ov', '{2}');\"",
+                HtmlID, Checked ? "checked" : "", OriginalValue, OnClick);
             if (IsReadOnly || IsDisabled)
                 w.Write(" disabled ");
             if (!string.IsNullOrEmpty(NextControl))
@@ -57,7 +59,7 @@ namespace Kesco.Lib.Web.Controls.V4
             if (TabIndex.HasValue)
                 w.Write(" TabIndex={0} ", TabIndex);
             w.Write(" onkeydown='v4cb_keyDown(event)'");
-            w.Write(" /><label {0}>{1}</label>", LabelFor ? string.Format("for=\"{0}_0\"", HtmlID) : "", Text);
+            w.Write(" /><label {0} style='display: inline-block; vertical-align:top; padding-left:3px;'>{1}</label>", LabelFor ? string.Format("for=\"{0}_0\"", HtmlID) : "", Text);
         }
     }
 }

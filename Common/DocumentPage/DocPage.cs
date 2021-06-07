@@ -75,6 +75,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         public Dictionary<V4Control, DocField> FieldsToControlsMapping = null;
 
         /// <summary>
+        /// Отрисовывать заголовок формы, если нет названия документа
+        /// </summary>
+        public bool IsRenderDocTitle { get; set; } = true;
+
+        /// <summary>
         ///     страница открыта в DocView
         /// </summary>
         public bool IsInDocView;
@@ -273,6 +278,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             }
             else
             {
+                if (Doc == null) return; //происходит редирект
+
                 Doc.Id = EntityId;
                 Doc.DocumentData.Id = EntityId;
 
@@ -335,7 +342,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 
 
                 ShowSaveButton = DocEditable;
-                ShowRefreshButton = !Doc.IsNew;
+                ShowRefreshButton = true;
 
                 IsEditable = DocEditable;
             }
@@ -436,6 +443,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         /// </summary>
         public string RenderDocumentHeader()
         {
+            if (Doc == null) return "";
+
             using (var w = new StringWriter())
             {
                 var titleText = GetPageTitle();
@@ -558,7 +567,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             var docType = GetDocType();
             if (!IsInDocView)
             {
-                if (!Doc.IsNew && !string.IsNullOrEmpty(Doc.DocumentName))
+                if (!string.IsNullOrEmpty(Doc.DocumentName))
                     _sb.Append(Doc.DocumentName);
                 else if (!string.IsNullOrEmpty(docType))
                     _sb.Append(docType);
@@ -644,13 +653,13 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 case "SaveButton":
                     ShowSaveData = param["ShowSaveData"] == "1";
                     SaveDocument();
-                    JS.Write("Wait.render(false);");
+                    RestoreCursor();
                     break;
                 // Сохранение документа
                 case "ApplyButton":
                     ShowSaveData = param["ShowSaveData"] == "1";
                     SaveDocument(false);
-                    JS.Write("Wait.render(false);");
+                    RestoreCursor();
                     break;
                 // Сохранение документа
                 case "SaveDocument":
@@ -682,7 +691,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                         AfterSave("", sendMessage, employeeInstead, false, false);
                     }
 
-                    JS.Write("Wait.render(false);");
+                    RestoreCursor();
                     break;
                 case "BeforeDocCopy":
                     if (Doc.CompareToChanges((Document) OriginalEntity))
@@ -693,6 +702,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                             "cmd('cmd', 'SaveAndCopy');", null, null);
                     else
                         CopyDoc();
+                    break;
+                case "DeleteEForm":
+                    Doc.DeleteEForm();
+                    V4DropWindow();
                     break;
                 // Копировать на основании текущего документа
                 case "SaveAndCopy":
@@ -718,17 +731,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                     RefreshDocument();
 
                     break;
-                case "RefreshNotificationDocument":
-                    RefreshNotificationDocument();
-                    break;
-                // Показать текущий документ в Архиве документов
-                case "ShowInDocView":
-                    if (IsKescoRun)
-                        ShowDocumentInDocview(param["DocId"], false, param["openImage"] == "1");
-                    else
-                        OpenDoc(param["DocId"], false, param["openImage"] == "1");
-                    break;
-
                 case "GenerateNumber":
                     SetGenerateNumber(param["gType"] == "1");
                     break;
@@ -906,7 +908,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 
             DocumentToControlsRestoreBind(field);
             Doc.DocumentData.Id = Doc.Id = EntityId;
-
+            
             clone.NumberBind = new BinderValue();
             clone.DescriptionBinder = new BinderValue();
             PrepareDocToCopy(clone);
@@ -914,7 +916,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             Cache["CopyDoc" + IDPage] = clone;
             var urlForCopy = V4Request.RawUrl.Substring(0, V4Request.RawUrl.IndexOf('?')) + "?CopyDoc=" + IDPage +
                              "&CopyId=" + Doc.Id;
-            JS.Write("v4_windowOpen('{0}');", urlForCopy);
+            JS.Write("Kesco.windowOpen('{0}', null, null, 'docCopy');", urlForCopy);
         }
 
         private string GetCurrentDocEditUrl(string url)
@@ -955,9 +957,13 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             if (!Doc.Unavailable && Doc.DocType != null && !Doc.DocType.Unavailable &&
                 !string.IsNullOrEmpty(Doc.DocType.URL)
                 && ShowEditButton && IsInDocView && !Doc.Signed)
-                btnEdit.OnClick = string.Format("v4_windowOpen('{0}');", GetCurrentDocEditUrl(Doc.DocType.URL));
+                btnEdit.OnClick = string.Format("Kesco.windowOpen('{0}', null, null, this);", GetCurrentDocEditUrl(Doc.DocType.URL));
             else
                 RemoveMenuButton(btnEdit);
+
+            var btnCancel = MenuButtons.Find(btn => btn.ID == "btnCancel");
+            RemoveMenuButton(btnCancel);
+
 
             var btnSave = MenuButtons.Find(btn => btn.ID == "btnSave");
             var btnApply = MenuButtons.Find(btn => btn.ID == "btnApply");
@@ -982,18 +988,19 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             }
 
             var btnRefresh = MenuButtons.Find(btn => btn.ID == "btnRefresh");
-            if (!ShowRefreshButton)
+            var btnRecheck = MenuButtons.Find(btn => btn.ID == "btnReCheck");
+
+            if (!ShowRefreshButton || Doc.IsNew)
                 RemoveMenuButton(btnRefresh);
 
+            if (btnRecheck != null)
+            {
+                if (!Doc.IsNew)
+                    RemoveMenuButton(btnRecheck);
+                else
+                    btnRecheck.OnClick = "cmdasync('cmd', 'RefreshNotification');";
 
-            //if (ShowRefreshButton)
-            //    btnRefresh.OnClick = "cmdasync('cmd', 'RefreshDoc');";
-            //else
-            //    RemoveMenuButton(btnRefresh);
-
-            var btnRecheck = MenuButtons.Find(btn => btn.ID == "btnReCheck");
-            btnRecheck.OnClick = "cmdasync('cmd', 'RefreshNotificationDocument');";
-
+            }
 
             if (ShowCopyButton && !Doc.IsNew && !Doc.Unavailable && !Doc.DataUnavailable)
             {
@@ -1010,63 +1017,43 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 
                 AddMenuButton(btnCopy);
             }
-        }
 
-        /// <summary>
-        ///     Открытие в архиве документов
-        /// </summary>
-        /// <param name="id">Id Текущего документа</param>
-        protected void ShowDocumentInDocview(string id, bool replicate, bool openImage)
-        {
-            if (string.IsNullOrEmpty(id))
-                return;
+            if (!Doc.IsNew && IsEditable)
+            {
 
-            JS.Write(DocViewInterop.OpenDocument(id, openImage, replicate));
-        }
+                var btnCopy = new Button
+                {
+                    ID = "btnDelete",
+                    V4Page = this,
+                    Text = Resx.GetString("cmdDelete"),
+                    Title = Resx.GetString("cmdDeleteEFormTooltip"),
+                    IconJQueryUI = ButtonIconsEnum.Delete,
+                    Width = 105,
+                    OnClick = $"if (confirm('{Resx.GetString("cmdDeleteEFormMsg")}')) cmdasync('cmd', 'DeleteEForm');"
+                };
 
-        //TODO: УДАЛИТЬ после перехода на KESCORUN
-        /// <summary>
-        ///     Открытие в архиве документов
-        /// </summary>
-        /// <param name="id">Id Текущего документа</param>
-        protected void OpenDoc(string id, bool replicate, bool openImage)
-        {
-            if (string.IsNullOrEmpty(id))
-                return;
-
-            var oDoc = Doc.Id == id ? Doc : new Document(id);
-
-            JS.Write("srv4js('OPENDOC','id={0}&newwindow=1{2}{1}',", id, replicate ? "&replicate=true" : "",
-                openImage ? "&imageid=-2" : "&imageid=0");
-            JS.Write("function(rez,obj){if(rez.error){");
-            if (!oDoc.Unavailable)
-                JS.Write(
-                    "window.open('{0}','_blank','status=no,toolbar=no,menubar=no,location=no,resizable=yes,scrollbars=yes');",
-                    oDoc.DocType.URL + (oDoc.DocType.URL.IndexOf("?", StringComparison.Ordinal) > 0 ? "&" : "?") +
-                    "id=" +
-                    id);
-            else
-                JS.Write("alert({0}+rez.errorMsg);",
-                    "Документ не имеет электронной формы.\nПросмотр изображения в архиве документов невозможен:\n");
-
-            JS.Write("}");
-            JS.Write("}");
-            JS.Write(",null);");
+                AddMenuButton(btnCopy);
+            }
         }
 
         /// <summary>
         ///     Сформировать заглавие для страницы документа
         /// </summary>
-        private void RenderDocTitle(StringWriter w, string titleText, bool createDiv = true)
+        private void RenderDocTitle(TextWriter w, string titleText, bool createDiv = true)
         {
-            if (createDiv) w.Write(@"<div id='divDocTitle' class=""v4PageDocHeader"">");
+            if (!IsRenderDocTitle && Doc != null && !string.IsNullOrEmpty(Doc.DocumentName))
+                return;
 
+            if (createDiv)
+                w.Write(@"<div id='divDocTitle' class='v4pageTitle'>");
+
+            
             if (!IsInDocView && !IsPrintVersion && !Doc.IsNew)
             {
                 var showImige = Doc.ImageCode > 0 ? "1" : "0";
                 w.Write(
-                    "<a href=\"javascript:void(0);\" onclick=\"cmdasync('cmd', 'ShowInDocView', 'DocId', {0},'openImage', {1});\" title=\"{2}\">",
-                    Doc.Id, showImige, Resx.GetString("cmdOpenDoc"));
+                    "<a onclick=\"cmdasync('cmd', 'ShowInDocView', 'DocId', {0},'openImage', {1});\" title=\"{2}\">",
+                    Doc.Id, showImige, Resx.GetString("cmdOpenDoc") + " #" + Doc.Id);
 
                 w.Write("<div class=\"v4DivTable\">");
                 w.Write("<div class=\"v4DivTableRow\">");
@@ -1078,7 +1065,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                     w.Write("</div>");
                 }
 
-                w.Write("<div class=\"v4DivTableCell v4PageTitle\" style=\"text-align:left;\">");
+                w.Write("<div class=\"v4DivTableCell v4pageTitle\" style=\"text-align:left;padding-left:0px !important;\">");
                 w.Write(titleText);
                 w.Write("</div>");
 
@@ -1088,7 +1075,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             }
             else
             {
-                w.Write("<span class=\"v4PageTitle\">" + titleText + "</span>");
+                w.Write( titleText );
             }
 
             if (createDiv) w.Write("</div>");
@@ -1105,8 +1092,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 
                 RenderDocTitle(w, titleText, false);
                 w.Write("<script>document.title = '{0}'</script>", titleText);
-                JS.Write("if (gi('divDocTitle')) gi('divDocTitle').innerHTML={0};",
-                    HttpUtility.JavaScriptStringEncode(w.ToString(), true));
+                JS.Write("$('#divDocTitle').html('{0}');", HttpUtility.JavaScriptStringEncode(w.ToString(), false));
             }
         }
 
@@ -1304,7 +1290,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             */
 
             var signed = SignType.Length > 0;
-          
+
             var dv = !IsInDocView;
             var ms = signed && SendMessage;
 
@@ -1381,7 +1367,6 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 msg);
 
             sParam.Clear();
-            
         }
 
         /// <summary>
@@ -1411,12 +1396,13 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             List<DBCommand> cmds = null;
             if (ShowSaveData) cmds = new List<DBCommand>();
 
-            Doc.Save(false, cmds);
+            Doc.Save(false, cmds);         
 
             var doc = Doc as IDocumentWithPositions;
             if (doc != null)
-                doc.SaveDocumentPositions(false, cmds);
-
+            {
+                doc.SaveDocumentPositions(true, cmds);                
+            }
             if (ShowSaveData)
             {
                 ShowMessage(GeterateTextFromSqlCmd(cmds), "SQL TRACE", MessageStatus.Information, "", 605, 605);
@@ -1781,6 +1767,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 if (!string.IsNullOrEmpty(Doc.DocType.URL))
                     url = Doc.DocType.URL + (Doc.DocType.URL.Contains("?") ? "&" : "?") + "id=" + Doc.Id;
                 var dNum = Doc.Number == null ? "" : Doc.Number.Trim();
+
+                //TODO: УДАЛЕН ConfirmNumber - переделать
+                //JS.Write("alert('УДАЛЕН ConfirmNumber');");
+
                 JS.Write("ConfirmNumber.render('\"" + HttpUtility.HtmlEncode(dNum) + "\" " +
                          Resx.GetString("msgConfirm1") + "<br/>" +
                          Resx.GetString("msgConfirm2") + " \"" + HttpUtility.HtmlEncode(dNum) + "\"?','" + signType +
@@ -1925,9 +1915,11 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         protected void StartRenderVariablePart(TextWriter w, int labelWidth, int fieldWidth, int fieldsetWidth,
             int fieldRows = 2, bool labelNoWrap = false)
         {
+            if (Doc == null) return;
+
             w.WriteLine("<div>{0}:</div>", Resx.GetString("lblDescription"));
-            w.WriteLine("<div class=\"ctlMargMain\">");
-            w.Write("<div class='predicate_block' style='vertical-align: top;'>");
+            w.WriteLine("<div>");
+            w.Write("<div style='vertical-align: top;'>");
 
             if (!DocEditable)
             {
@@ -1986,6 +1978,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             }
 
             w.Write("</div></div>");
+            w.Write("<div style=\"clear: both; line-height: 0; height: 0;\">&nbsp;</div>");
+
         }
 
         /// <summary>
@@ -2073,8 +2067,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
                 case "RefreshSigns":
                     break;
                 case "AddDocumentSign":
-                   cmd = preDocSigned != afterDocSigned ? "RefreshDoc" : "RefreshSigns";
-                   break;
+                    cmd = preDocSigned != afterDocSigned ? "RefreshDoc" : "RefreshSigns";
+                    break;
 
                 case "RemoveSign":
                     cmd = preDocSigned != afterDocSigned ? "RefreshDoc" : "RefreshSigns";
@@ -2360,18 +2354,10 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 
             _signsManager.RefreshControlDocSings();
 
-            if (DocEditable)
-            {
-                ShowSaveButton = true;
-                ShowRefreshButton = !Doc.IsNew;
-            }
-            else
-            {
-                ShowSaveButton = false;
-                ShowRefreshButton = true;
-            }
-
+            ShowSaveButton = DocEditable;
+            ShowRefreshButton = true;
             SetDocMenuButtons();
+
             // RefreshMenuButtons();
         }
 
@@ -2385,10 +2371,8 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             return true;
         }
 
-        /// <summary>
-        ///     Обновляет поля специфичные для данного документа(без полной перезагрузки страницы)
-        /// </summary>
-        protected virtual void RefreshNotificationDocument()
+        //Обновляет поля специфичные для данного документа(без полной перезагрузки страницы)
+        protected override void RefreshNotification()
         {
             ClearCacheObjects();
             // в блоке RefreshDoc уже получили актуальные подписи
@@ -2399,6 +2383,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             RefreshNtf();
             RefreshManualNotifications();
         }
+
 
         /// <summary>
         ///     Очистка загруженных внешних свойств объекта
@@ -2435,6 +2420,19 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
             doc.DocumentData.ChangeDate = DateTime.MinValue;
             //doc.Date = DateTime.MinValue;
             doc.DocSignsClear();
+
+            //TODO: Почему документы основания не должны копироваться  
+            if (doc.Type == DocTypeEnum.ТоварноТранспортнаяНакладная)
+            {
+                doc.RemoveAllBaseDocs(doc.GetDocField("707").DocFieldId);
+                doc.RemoveAllBaseDocs(doc.GetDocField("709").DocFieldId);
+                doc.RemoveAllBaseDocs(doc.GetDocField("708").DocFieldId);
+                doc.RemoveAllBaseDocs(doc.GetDocField("1598").DocFieldId);
+                doc.RemoveAllBaseDocs(doc.GetDocField("1707").DocFieldId);
+                doc.RemoveAllBaseDocs(doc.GetDocField("1632").DocFieldId);
+                doc.RemoveAllBaseDocs(doc.GetDocField("1579").DocFieldId);
+                doc.RemoveAllBaseDocs(doc.GetDocField("1631").DocFieldId);
+            }
         }
 
         /// <summary>
@@ -2446,7 +2444,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
         /// </remarks>
         protected virtual string GetHelpUrl()
         {
-            if (Doc.DocType != null)
+            if (Doc != null && Doc.DocType != null)
                 return Doc.DocType.HelpURL;
 
             return null;
@@ -2690,11 +2688,7 @@ namespace Kesco.Lib.Web.Controls.V4.Common.DocumentPage
 
             w.Write("<table cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"padding-top: 1px;\"><tr><td>");
             if (!DocEditable || IsPrintVersion) cb.IsDisabled = true;
-            //else
-            //{
-            //    w.Write("<img id=\"numberNotExistsInp\" style=\"margin-top:3px;\" TabIndex=\"4\" src=\"" + Global.PathImg + "CheckBoxEnabled{0}.gif\" onclick=\"NotExists_swap('numberNotExistsInp', 0);\" onkeypress=\"NotExists_swap('numberNotExistsInp', 0);\" />", 
-            //        NumberNotExists ? "Checked" : "Unchecked");
-            //}
+          
             cb.Changed += CbNumberNotExistsChanged;
             V4Controls.Add(cb);
             cb.RenderControl(w);

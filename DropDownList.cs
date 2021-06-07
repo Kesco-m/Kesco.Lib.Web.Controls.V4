@@ -89,13 +89,10 @@ namespace Kesco.Lib.Web.Controls.V4
 
             if (!IsReadOnly && !IsReadOnlyAlways) return;
 
-            JS.Write("$('#{0} :input').attr('readonly', true);", HtmlID);
-
             if (IsNoLimitList) return;
 
             JS.Write("$('#{0} :input').on('selectstart', false);", HtmlID);
             JS.Write("$('#{0} :input').on('mousedown', false);", HtmlID);
-            JS.Write("$('#{0} :input').css('cursor', 'default');", HtmlID);
         }
 
         public override void Flush()

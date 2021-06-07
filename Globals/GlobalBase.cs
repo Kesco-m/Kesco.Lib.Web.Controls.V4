@@ -13,6 +13,7 @@ namespace Kesco.Lib.Web.Controls.V4.Globals
     {
         public static string ToolTip = Config.contacts;
         public static string Caller = Config.contacts_caller;
+        public static bool Redirect = true;
 
         /// <summary>
         ///     Текущий домен приложения
@@ -53,6 +54,21 @@ namespace Kesco.Lib.Web.Controls.V4.Globals
         {
         }
 
+        private void AddOriginHeader()
+        {
+            var rq = HttpContext.Current?.Request;
+            if (rq == null) return;
+            var origin = rq.Headers["Origin"];
+                        
+            if (string.IsNullOrEmpty(origin))
+                HttpContext.Current?.Response?.AddHeader("Access-Control-Allow-Origin", "*");
+            else
+            {
+                HttpContext.Current?.Response?.AddHeader("Access-Control-Allow-Origin", origin);
+                HttpContext.Current?.Response?.AddHeader("Vary", "Origin");                 
+            }
+        }
+
 
         /// <summary>
         ///     Вызывается первым каждый раз при получении нового запроса от пользователя.
@@ -63,7 +79,7 @@ namespace Kesco.Lib.Web.Controls.V4.Globals
         /// <param name="e">Параметры</param>
         protected virtual void Application_BeginRequest(object sender, EventArgs e)
         {
-            HttpContext.Current?.Response?.AddHeader("Access-Control-Allow-Origin", "*");
+            AddOriginHeader();
             HttpContext.Current?.Response?.AddHeader("Access-Control-Allow-Credentials", "true");
 
             if (Request.Url.Host.IndexOf(Domain, StringComparison.Ordinal) != -1) return;
@@ -74,8 +90,12 @@ namespace Kesco.Lib.Web.Controls.V4.Globals
 
             if (authority == "localhost" || authority?.IndexOf(":", StringComparison.InvariantCulture) > -1)
                 authority = Server.MachineName;
-            uriBuilder.Host = authority + "." + Domain;
-            Response.Redirect(uriBuilder.Uri.ToString(), false);
+            
+            if (Redirect)
+            {
+                uriBuilder.Host = authority + "." + Domain;
+                Response.Redirect(uriBuilder.Uri.ToString(), false);
+            }
         }
 
         /// <summary>

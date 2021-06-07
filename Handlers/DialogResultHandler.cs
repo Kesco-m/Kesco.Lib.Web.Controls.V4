@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Reflection;
 using System.Web;
+using System.Web.Script.Serialization;
 using Kesco.Lib.Log;
 using Kesco.Lib.Web.Controls.V4.Common;
 using Kesco.Lib.Web.Settings;
@@ -22,10 +23,33 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
         /// <param name="context">Текущий контекст</param>
         public void ProcessRequest(HttpContext context)
         {
-            if (context.Request.Form["callbackKey"] == null && context.Request.QueryString["callbackKey"] == null)
-                ProcessRequestByProxyWindow(context);
+            var version = context.Request.Form["version"] ?? context.Request.QueryString["version"];
+
+            if (!string.IsNullOrEmpty(version))
+                ProcessRequestVersion(context);
             else
-                ProcessRequestByIdPage(context);
+            {
+                if (context.Request.Form["callbackKey"] == null && context.Request.QueryString["callbackKey"] == null)
+                    ProcessRequestByProxyWindow(context);
+                else
+                    ProcessRequestByIdPage(context);
+            }
+        }
+
+        private void ProcessRequestVersion(HttpContext context)
+        {
+            var rs = context.Response;
+
+            rs.StatusCode = 200;
+            rs.ContentType = "application/json";
+
+            var jsonSerialiser = new JavaScriptSerializer();
+            var json = jsonSerialiser.Serialize(Assembly.GetExecutingAssembly().GetName().Version);
+            rs.Write(json);
+            
+            rs.Flush();
+            rs.SuppressContent = true;
+            context.ApplicationInstance.CompleteRequest();
         }
 
         private void ProcessRequestByIdPage(HttpContext context)
@@ -35,7 +59,6 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
                           context.Request.Form["control"] ?? context.Request.QueryString["control"];
             var clientName = context.Request.Form["clientname"] ?? context.Request.QueryString["clientname"];
             var command = context.Request.Form["command"] ?? context.Request.QueryString["command"];
-
 
             //Реализуем принудительное закрытие signal-соединения.
             if (control == "window" && command == "pageclose")
@@ -158,13 +181,8 @@ namespace Kesco.Lib.Web.Controls.V4.Handlers
 
             context.Response.Write("<html>");
             context.Response.Write("<head>");
-            context.Response.Write(
-                string.Format(
-                    "<script src='/Styles/Kesco.V4/JS{0}/jquery-1.12.4.min.js' type='text/javascript'></script>",
-                    Config.versionV4js));
-            context.Response.Write(string.Format(
-                "<script src='/Styles/Kesco.V4/JS{0}/kesco.Dialog.js' type='text/javascript'></script>",
-                Config.versionV4js));
+            context.Response.Write($"<script src='{Config.styles_js}jquery-1.12.4.min.js' type='text/javascript'></script>");
+            context.Response.Write($"<script src='{Config.styles_js}kesco.Dialog.js' type='text/javascript'></script>");
 
             context.Response.Write(@"
 <script>
